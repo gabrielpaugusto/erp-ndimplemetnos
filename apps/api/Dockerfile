@@ -18,8 +18,8 @@ RUN pnpm install --frozen-lockfile
 # Copy source code
 COPY apps/api/ ./apps/api/
 
-# Generate Prisma client (caminho direto para evitar problemas de PATH no Docker)
-RUN node_modules/.bin/prisma generate --schema packages/db/prisma/schema.prisma
+# Generate Prisma client
+RUN npm install -g prisma@6.4.0 && prisma generate --schema packages/db/prisma/schema.prisma
 
 # Build NestJS
 RUN pnpm --filter @erp/api build
