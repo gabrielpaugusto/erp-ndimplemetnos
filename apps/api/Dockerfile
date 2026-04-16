@@ -41,7 +41,7 @@ COPY packages/ ./packages/
 # Install production dependencies only
 RUN pnpm install --frozen-lockfile --prod
 
-# Gera o cliente Prisma na imagem de produção
+# Instala Prisma CLI e gera o client
 RUN npm install -g prisma@6.4.0 && prisma generate --schema packages/db/prisma/schema.prisma
 
 # Copy built application
@@ -54,4 +54,5 @@ USER nestjs
 
 EXPOSE 3001
 
-CMD ["node", "apps/api/dist/main.js"]
+# Sincroniza o schema com o banco antes de iniciar a API
+CMD ["sh", "-c", "prisma db push --schema packages/db/prisma/schema.prisma --skip-generate && node apps/api/dist/main.js"]
