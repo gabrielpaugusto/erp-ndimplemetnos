@@ -1,0 +1,131 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:   # permite rodar manualmente pelo GitHub
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_API: ghcr.io/${{ github.repository_owner }}/erp-api
+  IMAGE_WEB: ghcr.io/${{ github.repository_owner }}/erp-web
+
+jobs:
+  # ============================================================
+  # JOB 1 — Build e publica imagens Docker no ghcr.io
+  # ============================================================
+  build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login no GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker meta — API
+        id: meta-api
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_API }}
+          tags: |
+            type=sha,prefix=,suffix=,format=short
+            type=raw,value=latest
+
+      - name: Docker meta — Web
+        id: meta-web
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_WEB }}
+          tags: |
+            type=sha,prefix=,suffix=,format=short
+            type=raw,value=latest
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build e Push — API
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          tags: ${{ steps.meta-api.outputs.tags }}
+          labels: ${{ steps.meta-api.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build e Push — Web
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          tags: ${{ steps.meta-web.outputs.tags }}
+          labels: ${{ steps.meta-web.outputs.labels }}
+          build-args: |
+            NEXT_OUTPUT=standalone
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ============================================================
+  # JOB 2 — Deploy no VPS via SSH
+  # ============================================================
+  deploy:
+    name: Deploy no Servidor
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (para pegar docker-compose.cloud.yml)
+        uses: actions/checkout@v4
+
+      - name: Copia docker-compose.cloud.yml para o servidor
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          source: docker-compose.cloud.yml,nginx/erp.conf
+          target: /opt/erp
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            set -e
+            cd /opt/erp
+
+            # Login no ghcr.io
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Exporta variáveis de imagem para o compose
+            export IMAGE_API=${{ env.IMAGE_API }}:latest
+            export IMAGE_WEB=${{ env.IMAGE_WEB }}:latest
+
+            # Baixa novas imagens
+            docker pull $IMAGE_API
+            docker pull $IMAGE_WEB
+
+            # Reinicia apenas os serviços de aplicação (DB/Redis/MinIO ficam intactos)
+            docker compose -f docker-compose.cloud.yml up -d --no-deps api web
+
+            # Remove imagens antigas (libera espaço)
+            docker image prune -f
+
+            echo "✅ Deploy concluído em $(date)"

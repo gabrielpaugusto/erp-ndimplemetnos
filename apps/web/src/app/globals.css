@@ -1,0 +1,101 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-slate-200;
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+  }
+
+  /* Email em minúsculo, senha sem transformação */
+  input[type="email"] {
+    text-transform: lowercase;
+  }
+  input[type="password"] {
+    text-transform: none;
+  }
+}
+
+/* Form input base style */
+@layer components {
+  .input {
+    @apply w-full px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white text-slate-900
+           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+           disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed
+           placeholder:text-slate-400;
+    /* Padronização: todos os inputs em maiúsculo */
+    text-transform: uppercase;
+  }
+
+  /* Exceções: email e senha não são maiúsculas */
+  input[type="email"].input {
+    text-transform: lowercase;
+  }
+  input[type="password"].input {
+    text-transform: none;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-400;
+}
+
+/* Dark scrollbar for sidebar */
+.dark-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-slate-600;
+}
+
+.dark-scrollbar::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-500;
+}
+
+/* ── Mobile / Touch Improvements ─────────────────────────────── */
+
+/* Remove delay de 300ms em toque em todos os elementos interativos */
+button, a, [role="button"], input, select, textarea, label {
+  touch-action: manipulation;
+}
+
+/* Evita highlight azul ao tocar no iOS/Android */
+button, a, [role="button"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Melhora scroll em iOS (momentum scroll) */
+.overflow-y-auto, .overflow-x-auto, main {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Evita zoom automático em inputs no iOS (font-size mínimo 16px) */
+@media (max-width: 768px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="search"],
+  input[type="password"],
+  input[type="date"],
+  input[type="month"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "erp-implementos",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ERP para Indústria de Carrocerias e Concessionária de Implementos Rodoviários",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "clean": "turbo clean",
+    "db:generate": "turbo db:generate",
+    "db:push": "turbo db:push",
+    "db:seed": "turbo db:seed",
+    "db:studio": "pnpm --filter @erp/db studio"
+  },
+  "devDependencies": {
+    "turbo": "^2.4.0",
+    "typescript": "^5.7.0"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

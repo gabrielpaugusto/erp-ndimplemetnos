@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "API",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "pnpm --filter @erp/api dev"],
+      "port": 3001
+    },
+    {
+      "name": "Web",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "pnpm --filter @erp/web dev"],
+      "port": 3000
+    }
+  ]
+}

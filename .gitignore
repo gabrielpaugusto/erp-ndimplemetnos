@@ -1,0 +1,60 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build
+dist/
+.next/
+out/
+build/
+
+# Environment files
+.env
+.env.development
+.env.production
+.env.local
+.env.*.local
+
+# Keep examples
+!.env.example
+!.env.production.example
+
+# Certificados digitais (A1 — nunca no Git)
+*.pfx
+*.p12
+certs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Turbo
+.turbo/
+
+# Prisma
+packages/db/prisma/*.db
+packages/db/prisma/migrations/
+
+# Database backups
+backups/
+*.sql
+
+# But track migrations
+!packages/db/prisma/migrations/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Coverage
+coverage/
+
+# Docker
+docker-data/

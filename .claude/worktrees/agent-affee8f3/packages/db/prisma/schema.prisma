@@ -1,0 +1,3832 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum TaxSystem {
+  ATUAL      // Sistema tributário atual (ICMS, ISS, PIS/COFINS, IPI)
+  NOVO       // Sistema novo pós-reforma (IBS, CBS, IS)
+  TRANSICAO  // Período de transição (2026-2032) — ambos coexistem
+}
+
+enum TaxRegime {
+  LUCRO_REAL
+  LUCRO_PRESUMIDO
+  SIMPLES_NACIONAL
+}
+
+enum PersonType {
+  PF  // Pessoa Física
+  PJ  // Pessoa Jurídica
+}
+
+enum PersonRole {
+  CLIENTE
+  FORNECEDOR
+  AMBOS
+  TRANSPORTADORA
+  FABRICANTE_OEM
+  ADMINISTRADORA_CONSORCIO
+  SEGURADORA
+  FINANCEIRA
+}
+
+enum CostCenterCode {
+  CC_IND  // Industrial
+  CC_COM  // Comercial
+  CC_OFI  // Oficina / Calderaria
+  CC_FI   // F&I (Financiamento, Consórcio, Seguro)
+  CC_ADM  // Administrativo
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+}
+
+enum Module {
+  // Industrial
+  ENGINEERING
+  PCP
+  PRODUCTION
+  QUALITY
+  // Comercial
+  CRM
+  SALES
+  FI
+  // Oficina
+  SERVICE_ORDER
+  CALDERARIA
+  REQUISITION
+  // Corporativo
+  FISCAL
+  ACCOUNTING
+  FINANCIAL
+  HR
+  PURCHASING
+  INVENTORY
+  // Sistema
+  AI_ASSISTANT
+  SETTINGS
+  DASHBOARD
+}
+
+enum PermissionAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  APPROVE
+  EXPORT
+  MANAGE  // Full access
+}
+
+enum ProductType {
+  PRODUTO_ACABADO      // Carroceria, implemento completo
+  MATERIA_PRIMA        // Aço, chapas, perfis
+  COMPONENTE           // Peça fabricada internamente
+  PECA_REPOSICAO       // Peça para manutenção/oficina
+  CONSUMIVEL           // Solda, tinta, parafusos
+  SERVICO              // Mão de obra, calibração
+}
+
+enum ProductOrigin {
+  NACIONAL_0           // 0 - Nacional
+  NACIONAL_3           // 3 - Nacional com conteúdo importado > 40%
+  NACIONAL_4           // 4 - Nacional PPB
+  NACIONAL_5           // 5 - Nacional com conteúdo importado < 40%
+  IMPORTADA_1          // 1 - Estrangeira importação direta
+  IMPORTADA_2          // 2 - Estrangeira adquirida mercado interno
+  IMPORTADA_6          // 6 - Estrangeira importação direta sem similar
+  IMPORTADA_7          // 7 - Estrangeira adquirida sem similar
+  IMPORTADA_8          // 8 - Nacional com conteúdo importado > 70%
+}
+
+enum UnitType {
+  UN    // Unidade
+  KG    // Quilograma
+  M     // Metro
+  M2    // Metro quadrado
+  M3    // Metro cúbico
+  L     // Litro
+  PC    // Peça
+  CJ    // Conjunto
+  HR    // Hora
+  SV    // Serviço
+  TON   // Tonelada
+  MM    // Milímetro
+  CM    // Centímetro
+}
+
+enum AddressType {
+  PRINCIPAL
+  COBRANCA
+  ENTREGA
+  CORRESPONDENCIA
+}
+
+enum ContactType {
+  TELEFONE
+  CELULAR
+  EMAIL
+  WHATSAPP
+}
+
+enum LeadStatus {
+  NOVO
+  QUALIFICADO
+  PROPOSTA
+  NEGOCIACAO
+  GANHO
+  PERDIDO
+}
+
+enum LeadSource {
+  INDICACAO
+  SITE
+  TELEFONE
+  VISITA
+  FEIRA
+  MARKETING
+  OUTROS
+}
+
+enum ActivityType {
+  LIGACAO
+  EMAIL
+  VISITA
+  REUNIAO
+  TAREFA
+  NOTA
+}
+
+enum SaleType {
+  ESTOQUE_PROPRIO    // Venda de estoque próprio da concessionária
+  VENDA_DIRETA       // Faturamento direto fábrica→cliente, comissão para concessionária
+  PRODUCAO_PROPRIA   // Fabricação sob encomenda → gera Ordem de Produção
+  VENDA_PECA         // Venda de peça avulsa do estoque
+  SERVICO_OFICINA    // Serviço de manutenção/reparo → gera Ordem de Serviço
+  FI_CONSORCIO       // Venda de consórcio → gera ConsortiumQuota
+  FI_FINANCIAMENTO   // Venda de financiamento → gera Financing
+  FI_SEGURO          // Venda de seguro → gera InsurancePolicy
+}
+
+enum SaleStatus {
+  RASCUNHO
+  PENDENTE_APROVACAO
+  APROVADO
+  FATURADO
+  ENTREGUE
+  CANCELADO
+}
+
+enum QuotationStatus {
+  RASCUNHO
+  ENVIADO
+  ACEITO
+  RECUSADO
+  EXPIRADO
+}
+
+// F&I Enums
+enum FinancingType {
+  FINAME           // BNDES/FINAME
+  CDC              // Crédito Direto ao Consumidor
+  LEASING          // Arrendamento mercantil
+  CONSORCIO        // Consórcio
+  DIRETO           // Financiamento direto com fabricante
+}
+
+enum FinancingStatus {
+  SIMULACAO
+  PROPOSTA_ENVIADA
+  EM_ANALISE
+  APROVADO
+  CONTRATADO
+  LIBERADO
+  RECUSADO
+  CANCELADO
+}
+
+enum ConsortiumStatus {
+  ATIVO
+  CONTEMPLADO
+  ENCERRADO
+  CANCELADO
+  TRANSFERIDO
+}
+
+enum InsuranceStatus {
+  COTACAO
+  PROPOSTA
+  VIGENTE
+  VENCIDO
+  SINISTRO
+  CANCELADO
+}
+
+enum InsuranceType {
+  RCFV              // Responsabilidade Civil Facultativa Veicular
+  CASCO             // Cobertura de casco (danos ao veículo)
+  TOTAL             // Cobertura total (casco + terceiros)
+  TRANSPORTE        // Seguro de transporte de carga (RCTR-C)
+  GARANTIA_ESTENDIDA // Garantia estendida
+}
+
+// Sprint 5 — PCP / Produção
+enum ProductionStrategy {
+  MTS   // Make to Stock
+  ATO   // Assemble to Order
+  MTO   // Make to Order
+}
+
+enum ProductionOrderStatus {
+  PLANEJADA
+  LIBERADA
+  EM_PRODUCAO
+  PAUSADA
+  CONCLUIDA
+  CANCELADA
+}
+
+enum ProductionOrderType {
+  NORMAL
+  RETRABALHO
+  PROTOTIPO
+}
+
+enum PointingType {
+  MAO_DE_OBRA
+  MATERIAL
+  SETUP
+  PARADA
+}
+
+enum WorkCenterType {
+  FABRICACAO
+  MONTAGEM
+  PINTURA
+  CALDERARIA
+  ACABAMENTO
+  INSPECAO
+}
+
+// Sprint 6 — Oficina / Calderaria / Requisições
+enum ServiceOrderStatus {
+  ABERTA
+  AGUARDANDO_PECAS
+  EM_EXECUCAO
+  AGUARDANDO_APROVACAO
+  CONCLUIDA
+  ENTREGUE
+  CANCELADA
+}
+
+enum ServiceOrderType {
+  MANUTENCAO
+  REFORMA
+  INSTALACAO
+  GARANTIA
+  ORCAMENTO
+}
+
+enum ServiceOrderPriority {
+  BAIXA
+  NORMAL
+  ALTA
+  URGENTE
+}
+
+enum RequisitionStatus {
+  RASCUNHO
+  SOLICITADA
+  APROVADA
+  SEPARADA
+  ENTREGUE
+  CANCELADA
+}
+
+enum RequisitionType {
+  INTERNA        // Indústria → Oficina (mesmo CNPJ, sem NF-e)
+  COMPRA         // Necessita compra via Purchasing
+  TRANSFERENCIA  // Transferência entre setores
+}
+
+enum CalderariaServiceType {
+  CORTE
+  DOBRA
+  SOLDA
+  CONFORMACAO
+  USINAGEM
+  TRATAMENTO_TERMICO
+  JATEAMENTO
+  MONTAGEM_ESTRUTURAL
+}
+
+// Sprint 8 — Contabilidade, Financeiro, RH
+enum AccountType {
+  ATIVO
+  PASSIVO
+  RECEITA
+  DESPESA
+  PATRIMONIO_LIQUIDO
+}
+
+enum AccountNature {
+  DEVEDORA
+  CREDORA
+}
+
+enum JournalEntryStatus {
+  RASCUNHO
+  LANCADO
+  ESTORNADO
+}
+
+enum FinancialMovementType {
+  RECEITA
+  DESPESA
+}
+
+enum FinancialMovementStatus {
+  PENDENTE
+  VENCIDO
+  PAGO
+  CANCELADO
+  RENEGOCIADO
+}
+
+enum PaymentMethod {
+  DINHEIRO
+  PIX
+  BOLETO
+  CARTAO_CREDITO
+  CARTAO_DEBITO
+  TRANSFERENCIA
+  CHEQUE
+  PROMISSORIA
+}
+
+enum BankTransactionType {
+  CREDITO
+  DEBITO
+  TRANSFERENCIA
+  APLICACAO
+  RESGATE
+}
+
+enum EmployeeStatus {
+  ATIVO
+  FERIAS
+  AFASTADO
+  DEMITIDO
+  APOSENTADO
+}
+
+enum ApontamentoRole {
+  OPERADOR
+  LIDER
+  MASTER
+}
+
+enum ApontamentoStatus {
+  EM_ANDAMENTO
+  PAUSADO
+  CONCLUIDO
+  CANCELADO
+}
+
+enum EtapaStatus {
+  PENDENTE
+  EM_EXECUCAO
+  CONCLUIDA
+  CANCELADA
+}
+
+enum FeriadoTipo {
+  FERIADO
+  FERIAS_COLETIVAS
+  PONTO_FACULTATIVO
+}
+
+enum PayrollType {
+  MENSAL
+  FERIAS
+  DECIMO_TERCEIRO
+  RESCISAO
+  ADIANTAMENTO
+}
+
+enum PayrollStatus {
+  RASCUNHO
+  CALCULADA
+  APROVADA
+  PAGA
+  CANCELADA
+}
+
+enum BenefitType {
+  VALE_TRANSPORTE
+  VALE_REFEICAO
+  VALE_ALIMENTACAO
+  PLANO_SAUDE
+  PLANO_ODONTOLOGICO
+  SEGURO_VIDA
+  CESTA_BASICA
+}
+
+// Sprint 9 — Compras e Estoque
+enum PurchaseRequestStatus {
+  RASCUNHO
+  SOLICITADA
+  APROVADA
+  COTADA
+  PEDIDA
+  RECEBIDA
+  CANCELADA
+}
+
+enum PurchaseOrderStatus {
+  RASCUNHO
+  ENVIADA
+  CONFIRMADA
+  PARCIAL_RECEBIDA
+  RECEBIDA
+  CANCELADA
+}
+
+enum SupplierQuotationStatus {
+  PENDENTE
+  RECEBIDA
+  APROVADA
+  REJEITADA
+  EXPIRADA
+}
+
+enum StockMovementType {
+  ENTRADA
+  SAIDA
+  TRANSFERENCIA
+  AJUSTE_POSITIVO
+  AJUSTE_NEGATIVO
+  CONSUMO_INTERNO
+  DEVOLUCAO
+}
+
+enum StockMovementSource {
+  COMPRA
+  VENDA
+  PRODUCAO
+  REQUISICAO
+  INVENTARIO
+  AJUSTE
+  DEVOLUCAO_CLIENTE
+  DEVOLUCAO_FORNECEDOR
+}
+
+enum InventoryStatus {
+  PLANEJADO
+  EM_ANDAMENTO
+  CONCLUIDO
+  CANCELADO
+}
+
+// Sprint 10 — IA / Portal do Cliente / Notificações
+enum AiConversationStatus {
+  ATIVA
+  ARQUIVADA
+}
+
+enum AiMessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum AiToolType {
+  QUERY_DATA
+  GENERATE_REPORT
+  ANALYZE_FINANCIAL
+  ANALYZE_STOCK
+  ANALYZE_PRODUCTION
+  SEARCH_DOCUMENTS
+}
+
+enum PortalAccessLevel {
+  VISUALIZAR
+  INTERAGIR
+  COMPLETO
+}
+
+enum PortalTicketStatus {
+  ABERTO
+  EM_ANDAMENTO
+  RESPONDIDO
+  FECHADO
+}
+
+enum PortalTicketPriority {
+  BAIXA
+  MEDIA
+  ALTA
+  URGENTE
+}
+
+enum NotificationType {
+  INFO
+  ALERTA
+  ERRO
+  SUCESSO
+  LEMBRETE
+}
+
+// Sprint 10+ — Fluxo de Compras Integrado
+enum NFeInboxStatus {
+  PENDENTE
+  MANIFESTADA
+  VINCULADA
+  LANCADA
+  REJEITADA
+  DEVOLVIDA
+}
+
+enum ManifestacaoType {
+  CIENCIA_OPERACAO
+  CONFIRMACAO_OPERACAO
+  DESCONHECIMENTO_OPERACAO
+  OPERACAO_NAO_REALIZADA
+}
+
+enum TipoFrete {
+  CIF                  // Por conta do remetente
+  FOB                  // Por conta do destinatário
+  TERCEIROS
+  PROPRIO_REMETENTE
+  PROPRIO_DESTINATARIO
+  SEM_FRETE
+}
+
+enum CteStatus {
+  REGISTRADO        // Lançado manualmente ou via XML
+  MANIFESTADO       // Ciência/Confirmação enviada à SEFAZ
+  ESCRITURADO       // Lançado nos livros fiscais
+  CANCELADO         // Cancelado pela transportadora
+}
+
+enum CteModalidade {
+  RODOVIARIO
+  AEREO
+  AQUAVIARIO
+  FERROVIARIO
+  DUTOVIARIO
+  MULTIMODAL
+}
+
+enum CteManifestacao {
+  CIENCIA
+  CONFIRMACAO
+  DESCONHECIMENTO
+  NAO_REALIZADO
+}
+
+enum ReceiptStatus {
+  PENDENTE
+  EM_CONFERENCIA
+  APROVADO
+  DIVERGENCIA
+  DEVOLVIDO
+}
+
+// ============================================================================
+// EMPRESA (CNPJ ÚNICO)
+// ============================================================================
+
+model Company {
+  id                  String    @id @default(cuid())
+  cnpj                String    @unique @db.VarChar(14)
+  razaoSocial         String    @db.VarChar(200)
+  nomeFantasia        String?   @db.VarChar(200)
+  inscricaoEstadual   String?   @db.VarChar(20)
+  inscricaoMunicipal  String?   @db.VarChar(20)
+
+  // Endereço
+  logradouro          String?   @db.VarChar(200)
+  numero              String?   @db.VarChar(10)
+  complemento         String?   @db.VarChar(100)
+  bairro              String?   @db.VarChar(100)
+  codigoMunicipioIbge String?   @db.VarChar(7)
+  municipio           String?   @db.VarChar(100)
+  uf                  String?   @db.VarChar(2)
+  cep                 String?   @db.VarChar(8)
+
+  // Contato
+  telefone            String?   @db.VarChar(20)
+  email               String?   @db.VarChar(200)
+
+  // Fiscal
+  taxRegime           TaxRegime @default(LUCRO_REAL)
+  cnaePrincipal       String?   @db.VarChar(10) // 2920-4/01
+
+  // Certificado Digital
+  certDigitalBase64   String?   @db.Text // A1 — armazenado criptografado
+  certDigitalSenha    String?   @db.VarChar(500) // criptografada (base64 de dado criptografado)
+  certDigitalValidade DateTime?
+  certDigitalConteudo Bytes?    // .pfx file content, encrypted
+  certDigitalCn       String?   // Common Name (CN) from certificate
+
+  // Ambientes por módulo fiscal (1=produção, 2=homologação)
+  ambienteSefaz       Int       @default(2) // legado / padrão global
+  ambienteNfe         Int       @default(2) // NF-e
+  ambienteNfce        Int       @default(2) // NFC-e
+  ambienteNfse        Int       @default(2) // NFS-e
+  ambienteSped        Int       @default(2) // SPED Fiscal / EFD
+  ambienteEsocial     Int       @default(2) // e-Social
+  ambienteReinf       Int       @default(2) // REINF
+  ambienteDctfweb     Int       @default(2) // DCTFWeb
+
+  // NF-e config
+  serieNfe            Int       @default(1)
+  serieNfce           Int       @default(1)
+  proximoNumeroNfe    Int       @default(1)
+  proximoNumeroNfce   Int       @default(1)
+
+  // Metadata
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Relations
+  cnaes               CompanyCnae[]
+  costCenters         CostCenter[]
+  users               User[]
+  taxRegimeConfigs    TaxRegimeConfig[]
+  persons             Person[]
+  products            Product[]
+  leads               Lead[]
+  quotations          Quotation[]
+  saleOrders          SaleOrder[]
+  financings          Financing[]
+  consortiumQuotas    ConsortiumQuota[]
+  insurancePolicies   InsurancePolicy[]
+
+  // PCP / Produção
+  workCenters           WorkCenter[]
+  billsOfMaterial       BillOfMaterial[]
+  productionRoutings    ProductionRouting[]
+  productionOrders      ProductionOrder[]
+  productionPointings   ProductionPointing[]
+
+  // Oficina / Calderaria / Requisições
+  serviceOrders         ServiceOrder[]
+  calderariaOrders      CalderariaOrder[]
+  requisitions          Requisition[]
+
+  // Fiscal (Sprint 7)
+  nfeDocuments          NFeDocument[]
+  fiscalEntries         FiscalEntry[]
+  fiscalApuracoes       FiscalApuracao[]
+  taxRules              TaxRule[]
+
+  // Contabilidade / Financeiro / RH (Sprint 8)
+  chartOfAccounts       ChartOfAccount[]
+  journalEntries        JournalEntry[]
+  bankAccounts          BankAccount[]
+  financialMovements    FinancialMovement[]
+  bankTransactions      BankTransaction[]
+  cashFlows             CashFlow[]
+  employees             Employee[]
+  payrolls              Payroll[]
+
+  // Compras / Estoque (Sprint 9)
+  purchaseRequests      PurchaseRequest[]
+  purchaseOrders        PurchaseOrder[]
+  supplierQuotations    SupplierQuotation[]
+  stockLocations        StockLocation[]
+  stockBalances         StockBalance[]
+  stockMovements        StockMovement[]
+  inventories           Inventory[]
+
+  // DRE
+  dreApuracoes          DreApuracao[]
+
+  // Fluxo de Compras Integrado
+  productSuppliers      ProductSupplier[]
+  nfeInbox              NFeInbox[]
+  purchaseReceipts      PurchaseReceipt[]
+  cteDocuments          CteDocument[]
+
+  // Apontamentos Produtivos (Sprint 11)
+  jornadasTrabalho      JornadaTrabalho[]
+  feriadosCalendario    FeriadoCalendario[]
+  apontamentos          Apontamento[]
+
+  // IA / Portal / Notificações (Sprint 10)
+  aiConversations       AiConversation[]
+  aiInsights            AiInsight[]
+  aiToolExecutions      AiToolExecution[]
+  portalUsers           PortalUser[]
+  portalTickets         PortalTicket[]
+  portalDocuments       PortalDocument[]
+  notifications         Notification[]
+
+  // Government Transmission
+  governmentTransmissionLogs GovernmentTransmissionLog[]
+
+  @@map("companies")
+}
+
+model CompanyCnae {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+  cnae      String  @db.VarChar(10)
+  descricao String? @db.VarChar(300)
+  principal Boolean @default(false)
+
+  @@unique([companyId, cnae])
+  @@map("company_cnaes")
+}
+
+// ============================================================================
+// CENTROS DE CUSTO
+// ============================================================================
+
+model CostCenter {
+  id          String         @id @default(cuid())
+  companyId   String
+  company     Company        @relation(fields: [companyId], references: [id])
+  code        CostCenterCode
+  name        String         @db.VarChar(100)
+  description String?        @db.VarChar(300)
+  active      Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  // Sprint 8 relations
+  journalEntryItems   JournalEntryItem[]
+  financialMovements  FinancialMovement[]
+  employees           Employee[]
+
+  @@unique([companyId, code])
+  @@map("cost_centers")
+}
+
+// ============================================================================
+// CONFIGURAÇÃO REGIME TRIBUTÁRIO (REFORMA TRIBUTÁRIA)
+// ============================================================================
+
+model TaxRegimeConfig {
+  id                    String    @id @default(cuid())
+  companyId             String
+  company               Company   @relation(fields: [companyId], references: [id])
+
+  // Vigência
+  vigenciaInicio        DateTime
+  vigenciaFim           DateTime?
+
+  // Sistema ativo
+  taxSystem             TaxSystem
+
+  // Proporções na transição (2026-2033)
+  anoReferencia         Int?      // 2026, 2027, ..., 2033
+  percentualIcms        Decimal?  @db.Decimal(5, 2) // 100% → 0%
+  percentualIbs         Decimal?  @db.Decimal(5, 2) // 0% → 100%
+  percentualPisCofins   Decimal?  @db.Decimal(5, 2) // 100% → 0%
+  percentualCbs         Decimal?  @db.Decimal(5, 2) // 0% → 100%
+
+  // Flags
+  cbsAtiva              Boolean   @default(false)
+  ibsAtiva              Boolean   @default(false)
+  isAtivo               Boolean   @default(false) // Imposto Seletivo
+  splitPaymentAtivo     Boolean   @default(false)
+  pisCofinsAtiva        Boolean   @default(true)
+  icmsAtivo             Boolean   @default(true)
+  ipiAtivo              Boolean   @default(true)
+  issAtivo              Boolean   @default(true)
+
+  // Metadata
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("tax_regime_configs")
+}
+
+// ============================================================================
+// USUÁRIOS, ROLES E PERMISSÕES
+// ============================================================================
+
+model User {
+  id              String     @id @default(cuid())
+  companyId       String
+  company         Company    @relation(fields: [companyId], references: [id])
+
+  email           String     @unique @db.VarChar(200)
+  passwordHash    String     @db.VarChar(200)
+  name            String     @db.VarChar(200)
+  cpf             String?    @unique @db.VarChar(11)
+
+  status          UserStatus @default(ACTIVE)
+  lastLoginAt     DateTime?
+  failedAttempts  Int        @default(0)
+  lockedUntil     DateTime?
+
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  // Relations
+  roles           UserRole[]
+  refreshTokens   RefreshToken[]
+  auditLogs       AuditLog[]
+  leads               Lead[]         @relation("LeadVendedor")
+  activities          LeadActivity[] @relation("ActivityUser")
+  quotationsVendedor  Quotation[]    @relation("QuotationVendedor")
+  saleOrdersVendedor  SaleOrder[]    @relation("SaleOrderVendedor")
+  productionPointings ProductionPointing[]
+
+  // Oficina / Calderaria / Requisições
+  serviceOrdersResponsavel    ServiceOrder[]    @relation("ServiceOrderResponsavel")
+  calderariaOrdersResponsavel CalderariaOrder[] @relation("CalderariaOrderResponsavel")
+  requisitionsSolicitante     Requisition[]     @relation("RequisitionSolicitante")
+  requisitionsAprovador       Requisition[]     @relation("RequisitionAprovador")
+
+  // Contabilidade / RH (Sprint 8)
+  journalEntries              JournalEntry[]
+  employees                   Employee[]        @relation("EmployeeUser")
+
+  // Compras / Estoque (Sprint 9)
+  purchaseRequestsSolicitante PurchaseRequest[] @relation("PurchaseRequestSolicitante")
+  purchaseRequestsAprovador   PurchaseRequest[] @relation("PurchaseRequestAprovador")
+  stockMovements              StockMovement[]   @relation("StockMovementUser")
+  inventoriesResponsavel      Inventory[]       @relation("InventoryResponsavel")
+
+  // Fluxo de Compras Integrado
+  purchaseReceiptsResponsavel PurchaseReceipt[] @relation("PurchaseReceiptResponsavel")
+
+  // IA / Portal / Notificações (Sprint 10)
+  aiConversations             AiConversation[]
+  aiInsights                  AiInsight[]
+  portalTicketsAssigned       PortalTicket[]    @relation("PortalTicketAssigned")
+  portalTicketMessages        PortalTicketMessage[] @relation("PortalTicketMessageUser")
+  notifications               Notification[]
+
+  @@map("users")
+}
+
+model Role {
+  id          String       @id @default(cuid())
+  name        String       @unique @db.VarChar(100)
+  description String?      @db.VarChar(300)
+  isSystem    Boolean      @default(false) // Roles do sistema não podem ser deletadas
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleId String
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  module      Module
+  action      PermissionAction
+  description String?          @db.VarChar(300)
+
+  // Relations
+  roles       RolePermission[]
+
+  @@unique([module, action])
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String     @id @default(cuid())
+  roleId       String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique @db.VarChar(500)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  revokedAt DateTime?
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ============================================================================
+// AUDITORIA
+// ============================================================================
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  module     Module
+  action     String   @db.VarChar(50)
+  entityType String   @db.VarChar(100)
+  entityId   String?  @db.VarChar(100)
+  oldData    Json?
+  newData    Json?
+  ipAddress  String?  @db.VarChar(50)
+  userAgent  String?  @db.VarChar(500)
+  createdAt  DateTime @default(now())
+
+  @@index([module, createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
+// ============================================================================
+// CADASTRO UNIFICADO DE PESSOAS
+// ============================================================================
+
+model Person {
+  id                  String       @id @default(cuid())
+  companyId           String
+  company             Company      @relation(fields: [companyId], references: [id])
+
+  type                PersonType   // PF ou PJ
+  roles               Json         @default("[]") // PersonRole[] — ex: ["CLIENTE", "FORNECEDOR"]
+
+  // Documentos
+  cpfCnpj             String       @db.VarChar(14) // CPF (11) ou CNPJ (14)
+  razaoSocial         String       @db.VarChar(200) // Nome completo (PF) ou Razão Social (PJ)
+  nomeFantasia        String?      @db.VarChar(200)
+  rgIe                String?      @db.VarChar(20)  // RG (PF) ou IE (PJ)
+  inscricaoMunicipal  String?      @db.VarChar(20)
+
+  // PJ específico
+  cnaePrincipal       String?      @db.VarChar(10)
+  suframa             String?      @db.VarChar(20)
+  taxRegime           TaxRegime?
+
+  // Config comercial
+  limiteCredito       Decimal?     @db.Decimal(15, 2)
+  condicaoPagamento   String?      @db.VarChar(100)  // ex: "30/60/90"
+  tabelaPreco         String?      @db.VarChar(50)
+  vendedorId          String?      // referência ao User vendedor responsável
+  comissaoPercent     Decimal?     @db.Decimal(5, 2)
+
+  // Observações
+  observacoes         String?      @db.Text
+
+  active              Boolean      @default(true)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  // Relations
+  addresses           PersonAddress[]
+  contacts            PersonContact[]
+  bankAccounts        PersonBankAccount[]
+  leads               Lead[]
+  quotations          Quotation[]
+  saleOrders          SaleOrder[]
+  saleOrdersFabricante SaleOrder[] @relation("SaleOrderFabricante")
+  financings              Financing[]
+  financingsFinanceira    Financing[]        @relation("FinancingFinanceira")
+  consortiumQuotas        ConsortiumQuota[]
+  consortiumAdministradora ConsortiumQuota[] @relation("ConsortiumAdministradora")
+  insurancePolicies       InsurancePolicy[]
+  insuranceSeguradora     InsurancePolicy[]  @relation("InsuranceSeguradora")
+
+  // Oficina
+  serviceOrders           ServiceOrder[]
+
+  // Fiscal (Sprint 7)
+  nfeDocuments            NFeDocument[]
+
+  // Financeiro / RH (Sprint 8)
+  financialMovements      FinancialMovement[]
+  employees               Employee[]
+
+  // Compras (Sprint 9)
+  purchaseOrders          PurchaseOrder[]     @relation("PurchaseOrderSupplier")
+  supplierQuotations      SupplierQuotation[] @relation("SupplierQuotationSupplier")
+
+  // Fluxo de Compras Integrado
+  productSuppliers        ProductSupplier[]   @relation("ProductSupplierPerson")
+  nfeInboxEmitente        NFeInbox[]          @relation("NFeInboxEmitente")
+  cteTransportadora       CteDocument[]       @relation("CteTransportadora")
+
+  // Portal (Sprint 10)
+  portalUsers             PortalUser[]
+  portalDocuments         PortalDocument[]
+
+  @@unique([companyId, cpfCnpj])
+  @@index([razaoSocial])
+  @@map("persons")
+}
+
+model PersonAddress {
+  id                  String      @id @default(cuid())
+  personId            String
+  person              Person      @relation(fields: [personId], references: [id], onDelete: Cascade)
+  type                AddressType @default(PRINCIPAL)
+  logradouro          String      @db.VarChar(200)
+  numero              String      @db.VarChar(10)
+  complemento         String?     @db.VarChar(100)
+  bairro              String      @db.VarChar(100)
+  codigoMunicipioIbge String      @db.VarChar(7)
+  municipio           String      @db.VarChar(100)
+  uf                  String      @db.VarChar(2)
+  cep                 String      @db.VarChar(8)
+  pais                String      @default("BR") @db.VarChar(5)
+  principal           Boolean     @default(false)
+
+  @@map("person_addresses")
+}
+
+model PersonContact {
+  id          String      @id @default(cuid())
+  personId    String
+  person      Person      @relation(fields: [personId], references: [id], onDelete: Cascade)
+  type        ContactType
+  value       String      @db.VarChar(200)
+  name        String?     @db.VarChar(200) // nome do contato (pessoa)
+  department  String?     @db.VarChar(100)
+  principal   Boolean     @default(false)
+
+  @@map("person_contacts")
+}
+
+model PersonBankAccount {
+  id             String  @id @default(cuid())
+  personId       String
+  person         Person  @relation(fields: [personId], references: [id], onDelete: Cascade)
+  banco          String  @db.VarChar(10)  // código banco (ex: "001")
+  bancoNome      String? @db.VarChar(100)
+  agencia        String  @db.VarChar(10)
+  conta          String  @db.VarChar(20)
+  tipoConta      String  @db.VarChar(20)  // CORRENTE, POUPANCA
+  titular        String? @db.VarChar(200)
+  cpfCnpjTitular String? @db.VarChar(14)
+  chavePix       String? @db.VarChar(200)
+  principal      Boolean @default(false)
+
+  @@map("person_bank_accounts")
+}
+
+// ============================================================================
+// TABELAS FISCAIS
+// ============================================================================
+
+model Ncm {
+  id                    String    @id @default(cuid())
+  code                  String    @unique @db.VarChar(10)   // "8716.39.00"
+  description           String    @db.VarChar(500)
+  exTipi                String?   @db.VarChar(5)
+
+  // ── IPI ────────────────────────────────────────────────────────
+  aliquotaIpi           Decimal?  @db.Decimal(5, 2)         // % IPI (ex: 0, 5, 10, 15)
+  cstIpiEntrada         String?   @db.VarChar(2)            // CST IPI entrada padrão: "00","02","04"
+  cstIpiSaida           String?   @db.VarChar(2)            // CST IPI saída padrão: "50","52","53"
+
+  // ── ICMS — Regime Normal (LR / LP) ─────────────────────────────
+  cstIcms               String?   @db.VarChar(2)            // CST ICMS padrão: "00","20","40","60"
+  reducaoBcIcms         Decimal?  @db.Decimal(5, 2)         // % redução BC ICMS se houver (ex: 33.33)
+
+  // ── ICMS — Simples Nacional ─────────────────────────────────────
+  csosn                 String?   @db.VarChar(3)            // CSOSN padrão: "102","400","500"
+
+  // ── PIS / COFINS ────────────────────────────────────────────────
+  cstPisCofinsSaida     String?   @db.VarChar(2)            // CST PIS/COFINS saída: "01","04","07","08"
+  cstPisCofinsEntrada   String?   @db.VarChar(2)            // CST PIS/COFINS entrada: "50","70","73"
+  aliquotaPis           Decimal?  @db.Decimal(5, 4)         // % PIS não-cumulativo (ex: 1.6500)
+  aliquotaCofins        Decimal?  @db.Decimal(5, 4)         // % COFINS não-cumulativo (ex: 7.6000)
+  monofasico            Boolean   @default(false)            // tributação monofásica (combustíveis, farmácia)
+
+  // ── Substituição Tributária (ST) ────────────────────────────────
+  temSt                 Boolean   @default(false)            // sujeito a ST?
+  cestCode              String?   @db.VarChar(7)             // código CEST (sem pontos: "0100100")
+  cestDescricao         String?   @db.VarChar(300)           // descrição do segmento CEST
+
+  // ── Importação ──────────────────────────────────────────────────
+  aliquotaImportacao    Decimal?  @db.Decimal(5, 2)          // II — Imposto de Importação %
+
+  // ── Reforma Tributária (EC 132/2023) ────────────────────────────
+  // CBS — Contribuição sobre Bens e Serviços (federal, substitui PIS+COFINS+IPI)
+  aliquotaCbs           Decimal?  @db.Decimal(6, 4)          // % CBS (referência ~8.8%)
+  cstCbs                String?   @db.VarChar(2)             // CST CBS futuro
+  // IBS — Imposto sobre Bens e Serviços (estados+municípios, substitui ICMS+ISS)
+  aliquotaIbs           Decimal?  @db.Decimal(6, 4)          // % IBS (referência ~17.7%)
+  cstIbs                String?   @db.VarChar(2)             // CST IBS futuro
+  // IS — Imposto Seletivo (sin tax: tabaco, álcool, veículos poluentes, apostas)
+  temIs                 Boolean   @default(false)             // sujeito ao Imposto Seletivo?
+  aliquotaIs            Decimal?  @db.Decimal(6, 4)          // % IS (varia por produto)
+  categoriaIs           String?   @db.VarChar(50)            // TABACO, ALCOOL, VEICULO, APOSTAS, OUTROS
+  // Categoria para reforma
+  categoriaReforma      String?   @db.VarChar(30)            // BEM, SERVICO, BEM_IMATERIAL
+  regimeEspecialReforma String?   @db.VarChar(100)           // eventual regime diferenciado
+
+  // ── Geral ───────────────────────────────────────────────────────
+  observacoes           String?   @db.Text
+  active                Boolean   @default(true)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  products              Product[]
+
+  @@index([code])
+  @@map("ncms")
+}
+
+model Cfop {
+  id          String   @id @default(cuid())
+  code        String   @unique @db.VarChar(4)  // "5101", "6102"
+  description String   @db.VarChar(500)
+  naturezaOp  String?  @db.VarChar(200) // "Venda de produção do estabelecimento"
+  tipo        String   @db.VarChar(20)  // ENTRADA, SAIDA
+  indNFe      Int      @default(1)      // 1=NF-e
+  active      Boolean  @default(true)
+
+  saleOrderItems    SaleOrderItem[]
+  quotationItems    QuotationItem[]
+
+  @@index([code])
+  @@map("cfops")
+}
+
+model CstIcms {
+  id          String   @id @default(cuid())
+  code        String   @unique @db.VarChar(3)
+  description String   @db.VarChar(300)
+  categoria   String   @db.VarChar(50)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([code])
+  @@map("cst_icms")
+}
+
+model Csosn {
+  id          String   @id @default(cuid())
+  code        String   @unique @db.VarChar(4)
+  description String   @db.VarChar(300)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([code])
+  @@map("csosn")
+}
+
+model CstIpi {
+  id          String   @id @default(cuid())
+  code        String   @unique @db.VarChar(2)
+  description String   @db.VarChar(300)
+  tipo        String   @db.VarChar(10)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([code])
+  @@map("cst_ipi")
+}
+
+model CstPisCofins {
+  id          String   @id @default(cuid())
+  code        String   @unique @db.VarChar(2)
+  description String   @db.VarChar(300)
+  tipo        String   @db.VarChar(10)
+  regime      String   @db.VarChar(30)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([code])
+  @@map("cst_pis_cofins")
+}
+
+model Cest {
+  id             String   @id @default(cuid())
+  code           String   @unique @db.VarChar(7)
+  codeFormatted  String   @db.VarChar(9)
+  segmento       String   @db.VarChar(5)
+  description    String   @db.VarChar(500)
+  ncmRelacionado String?  @db.VarChar(500)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([code])
+  @@index([segmento])
+  @@map("cest")
+}
+
+model IcmsInterestadual {
+  id          String   @id @default(cuid())
+  ufOrigem    String   @db.VarChar(2)
+  ufDestino   String   @db.VarChar(2)
+  aliquota    Decimal  @db.Decimal(5, 2)
+  tipo        String   @db.VarChar(15) @default("NORMAL")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([ufOrigem, ufDestino, tipo])
+  @@index([ufOrigem, ufDestino])
+  @@map("icms_interestadual")
+}
+
+model Banco {
+  id          String   @id @default(cuid())
+  code        String   @unique @db.VarChar(5)
+  ispb        String?  @db.VarChar(8)
+  name        String   @db.VarChar(200)
+  shortName   String?  @db.VarChar(50)
+  tipo        String?  @db.VarChar(30)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([code])
+  @@map("bancos")
+}
+
+model Pais {
+  id          String   @id @default(cuid())
+  code        String   @unique @db.VarChar(4)
+  iso2        String?  @db.VarChar(2)
+  iso3        String?  @db.VarChar(3)
+  name        String   @db.VarChar(200)
+  nameEn      String?  @db.VarChar(200)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([code])
+  @@index([iso2])
+  @@map("paises")
+}
+
+// Alíquotas internas de ICMS por UF — usadas no cálculo do DIFAL
+model AliquotaIcmsUf {
+  id            String   @id @default(cuid())
+  uf            String   @unique @db.VarChar(2)  // SP, MG, RJ...
+  nome          String   @db.VarChar(100)         // São Paulo
+  aliquotaPadrao  Float                           // ex: 18.0
+  aliquotaReduzida Float?                          // ex: 12.0 (para alguns produtos)
+  aliquotaFcp   Float    @default(0)              // FCP (Fundo de Combate à Pobreza)
+  codigoIbge    String?  @db.VarChar(2)           // código IBGE do estado
+  regiao        String?  @db.VarChar(20)          // SUL, SUDESTE, NORDESTE...
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("aliquotas_icms_uf")
+}
+
+// ============================================================================
+// PRODUTOS E SERVIÇOS
+// ============================================================================
+
+model Product {
+  id                  String        @id @default(cuid())
+  companyId           String
+  company             Company       @relation(fields: [companyId], references: [id])
+
+  // Identificação
+  code                String        @db.VarChar(50)  // código interno
+  barcode             String?       @db.VarChar(14)  // EAN/GTIN
+  description         String        @db.VarChar(500)
+  descriptionShort    String?       @db.VarChar(120) // descrição para NF-e (max 120 chars)
+
+  // Classificação
+  type                ProductType
+  origin              ProductOrigin @default(NACIONAL_0)
+  unit                UnitType      @default(UN)
+
+  // NCM / Fiscal
+  ncmId               String?
+  ncm                 Ncm?          @relation(fields: [ncmId], references: [id])
+  cestCode            String?       @db.VarChar(7)   // CEST (substituição tributária)
+
+  // Preços
+  precoCusto          Decimal?      @db.Decimal(15, 4)
+  precoVenda          Decimal?      @db.Decimal(15, 4)
+  margemLucro         Decimal?      @db.Decimal(5, 2)
+
+  // Estoque
+  estoqueMinimo       Decimal?      @db.Decimal(15, 4)
+  estoqueMaximo       Decimal?      @db.Decimal(15, 4)
+  estoqueAtual        Decimal       @default(0) @db.Decimal(15, 4)
+  localizacao         String?       @db.VarChar(50) // localização no almoxarifado
+
+  // Peso/Dimensões (necessários para NF-e de transporte)
+  pesoLiquido         Decimal?      @db.Decimal(10, 4) // kg
+  pesoBruto           Decimal?      @db.Decimal(10, 4) // kg
+  comprimento         Decimal?      @db.Decimal(10, 2) // cm
+  largura             Decimal?      @db.Decimal(10, 2) // cm
+  altura              Decimal?      @db.Decimal(10, 2) // cm
+
+  // Centro de custo padrão
+  costCenterCode      CostCenterCode?
+
+  // Observações
+  observacoes         String?       @db.Text
+  imagemUrl           String?       @db.VarChar(500)
+
+  active              Boolean       @default(true)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  // CRM/Sales relations
+  quotationItems      QuotationItem[]
+  saleOrderItems      SaleOrderItem[]
+
+  // PCP / Produção relations
+  boms                    BillOfMaterial[]
+  routings                ProductionRouting[]
+  productionOrders        ProductionOrder[]
+  bomItems                BomItem[]
+  productionOrderItems    ProductionOrderItem[]
+
+  // Oficina / Requisições
+  serviceOrderItems       ServiceOrderItem[]
+  requisitionItems        RequisitionItem[]
+
+  // Fiscal (Sprint 7)
+  nfeItems                NFeItem[]
+
+  // Compras / Estoque (Sprint 9)
+  purchaseRequestItems    PurchaseRequestItem[]
+  supplierQuotationItems  SupplierQuotationItem[]
+  purchaseOrderItems      PurchaseOrderItem[]
+  stockBalances           StockBalance[]
+  stockMovements          StockMovement[]
+  inventoryItems          InventoryItem[]
+
+  // Fluxo de Compras Integrado
+  productSuppliers        ProductSupplier[]
+  nfeInboxItems           NFeInboxItem[]
+  purchaseReceiptItems    PurchaseReceiptItem[]
+
+  @@unique([companyId, code])
+  @@index([description])
+  @@index([type])
+  @@map("products")
+}
+
+// ============================================================================
+// TABELA DE MUNICÍPIOS IBGE
+// ============================================================================
+
+model MunicipioIbge {
+  id        String @id @default(cuid())
+  codigoUf  String @db.VarChar(2)
+  uf        String @db.VarChar(2)
+  codigo    String @unique @db.VarChar(7)  // código IBGE 7 dígitos
+  nome      String @db.VarChar(100)
+
+  @@index([uf])
+  @@map("municipios_ibge")
+}
+
+// ============================================================================
+// CRM — LEADS E OPORTUNIDADES
+// ============================================================================
+
+model Lead {
+  id              String      @id @default(cuid())
+  companyId       String
+  company         Company     @relation(fields: [companyId], references: [id])
+
+  // Cliente
+  personId        String?
+  person          Person?     @relation(fields: [personId], references: [id])
+
+  // Lead info (quando pessoa ainda não cadastrada)
+  contactName     String?     @db.VarChar(200)
+  contactEmail    String?     @db.VarChar(200)
+  contactPhone    String?     @db.VarChar(20)
+  companyName     String?     @db.VarChar(200)
+
+  // Pipeline
+  title           String      @db.VarChar(300)
+  description     String?     @db.Text
+  status          LeadStatus  @default(NOVO)
+  source          LeadSource  @default(OUTROS)
+  valorEstimado   Decimal?    @db.Decimal(15, 2)
+  probabilidade   Int?        @default(50) // 0-100%
+
+  // Responsável
+  vendedorId      String?
+  vendedor        User?       @relation("LeadVendedor", fields: [vendedorId], references: [id])
+
+  // Datas
+  dataPrevisaoFechamento DateTime?
+  dataFechamento  DateTime?
+  motivoPerda     String?     @db.VarChar(300)
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  activities      LeadActivity[]
+  quotations      Quotation[]
+
+  @@index([companyId, status])
+  @@index([vendedorId])
+  @@map("leads")
+}
+
+model LeadActivity {
+  id          String       @id @default(cuid())
+  leadId      String
+  lead        Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User         @relation("ActivityUser", fields: [userId], references: [id])
+  type        ActivityType
+  title       String       @db.VarChar(300)
+  description String?      @db.Text
+  scheduledAt DateTime?
+  completedAt DateTime?
+  createdAt   DateTime     @default(now())
+
+  @@index([leadId, createdAt])
+  @@map("lead_activities")
+}
+
+// ============================================================================
+// ORÇAMENTOS / PROPOSTAS
+// ============================================================================
+
+model Quotation {
+  id              String          @id @default(cuid())
+  companyId       String
+  company         Company         @relation(fields: [companyId], references: [id])
+  leadId          String?
+  lead            Lead?           @relation(fields: [leadId], references: [id])
+  personId        String
+  person          Person          @relation(fields: [personId], references: [id])
+
+  numero          Int
+  status          QuotationStatus @default(RASCUNHO)
+  saleType        SaleType        @default(ESTOQUE_PROPRIO)
+
+  // Valores
+  subtotal        Decimal         @db.Decimal(15, 2) @default(0)
+  desconto        Decimal         @db.Decimal(15, 2) @default(0)
+  totalFrete      Decimal         @db.Decimal(15, 2) @default(0)
+  total           Decimal         @db.Decimal(15, 2) @default(0)
+
+  // Condições
+  condicaoPagamento String?       @db.VarChar(100)
+  validadeOrcamento DateTime?
+  prazoEntrega    String?         @db.VarChar(100)
+  observacoes     String?         @db.Text
+
+  // Vendedor e comissão
+  vendedorId      String?
+  vendedor        User?           @relation("QuotationVendedor", fields: [vendedorId], references: [id])
+  comissaoPercent Decimal?        @db.Decimal(5, 2)
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  items           QuotationItem[]
+  saleOrder       SaleOrder?
+
+  @@unique([companyId, numero])
+  @@index([personId])
+  @@map("quotations")
+}
+
+model QuotationItem {
+  id            String    @id @default(cuid())
+  quotationId   String
+  quotation     Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  productId     String?
+  product       Product?  @relation(fields: [productId], references: [id])
+  sequencia     Int       @default(1)
+  itemType      SaleType  @default(ESTOQUE_PROPRIO)
+  quantidade    Decimal   @db.Decimal(15, 4)
+  precoUnitario Decimal   @db.Decimal(15, 4)
+  desconto      Decimal   @db.Decimal(15, 2) @default(0)
+  total         Decimal   @db.Decimal(15, 2) @default(0)
+
+  // Fiscal (preenchido na conversão / faturamento)
+  cfopId        String?
+  cfop          Cfop?     @relation(fields: [cfopId], references: [id])
+  ncmCode       String?   @db.VarChar(10)
+
+  // Para itens de serviço / F&I (sem produto vinculado)
+  descricaoLivre String?  @db.VarChar(300)
+
+  observacoes   String?   @db.VarChar(300)
+
+  @@map("quotation_items")
+}
+
+// ============================================================================
+// PEDIDOS DE VENDA
+// ============================================================================
+
+model SaleOrder {
+  id              String      @id @default(cuid())
+  companyId       String
+  company         Company     @relation(fields: [companyId], references: [id])
+  quotationId     String?     @unique
+  quotation       Quotation?  @relation(fields: [quotationId], references: [id])
+  personId        String
+  person          Person      @relation(fields: [personId], references: [id])
+
+  numero          Int
+  status          SaleStatus  @default(RASCUNHO)
+  saleType        SaleType    @default(ESTOQUE_PROPRIO)
+
+  // Valores
+  subtotal        Decimal     @db.Decimal(15, 2) @default(0)
+  desconto        Decimal     @db.Decimal(15, 2) @default(0)
+  totalFrete      Decimal     @db.Decimal(15, 2) @default(0)
+  total           Decimal     @db.Decimal(15, 2) @default(0)
+
+  // Condições
+  condicaoPagamento String?   @db.VarChar(100)
+  prazoEntrega    String?     @db.VarChar(100)
+  observacoes     String?     @db.Text
+
+  // Vendedor e comissão
+  vendedorId      String?
+  vendedor        User?       @relation("SaleOrderVendedor", fields: [vendedorId], references: [id])
+  comissaoPercent Decimal?    @db.Decimal(5, 2)
+  comissaoValor   Decimal?    @db.Decimal(15, 2)
+
+  // Venda Direta — dados específicos
+  fabricanteId    String?     // Person do fabricante/fábrica (quando VENDA_DIRETA)
+  fabricante      Person?     @relation("SaleOrderFabricante", fields: [fabricanteId], references: [id])
+  notaFabrica     String?     @db.VarChar(50)  // número NF-e da fábrica
+
+  // Centro de custo
+  costCenterCode  CostCenterCode?
+
+  // Datas
+  dataAprovacao   DateTime?
+  dataFaturamento DateTime?
+  dataEntrega     DateTime?
+  dataCancelamento DateTime?
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  items               SaleOrderItem[]
+  financings          Financing[]
+  consortiumQuotas    ConsortiumQuota[]
+  insurancePolicies   InsurancePolicy[]
+  productionOrders    ProductionOrder[]
+
+  // Fiscal (Sprint 7)
+  nfeDocuments        NFeDocument[]
+
+  // Financeiro (Sprint 8)
+  financialMovements  FinancialMovement[]
+
+  // Estoque (Sprint 9)
+  stockMovements      StockMovement[]
+
+  // Portal (Sprint 10)
+  portalDocuments     PortalDocument[]
+
+  @@unique([companyId, numero])
+  @@index([personId])
+  @@index([status])
+  @@map("sale_orders")
+}
+
+model SaleOrderItem {
+  id              String    @id @default(cuid())
+  saleOrderId     String
+  saleOrder       SaleOrder @relation(fields: [saleOrderId], references: [id], onDelete: Cascade)
+  productId       String?
+  product         Product?  @relation(fields: [productId], references: [id])
+  sequencia       Int       @default(1)
+  itemType        SaleType  @default(ESTOQUE_PROPRIO)
+  quantidade      Decimal   @db.Decimal(15, 4)
+  precoUnitario   Decimal   @db.Decimal(15, 4)
+  desconto        Decimal   @db.Decimal(15, 2) @default(0)
+  total           Decimal   @db.Decimal(15, 2) @default(0)
+
+  // Fiscal (preenchido no faturamento)
+  cfopId          String?
+  cfop            Cfop?     @relation(fields: [cfopId], references: [id])
+  ncmCode         String?   @db.VarChar(10)
+
+  // Para itens de serviço / F&I (sem produto vinculado)
+  descricaoLivre  String?   @db.VarChar(300)
+
+  observacoes     String?   @db.VarChar(300)
+
+  @@map("sale_order_items")
+}
+
+// ============================================================================
+// F&I — FINANCIAMENTO, CONSÓRCIO, SEGURO
+// ============================================================================
+
+model Financing {
+  id              String           @id @default(cuid())
+  companyId       String
+  company         Company          @relation(fields: [companyId], references: [id])
+  saleOrderId     String?
+  saleOrder       SaleOrder?       @relation(fields: [saleOrderId], references: [id])
+  personId        String           // Cliente
+  person          Person           @relation(fields: [personId], references: [id])
+
+  // Tipo e status
+  type            FinancingType
+  status          FinancingStatus  @default(SIMULACAO)
+  numero          String?          @db.VarChar(50) // número do contrato
+
+  // Instituição financeira
+  financeiraId    String?          // Person da financeira/banco
+  financeira      Person?          @relation("FinancingFinanceira", fields: [financeiraId], references: [id])
+
+  // Valores
+  valorBem        Decimal          @db.Decimal(15, 2) // valor do implemento
+  valorEntrada    Decimal?         @db.Decimal(15, 2)
+  valorFinanciado Decimal          @db.Decimal(15, 2)
+  taxaJuros       Decimal?         @db.Decimal(8, 4)  // % ao mês
+  parcelas        Int?             // número de parcelas
+  valorParcela    Decimal?         @db.Decimal(15, 2)
+
+  // FINAME específico
+  codigoFiname    String?          @db.VarChar(20) // código do produto FINAME
+  linhaCredito    String?          @db.VarChar(100) // ex: "FINAME BK", "FINAME Agrícola"
+  carencia        Int?             // meses de carência
+
+  // Comissão da concessionária
+  comissaoPercent Decimal?         @db.Decimal(5, 2)
+  comissaoValor   Decimal?         @db.Decimal(15, 2)
+
+  // Datas
+  dataSimulacao   DateTime?
+  dataProposta    DateTime?
+  dataAprovacao   DateTime?
+  dataContratacao DateTime?
+  dataLiberacao   DateTime?
+
+  observacoes     String?          @db.Text
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([companyId, status])
+  @@index([personId])
+  @@map("financings")
+}
+
+model ConsortiumQuota {
+  id                  String           @id @default(cuid())
+  companyId           String
+  company             Company          @relation(fields: [companyId], references: [id])
+  personId            String           // Cotista/cliente
+  person              Person           @relation(fields: [personId], references: [id])
+
+  // Administradora
+  administradoraId    String?          // Person da administradora
+  administradora      Person?          @relation("ConsortiumAdministradora", fields: [administradoraId], references: [id])
+
+  // Dados da cota
+  grupo               String           @db.VarChar(20)
+  cota                String           @db.VarChar(20)
+  status              ConsortiumStatus @default(ATIVO)
+
+  // Valores
+  valorCredito        Decimal          @db.Decimal(15, 2)
+  valorPago           Decimal          @db.Decimal(15, 2) @default(0)
+  saldoDevedor        Decimal          @db.Decimal(15, 2) @default(0)
+  parcelasMensais     Int?
+  valorParcelaMensal  Decimal?         @db.Decimal(15, 2)
+  parcelasPagas       Int              @default(0)
+
+  // Contemplação
+  dataContemplacao    DateTime?
+  tipoContemplacao    String?          @db.VarChar(50) // "LANCE", "SORTEIO"
+  valorLance          Decimal?         @db.Decimal(15, 2)
+
+  // Vínculo com venda
+  saleOrderId         String?
+  saleOrder           SaleOrder?       @relation(fields: [saleOrderId], references: [id])
+
+  // Comissão da concessionária
+  comissaoPercent     Decimal?         @db.Decimal(5, 2)
+  comissaoValor       Decimal?         @db.Decimal(15, 2)
+
+  // Datas
+  dataAdesao          DateTime?
+  dataEncerramento    DateTime?
+
+  observacoes         String?          @db.Text
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  // Relations
+  payments            ConsortiumPayment[]
+
+  @@index([companyId, status])
+  @@index([personId])
+  @@map("consortium_quotas")
+}
+
+model ConsortiumPayment {
+  id              String          @id @default(cuid())
+  quotaId         String
+  quota           ConsortiumQuota @relation(fields: [quotaId], references: [id], onDelete: Cascade)
+  numeroParcela   Int
+  dataVencimento  DateTime
+  dataPagamento   DateTime?
+  valor           Decimal         @db.Decimal(15, 2)
+  valorPago       Decimal?        @db.Decimal(15, 2)
+  status          String          @db.VarChar(20) // PENDENTE, PAGO, ATRASADO
+  createdAt       DateTime        @default(now())
+
+  @@index([quotaId])
+  @@map("consortium_payments")
+}
+
+model InsurancePolicy {
+  id              String          @id @default(cuid())
+  companyId       String
+  company         Company         @relation(fields: [companyId], references: [id])
+  personId        String          // Segurado
+  person          Person          @relation(fields: [personId], references: [id])
+
+  // Seguradora
+  seguradoraId    String?         // Person da seguradora
+  seguradora      Person?         @relation("InsuranceSeguradora", fields: [seguradoraId], references: [id])
+
+  // Dados da apólice
+  type            InsuranceType
+  status          InsuranceStatus @default(COTACAO)
+  numeroApolice   String?         @db.VarChar(50)
+  numeroProposta  String?         @db.VarChar(50)
+
+  // Bem segurado
+  descricaoBem    String          @db.VarChar(300)
+  anoFabricacao   Int?
+  chassi          String?         @db.VarChar(30)
+  placa           String?         @db.VarChar(10)
+
+  // Valores
+  valorBem        Decimal         @db.Decimal(15, 2)
+  premio          Decimal?        @db.Decimal(15, 2) // valor do prêmio
+  franquia        Decimal?        @db.Decimal(15, 2)
+  importanciaSegurada Decimal?    @db.Decimal(15, 2)
+
+  // Vigência
+  dataInicio      DateTime?
+  dataFim         DateTime?
+  dataRenovacao   DateTime?       // alerta de renovação
+
+  // Vínculo com venda
+  saleOrderId     String?
+  saleOrder       SaleOrder?      @relation(fields: [saleOrderId], references: [id])
+
+  // Comissão
+  comissaoPercent Decimal?        @db.Decimal(5, 2)
+  comissaoValor   Decimal?        @db.Decimal(15, 2)
+
+  observacoes     String?         @db.Text
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([companyId, status])
+  @@index([personId])
+  @@map("insurance_policies")
+}
+
+// ============================================================================
+// PCP — CENTROS DE TRABALHO, BOM, ROTEIROS, ORDENS DE PRODUÇÃO
+// ============================================================================
+
+model WorkCenter {
+  id              String         @id @default(cuid())
+  companyId       String
+  company         Company        @relation(fields: [companyId], references: [id])
+  code            String         @db.VarChar(50)
+  name            String         @db.VarChar(200)
+  type            WorkCenterType
+  description     String?        @db.VarChar(500)
+  capacidadeHora  Float          // capacidade horas/dia
+  custoHora       Float          // custo por hora
+  active          Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  // Relations
+  routingSteps    RoutingStep[]
+  pointings       ProductionPointing[]
+
+  @@unique([companyId, code])
+  @@map("work_centers")
+}
+
+model BillOfMaterial {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  version     Int      @default(1)
+  description String?  @db.VarChar(500)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  items       BomItem[]
+
+  @@unique([productId, version])
+  @@map("bills_of_material")
+}
+
+model BomItem {
+  id             String          @id @default(cuid())
+  bomId          String
+  bom            BillOfMaterial  @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product         @relation(fields: [productId], references: [id])
+  quantity       Float
+  unit           String          @db.VarChar(20)
+  wastagePercent Float           @default(0) // % perda
+  observations   String?         @db.VarChar(500)
+
+  @@map("bom_items")
+}
+
+model ProductionRouting {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  version     Int      @default(1)
+  description String?  @db.VarChar(500)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  steps            RoutingStep[]
+  productionOrders ProductionOrder[]
+
+  @@unique([productId, version])
+  @@map("production_routings")
+}
+
+model RoutingStep {
+  id            String            @id @default(cuid())
+  routingId     String
+  routing       ProductionRouting @relation(fields: [routingId], references: [id], onDelete: Cascade)
+  stepNumber    Int
+  workCenterId  String
+  workCenter    WorkCenter        @relation(fields: [workCenterId], references: [id])
+  description   String            @db.VarChar(500)
+  tempoSetup    Float             // minutos
+  tempoExecucao Float             // minutos por unidade
+  tempoEspera   Float             @default(0) // minutos de espera
+  instructions  String?           @db.Text
+
+  apontamentos  Apontamento[]
+
+  @@unique([routingId, stepNumber])
+  @@map("routing_steps")
+}
+
+model ProductionOrder {
+  id                  String                @id @default(cuid())
+  companyId           String
+  company             Company               @relation(fields: [companyId], references: [id])
+  numero              String                @db.VarChar(50)
+  productId           String
+  product             Product               @relation(fields: [productId], references: [id])
+  routingId           String?
+  routing             ProductionRouting?    @relation(fields: [routingId], references: [id])
+  saleOrderId         String?
+  saleOrder           SaleOrder?            @relation(fields: [saleOrderId], references: [id])
+  strategy            ProductionStrategy
+  type                ProductionOrderType   @default(NORMAL)
+  status              ProductionOrderStatus @default(PLANEJADA)
+  quantity            Float
+  quantityProduced    Float                 @default(0)
+  dataInicioPrevista  DateTime
+  dataFimPrevista     DateTime
+  dataInicioReal      DateTime?
+  dataFimReal         DateTime?
+  priority            Int                   @default(5) // 1=highest
+  observations        String?               @db.Text
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  // Relations
+  items               ProductionOrderItem[]
+  pointings           ProductionPointing[]
+  apontamentos        Apontamento[]
+
+  // Oficina / Calderaria / Requisições
+  calderariaOrders    CalderariaOrder[]
+  requisitions        Requisition[]
+
+  // Estoque (Sprint 9)
+  stockMovements      StockMovement[]
+
+  @@unique([companyId, numero])
+  @@map("production_orders")
+}
+
+model ProductionOrderItem {
+  id                String          @id @default(cuid())
+  productionOrderId String
+  productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  productId         String
+  product           Product         @relation(fields: [productId], references: [id])
+  quantityRequired  Float
+  quantityConsumed  Float           @default(0)
+  unit              String          @db.VarChar(20)
+
+  @@map("production_order_items")
+}
+
+model ProductionPointing {
+  id                String          @id @default(cuid())
+  companyId         String
+  company           Company         @relation(fields: [companyId], references: [id])
+  productionOrderId String
+  productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [id])
+  workCenterId      String
+  workCenter        WorkCenter      @relation(fields: [workCenterId], references: [id])
+  userId            String
+  user              User            @relation(fields: [userId], references: [id])
+  type              PointingType
+  dataInicio        DateTime
+  dataFim           DateTime?
+  quantityProduced  Float           @default(0)
+  quantityRejected  Float           @default(0)
+  observations      String?         @db.Text
+  motivoParada      String?         @db.VarChar(300) // para tipo PARADA
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([companyId, productionOrderId])
+  @@map("production_pointings")
+}
+
+// ============================================================================
+// OFICINA — ORDENS DE SERVIÇO
+// ============================================================================
+
+model ServiceOrder {
+  id                String               @id @default(cuid())
+  companyId         String
+  company           Company              @relation(fields: [companyId], references: [id])
+  numero            String               @db.VarChar(50)
+  personId          String
+  person            Person               @relation(fields: [personId], references: [id])
+  type              ServiceOrderType
+  status            ServiceOrderStatus   @default(ABERTA)
+  priority          ServiceOrderPriority @default(NORMAL)
+
+  // Veículo
+  veiculoDescricao  String               @db.VarChar(500)
+  veiculoPlaca      String?              @db.VarChar(10)
+  veiculoChassi     String?              @db.VarChar(30)
+  veiculoKm         Int?
+
+  // Defeito / Diagnóstico / Solução
+  defeitoRelatado   String               @db.Text
+  diagnostico       String?              @db.Text
+  solucao           String?              @db.Text
+
+  // Datas
+  dataEntrada       DateTime
+  dataPrevisao      DateTime?
+  dataConclusao     DateTime?
+  dataEntrega       DateTime?
+
+  // Valores
+  valorPecas        Float                @default(0)
+  valorMaoDeObra    Float                @default(0)
+  valorTotal        Float                @default(0)
+
+  // Responsável (técnico atribuído)
+  responsavelId     String?
+  responsavel       User?                @relation("ServiceOrderResponsavel", fields: [responsavelId], references: [id])
+
+  observations      String?              @db.Text
+
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  // Relations
+  items             ServiceOrderItem[]
+  requisitions      Requisition[]
+  calderariaOrders  CalderariaOrder[]
+  etapasOs          EtapaOS[]
+  apontamentos      Apontamento[]
+
+  // Fiscal (Sprint 7)
+  nfeDocuments      NFeDocument[]
+
+  // Portal (Sprint 10)
+  portalDocuments   PortalDocument[]
+
+  @@unique([companyId, numero])
+  @@index([personId])
+  @@index([status])
+  @@map("service_orders")
+}
+
+model ServiceOrderItem {
+  id              String        @id @default(cuid())
+  serviceOrderId  String
+  serviceOrder    ServiceOrder  @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
+  productId       String?
+  product         Product?      @relation(fields: [productId], references: [id])
+  description     String        @db.VarChar(500)
+  quantity        Float
+  unitPrice       Float
+  totalPrice      Float
+  type            String        @db.VarChar(20) // PECA, SERVICO, TERCEIRO
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("service_order_items")
+}
+
+// ============================================================================
+// CALDERARIA — ORDENS DE SERVIÇO DE CALDERARIA
+// ============================================================================
+
+model CalderariaOrder {
+  id                      String                @id @default(cuid())
+  companyId               String
+  company                 Company               @relation(fields: [companyId], references: [id])
+  numero                  String                @db.VarChar(50)
+  serviceOrderId          String?
+  serviceOrder            ServiceOrder?         @relation(fields: [serviceOrderId], references: [id])
+  productionOrderId       String?
+  productionOrder         ProductionOrder?      @relation(fields: [productionOrderId], references: [id])
+
+  serviceType             CalderariaServiceType
+  description             String                @db.VarChar(500)
+  materialDescription     String?               @db.VarChar(500)
+
+  status                  ServiceOrderStatus    @default(ABERTA)
+
+  // Tempos
+  dataInicio              DateTime?
+  dataFim                 DateTime?
+  tempoEstimado           Float?                // horas
+  tempoReal               Float?                // horas
+
+  // Responsável (soldador/operador)
+  responsavelId           String?
+  responsavel             User?                 @relation("CalderariaOrderResponsavel", fields: [responsavelId], references: [id])
+
+  observations            String?               @db.Text
+  especificacoesTecnicas  String?               @db.Text // espessura, tipo material, tipo solda etc.
+
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+
+  // Relations
+  requisitions            Requisition[]
+  etapasCalderaria        EtapaCalderaria[]
+  apontamentos            Apontamento[]
+
+  @@unique([companyId, numero])
+  @@index([serviceOrderId])
+  @@index([status])
+  @@map("calderaria_orders")
+}
+
+// ============================================================================
+// REQUISIÇÕES DE MATERIAIS (INTERNA OU COMPRA)
+// ============================================================================
+
+model Requisition {
+  id                  String            @id @default(cuid())
+  companyId           String
+  company             Company           @relation(fields: [companyId], references: [id])
+  numero              String            @db.VarChar(50)
+  type                RequisitionType
+  status              RequisitionStatus @default(RASCUNHO)
+
+  // Solicitante / Aprovador
+  solicitanteId       String
+  solicitante         User              @relation("RequisitionSolicitante", fields: [solicitanteId], references: [id])
+  aprovadorId         String?
+  aprovador           User?             @relation("RequisitionAprovador", fields: [aprovadorId], references: [id])
+
+  // Vínculos opcionais
+  serviceOrderId      String?
+  serviceOrder        ServiceOrder?     @relation(fields: [serviceOrderId], references: [id])
+  calderariaOrderId   String?
+  calderariaOrder     CalderariaOrder?  @relation(fields: [calderariaOrderId], references: [id])
+  productionOrderId   String?
+  productionOrder     ProductionOrder?  @relation(fields: [productionOrderId], references: [id])
+
+  // Datas
+  dataAprovacao       DateTime?
+  dataEntrega         DateTime?
+
+  observations        String?           @db.Text
+  justificativa       String?           @db.Text
+
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  // Relations
+  items               RequisitionItem[]
+
+  // Estoque (Sprint 9)
+  stockMovements      StockMovement[]
+
+  @@unique([companyId, numero])
+  @@index([solicitanteId])
+  @@index([status])
+  @@map("requisitions")
+}
+
+model RequisitionItem {
+  id                String      @id @default(cuid())
+  requisitionId     String
+  requisition       Requisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  productId         String
+  product           Product     @relation(fields: [productId], references: [id])
+  quantityRequested Float
+  quantityApproved  Float?
+  quantityDelivered Float       @default(0)
+  unit              String      @db.VarChar(20)
+
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@map("requisition_items")
+}
+
+// ============================================================================
+// SPRINT 7 — MÓDULO FISCAL (REFORMA TRIBUTÁRIA EC 132/2023)
+// ============================================================================
+
+enum NFeStatus {
+  RASCUNHO
+  VALIDADA
+  ASSINADA
+  TRANSMITIDA
+  AUTORIZADA
+  CANCELADA
+  DENEGADA
+  INUTILIZADA
+}
+
+enum NFeType {
+  ENTRADA
+  SAIDA
+}
+
+enum NFeFinality {
+  NORMAL
+  COMPLEMENTAR
+  AJUSTE
+  DEVOLUCAO
+}
+
+enum NFeOperation {
+  VENDA
+  COMPRA
+  TRANSFERENCIA
+  DEVOLUCAO_VENDA
+  DEVOLUCAO_COMPRA
+  REMESSA
+  RETORNO
+  BONIFICACAO
+  CONSIGNACAO
+  INDUSTRIALIZACAO
+}
+
+enum TaxDocumentType {
+  NFE
+  NFCE
+  NFSE
+  CTE
+  MDFE
+}
+
+enum FiscalEntryType {
+  DEBITO
+  CREDITO
+}
+
+enum FiscalBookType {
+  ENTRADA
+  SAIDA
+  APURACAO_ICMS
+  APURACAO_IPI
+  APURACAO_PIS
+  APURACAO_COFINS
+}
+
+// ============================================================================
+// NF-e — NOTA FISCAL ELETRÔNICA
+// ============================================================================
+
+model NFeDocument {
+  id                      String          @id @default(cuid())
+  companyId               String
+  company                 Company         @relation(fields: [companyId], references: [id])
+
+  // Identificação
+  numero                  Int?
+  serie                   Int             @default(1)
+  chaveAcesso             String?         @unique @db.VarChar(44)
+  type                    NFeType
+  finality                NFeFinality     @default(NORMAL)
+  operation               NFeOperation
+  status                  NFeStatus       @default(RASCUNHO)
+  documentType            TaxDocumentType @default(NFE)
+
+  // Emitente / Destinatário
+  personId                String
+  person                  Person          @relation(fields: [personId], references: [id])
+
+  // Vínculos opcionais
+  saleOrderId             String?
+  saleOrder               SaleOrder?      @relation(fields: [saleOrderId], references: [id])
+  serviceOrderId          String?
+  serviceOrder            ServiceOrder?   @relation(fields: [serviceOrderId], references: [id])
+
+  // Datas
+  dataEmissao             DateTime?
+  dataEntradaSaida        DateTime?
+
+  // Natureza da operação
+  naturezaOperacao        String          @db.VarChar(200)
+
+  // Valores dos produtos/serviços
+  valorProdutos           Float           @default(0)
+  valorFrete              Float           @default(0)
+  valorSeguro             Float           @default(0)
+  valorDesconto           Float           @default(0)
+  valorOutros             Float           @default(0)
+  valorTotal              Float           @default(0)
+
+  // Impostos — sistema atual
+  valorIcms               Float           @default(0)
+  valorIcmsSt             Float           @default(0)
+  valorIpi                Float           @default(0)
+  valorPis                Float           @default(0)
+  valorCofins             Float           @default(0)
+
+  // Impostos — Reforma Tributária (EC 132/2023)
+  valorIbs                Float           @default(0) // Imposto sobre Bens e Serviços
+  valorCbs                Float           @default(0) // Contribuição sobre Bens e Serviços
+  valorIs                 Float           @default(0) // Imposto Seletivo
+
+  // DIFAL — Diferencial de Alíquota (operações interestaduais para consumidor final)
+  valorDifal              Float           @default(0) // ICMS DIFAL total
+  valorDifalDestino       Float           @default(0) // parte do DIFAL devida ao estado destino
+  valorDifalOrigem        Float           @default(0) // parte do DIFAL devida ao estado origem
+  valorFcp                Float           @default(0) // Fundo de Combate à Pobreza
+  ufDestino               String?         @db.VarChar(2)
+  aliqInterestadual       Float?                      // alíquota interestadual aplicada
+  aliqInternaDestino      Float?                      // alíquota interna do estado destino
+
+  // Carta de Correção (CC-e)
+  cceNumero               Int?
+  cceDataEvento           DateTime?
+  cceDescricao            String?         @db.Text
+  cceProtocolo            String?         @db.VarChar(50)
+  cceXml                  String?         @db.Text
+
+  // Informações complementares
+  informacoesComplementares String?       @db.Text
+  informacoesFisco        String?         @db.Text
+
+  // Autorização SEFAZ
+  protocoloAutorizacao    String?         @db.VarChar(50)
+  dataAutorizacao         DateTime?
+
+  // XML
+  xmlEnvio                String?         @db.Text
+  xmlRetorno              String?         @db.Text
+  motivoCancelamento      String?         @db.Text
+
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+
+  // Relations
+  items                   NFeItem[]
+  fiscalEntries           FiscalEntry[]
+
+  // Financeiro (Sprint 8)
+  financialMovements      FinancialMovement[]
+
+  // Portal (Sprint 10)
+  portalDocuments         PortalDocument[]
+
+  // Fluxo de Compras Integrado
+  nfeInbox                NFeInbox[]
+
+  @@index([companyId, status])
+  @@index([personId])
+  @@map("nfe_documents")
+}
+
+// ============================================================================
+// NF-e ITENS
+// ============================================================================
+
+model NFeItem {
+  id                      String       @id @default(cuid())
+  nfeId                   String
+  nfe                     NFeDocument  @relation(fields: [nfeId], references: [id], onDelete: Cascade)
+  productId               String?
+  product                 Product?     @relation(fields: [productId], references: [id])
+
+  // Identificação do item
+  itemNumber              Int
+  description             String       @db.VarChar(500)
+
+  // Classificação fiscal
+  ncmCode                 String       @db.VarChar(10)
+  cfopCode                String       @db.VarChar(4)
+  cest                    String?      @db.VarChar(7) // Código Especificador da Substituição Tributária
+
+  // Quantidades e valores
+  quantity                Float
+  unitPrice               Float
+  totalPrice              Float
+  unit                    String       @db.VarChar(20)
+
+  // ICMS
+  bcIcms                  Float        @default(0)
+  aliqIcms                Float        @default(0)
+  valorIcms               Float        @default(0)
+  cstIcms                 String?      @db.VarChar(3) // CST/CSOSN
+
+  // ICMS-ST
+  bcIcmsSt                Float        @default(0)
+  aliqIcmsSt              Float        @default(0)
+  valorIcmsSt             Float        @default(0)
+
+  // IPI
+  bcIpi                   Float        @default(0)
+  aliqIpi                 Float        @default(0)
+  valorIpi                Float        @default(0)
+  cstIpi                  String?      @db.VarChar(2)
+
+  // PIS
+  bcPis                   Float        @default(0)
+  aliqPis                 Float        @default(0)
+  valorPis                Float        @default(0)
+  cstPis                  String?      @db.VarChar(2)
+
+  // COFINS
+  bcCofins                Float        @default(0)
+  aliqCofins              Float        @default(0)
+  valorCofins             Float        @default(0)
+  cstCofins               String?      @db.VarChar(2)
+
+  // IBS — Reforma Tributária (EC 132/2023)
+  bcIbs                   Float        @default(0)
+  aliqIbs                 Float        @default(0)
+  valorIbs                Float        @default(0)
+
+  // CBS — Reforma Tributária
+  bcCbs                   Float        @default(0)
+  aliqCbs                 Float        @default(0)
+  valorCbs                Float        @default(0)
+
+  // IS — Imposto Seletivo
+  bcIs                    Float        @default(0)
+  aliqIs                  Float        @default(0)
+  valorIs                 Float        @default(0)
+
+  // Informações adicionais
+  informacoesAdicionais   String?      @db.Text
+
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
+
+  @@index([nfeId])
+  @@map("nfe_items")
+}
+
+// ============================================================================
+// LANÇAMENTOS FISCAIS (LIVROS FISCAIS)
+// ============================================================================
+
+model FiscalEntry {
+  id                      String          @id @default(cuid())
+  companyId               String
+  company                 Company         @relation(fields: [companyId], references: [id])
+
+  // Vínculo com NF-e
+  nfeId                   String?
+  nfe                     NFeDocument?    @relation(fields: [nfeId], references: [id])
+
+  // Classificação
+  type                    FiscalEntryType
+  bookType                FiscalBookType
+
+  // Período
+  dataLancamento          DateTime
+  periodoReferencia       String          @db.VarChar(7) // YYYY-MM
+
+  // Operação
+  cfopCode                String          @db.VarChar(4)
+  naturezaOperacao        String?         @db.VarChar(200)
+
+  // Valores
+  valorContabil           Float
+  baseCalculo             Float
+  aliquota                Float
+  valorImposto            Float
+
+  // Tipo de imposto
+  taxType                 String          @db.VarChar(10) // ICMS, IPI, PIS, COFINS, IBS, CBS, IS
+
+  // Observações
+  observations            String?         @db.Text
+
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+
+  @@index([companyId, periodoReferencia])
+  @@index([nfeId])
+  @@map("fiscal_entries")
+}
+
+// ============================================================================
+// APURAÇÃO MENSAL DE IMPOSTOS
+// ============================================================================
+
+model FiscalApuracao {
+  id                      String    @id @default(cuid())
+  companyId               String
+  company                 Company   @relation(fields: [companyId], references: [id])
+
+  // Período e tipo
+  periodoReferencia       String    @db.VarChar(7) // YYYY-MM
+  taxType                 String    @db.VarChar(10) // ICMS, IPI, PIS, COFINS, IBS, CBS
+
+  // Valores da apuração
+  totalDebitos            Float     @default(0)
+  totalCreditos           Float     @default(0)
+  saldoAnterior           Float     @default(0)
+  deducoesLegais          Float     @default(0)
+  ajustesDebito           Float     @default(0)
+  ajustesCredito          Float     @default(0)
+  impostoAPagar           Float     @default(0)
+  saldoCredor             Float     @default(0)
+
+  // Status
+  status                  String    @default("ABERTA") @db.VarChar(20) // ABERTA, FECHADA, RETIFICADA
+  dataFechamento          DateTime?
+
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@unique([companyId, periodoReferencia, taxType])
+  @@map("fiscal_apuracoes")
+}
+
+// ============================================================================
+// REGRAS TRIBUTÁRIAS (NCM / CFOP / OPERAÇÃO)
+// ============================================================================
+
+model TaxRule {
+  id                      String        @id @default(cuid())
+  companyId               String
+  company                 Company       @relation(fields: [companyId], references: [id])
+
+  // Identificação
+  name                    String        @db.VarChar(200)
+  description             String?       @db.Text
+
+  // Filtros de aplicação
+  ncmCode                 String?       @db.VarChar(10) // parcial ex: "8704" para todos sob este NCM
+  cfopCode                String?       @db.VarChar(4)
+  operation               NFeOperation?
+
+  // ICMS
+  cstIcms                 String?       @db.VarChar(3)
+  aliqIcms                Float?
+  reducaoBcIcms           Float?        // % redução base de cálculo
+
+  // IPI
+  cstIpi                  String?       @db.VarChar(2)
+  aliqIpi                 Float?
+
+  // PIS
+  cstPis                  String?       @db.VarChar(2)
+  aliqPis                 Float?
+
+  // COFINS
+  cstCofins               String?       @db.VarChar(2)
+  aliqCofins              Float?
+
+  // Reforma Tributária (EC 132/2023)
+  aliqIbs                 Float?        // Imposto sobre Bens e Serviços
+  aliqCbs                 Float?        // Contribuição sobre Bens e Serviços
+  aliqIs                  Float?        // Imposto Seletivo
+
+  // Controle
+  active                  Boolean       @default(true)
+  priority                Int           @default(0) // higher priority wins
+
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+
+  @@index([companyId, ncmCode, cfopCode])
+  @@map("tax_rules")
+}
+
+// ============================================================================
+// SPRINT 8 — CONTABILIDADE (PLANO DE CONTAS, LANÇAMENTOS CONTÁBEIS)
+// ============================================================================
+
+model ChartOfAccount {
+  id              String        @id @default(cuid())
+  companyId       String
+  company         Company       @relation(fields: [companyId], references: [id])
+  parentId        String?
+  parent          ChartOfAccount?  @relation("ChartOfAccountParent", fields: [parentId], references: [id])
+  children        ChartOfAccount[] @relation("ChartOfAccountParent")
+  code            String        @db.VarChar(50)
+  name            String        @db.VarChar(200)
+  type            AccountType
+  nature          AccountNature
+  level           Int
+  acceptsEntries  Boolean       @default(true)
+  active          Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  journalEntryItems   JournalEntryItem[]
+  financialMovements  FinancialMovement[] @relation("FinancialMovementCategory")
+  cashFlows           CashFlow[]          @relation("CashFlowCategory")
+
+  @@unique([companyId, code])
+  @@map("chart_of_accounts")
+}
+
+model JournalEntry {
+  id            String             @id @default(cuid())
+  companyId     String
+  company       Company            @relation(fields: [companyId], references: [id])
+  numero        String             @db.VarChar(50)
+  date          DateTime
+  description   String             @db.Text
+  status        JournalEntryStatus @default(RASCUNHO)
+  totalValue    Decimal            @db.Decimal(15, 2)
+  userId        String
+  user          User               @relation(fields: [userId], references: [id])
+  reversalOfId  String?
+  reversalOf    JournalEntry?      @relation("JournalEntryReversal", fields: [reversalOfId], references: [id])
+  reversals     JournalEntry[]     @relation("JournalEntryReversal")
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  // Relations
+  items         JournalEntryItem[]
+
+  @@unique([companyId, numero])
+  @@map("journal_entries")
+}
+
+model JournalEntryItem {
+  id              String         @id @default(cuid())
+  journalEntryId  String
+  journalEntry    JournalEntry   @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  accountId       String
+  account         ChartOfAccount @relation(fields: [accountId], references: [id])
+  type            AccountNature
+  value           Decimal        @db.Decimal(15, 2)
+  costCenterId    String?
+  costCenter      CostCenter?    @relation(fields: [costCenterId], references: [id])
+  description     String?        @db.Text
+  createdAt       DateTime       @default(now())
+
+  @@map("journal_entry_items")
+}
+
+// ============================================================================
+// SPRINT 8 — FINANCEIRO (CONTAS BANCÁRIAS, CONTAS A PAGAR/RECEBER, EXTRATO)
+// ============================================================================
+
+model BankAccount {
+  id            String    @id @default(cuid())
+  companyId     String
+  company       Company   @relation(fields: [companyId], references: [id])
+  name          String    @db.VarChar(200)
+  banco         String    @db.VarChar(10)
+  agencia       String    @db.VarChar(20)
+  conta         String    @db.VarChar(20)
+  tipoConta     String    @db.VarChar(20)
+  saldoInicial  Decimal   @default(0) @db.Decimal(15, 2)
+  saldoAtual    Decimal   @default(0) @db.Decimal(15, 2)
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  financialMovements  FinancialMovement[]
+  bankTransactions    BankTransaction[]
+  cashFlows           CashFlow[]          @relation("CashFlowBankAccount")
+
+  @@unique([companyId, banco, agencia, conta])
+  @@map("bank_accounts")
+}
+
+model FinancialMovement {
+  id                String                   @id @default(cuid())
+  companyId         String
+  company           Company                  @relation(fields: [companyId], references: [id])
+  type              FinancialMovementType
+  personId          String
+  person            Person                   @relation(fields: [personId], references: [id])
+  description       String                   @db.Text
+  numero            String                   @db.VarChar(50)
+  parcela           Int                      @default(1)
+  totalParcelas     Int                      @default(1)
+  valor             Decimal                  @db.Decimal(15, 2)
+  valorPago         Decimal?                 @db.Decimal(15, 2)
+  dataEmissao       DateTime
+  dataVencimento    DateTime
+  dataPagamento     DateTime?
+  paymentMethod     PaymentMethod?
+  bankAccountId     String?
+  bankAccount       BankAccount?             @relation(fields: [bankAccountId], references: [id])
+  categoryId        String?
+  category          ChartOfAccount?          @relation("FinancialMovementCategory", fields: [categoryId], references: [id])
+  costCenterId      String?
+  costCenter        CostCenter?              @relation(fields: [costCenterId], references: [id])
+  status            FinancialMovementStatus  @default(PENDENTE)
+  nfeDocumentId     String?
+  nfeDocument       NFeDocument?             @relation(fields: [nfeDocumentId], references: [id])
+  saleOrderId       String?
+  saleOrder         SaleOrder?               @relation(fields: [saleOrderId], references: [id])
+  cteDocumentId     String?                  // CT-e de frete que gerou este título
+  observations      String?                  @db.Text
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+
+  // Relations
+  bankTransactions  BankTransaction[]
+
+  @@index([companyId, status, dataVencimento])
+  @@map("financial_movements")
+}
+
+model BankTransaction {
+  id                    String              @id @default(cuid())
+  companyId             String
+  company               Company             @relation(fields: [companyId], references: [id])
+  bankAccountId         String
+  bankAccount           BankAccount         @relation(fields: [bankAccountId], references: [id])
+  type                  BankTransactionType
+  date                  DateTime
+  value                 Decimal             @db.Decimal(15, 2)
+  balance               Decimal             @db.Decimal(15, 2)
+  description           String              @db.Text
+  financialMovementId   String?
+  financialMovement     FinancialMovement?  @relation(fields: [financialMovementId], references: [id])
+  reconciled            Boolean             @default(false)
+  createdAt             DateTime            @default(now())
+
+  @@index([bankAccountId, date])
+  @@map("bank_transactions")
+}
+
+model CashFlow {
+  id              String                @id @default(cuid())
+  companyId       String
+  company         Company               @relation(fields: [companyId], references: [id])
+  date            DateTime
+  description     String                @db.Text
+  type            FinancialMovementType
+  valorPrevisto   Decimal               @db.Decimal(15, 2)
+  valorRealizado  Decimal?              @db.Decimal(15, 2)
+  categoryId      String?
+  category        ChartOfAccount?       @relation("CashFlowCategory", fields: [categoryId], references: [id])
+  bankAccountId   String?
+  bankAccount     BankAccount?          @relation("CashFlowBankAccount", fields: [bankAccountId], references: [id])
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@map("cash_flows")
+}
+
+// ============================================================================
+// DRE — DEMONSTRATIVO DE RESULTADO DO EXERCÍCIO
+// ============================================================================
+
+model DreApuracao {
+  id                  String   @id @default(cuid())
+  companyId           String
+  company             Company  @relation(fields: [companyId], references: [id])
+
+  periodoReferencia   String   @db.VarChar(7)  // "YYYY-MM"
+  tipo                String   @default("MENSAL") // MENSAL | TRIMESTRAL | ANUAL
+
+  // Receitas
+  receitaBrutaVendas     Decimal @db.Decimal(15, 2) @default(0)
+  receitaBrutaServicos   Decimal @db.Decimal(15, 2) @default(0)
+  deducoesReceita        Decimal @db.Decimal(15, 2) @default(0)
+  receitaLiquida         Decimal @db.Decimal(15, 2) @default(0)
+
+  // Custos
+  custoMercadorias       Decimal @db.Decimal(15, 2) @default(0)
+  custoServicos          Decimal @db.Decimal(15, 2) @default(0)
+  lucroBruto             Decimal @db.Decimal(15, 2) @default(0)
+
+  // Despesas Operacionais
+  despesasVendas         Decimal @db.Decimal(15, 2) @default(0)
+  despesasAdm            Decimal @db.Decimal(15, 2) @default(0)
+  despesasGerais         Decimal @db.Decimal(15, 2) @default(0)
+  ebitda                 Decimal @db.Decimal(15, 2) @default(0)
+
+  // Resultado Financeiro
+  receitasFinanceiras    Decimal @db.Decimal(15, 2) @default(0)
+  despesasFinanceiras    Decimal @db.Decimal(15, 2) @default(0)
+  resultadoFinanceiro    Decimal @db.Decimal(15, 2) @default(0)
+
+  // Resultado Final
+  lair                   Decimal @db.Decimal(15, 2) @default(0)
+  irpj                   Decimal @db.Decimal(15, 2) @default(0)
+  csll                   Decimal @db.Decimal(15, 2) @default(0)
+  lucroLiquido           Decimal @db.Decimal(15, 2) @default(0)
+
+  calculadoEm            DateTime @default(now())
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@unique([companyId, periodoReferencia, tipo])
+  @@map("dre_apuracoes")
+}
+
+// ============================================================================
+// SPRINT 8 — RH (FUNCIONÁRIOS, FOLHA DE PAGAMENTO, BENEFÍCIOS)
+// ============================================================================
+
+model Employee {
+  id              String         @id @default(cuid())
+  companyId       String
+  company         Company        @relation(fields: [companyId], references: [id])
+  personId        String
+  person          Person         @relation(fields: [personId], references: [id])
+  userId          String?
+  user            User?          @relation("EmployeeUser", fields: [userId], references: [id])
+  matricula       String         @db.VarChar(50)
+  cargo           String         @db.VarChar(200)
+  departamento    String         @db.VarChar(200)
+  costCenterId    String?
+  costCenter      CostCenter?    @relation(fields: [costCenterId], references: [id])
+  dataAdmissao    DateTime
+  dataDemissao    DateTime?
+  salarioBase     Decimal        @db.Decimal(15, 2)
+  status          EmployeeStatus @default(ATIVO)
+  ctps            String?        @db.VarChar(30)
+  pis             String?        @db.VarChar(20)
+  jornadaSemanal  Int            @default(44)
+  bancoHoras      Decimal        @default(0) @db.Decimal(10, 2)
+  observations    String?        @db.Text
+
+  // Apontamentos
+  apontamentoRole ApontamentoRole @default(OPERADOR)
+  jornadaId       String?
+  jornada         JornadaTrabalho? @relation("EmployeeJornada", fields: [jornadaId], references: [id])
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  // Relations
+  payrollItems    PayrollItem[]
+  benefits        EmployeeBenefit[]
+  apontamentos    Apontamento[]
+
+  @@unique([companyId, matricula])
+  @@map("employees")
+}
+
+model Payroll {
+  id                  String        @id @default(cuid())
+  companyId           String
+  company             Company       @relation(fields: [companyId], references: [id])
+  periodoReferencia   String        @db.VarChar(7) // YYYY-MM
+  type                PayrollType   @default(MENSAL)
+  status              PayrollStatus @default(RASCUNHO)
+  dataCalculo         DateTime?
+  dataPagamento       DateTime?
+  totalBruto          Decimal       @default(0) @db.Decimal(15, 2)
+  totalDescontos      Decimal       @default(0) @db.Decimal(15, 2)
+  totalLiquido        Decimal       @default(0) @db.Decimal(15, 2)
+  totalEncargos       Decimal       @default(0) @db.Decimal(15, 2)
+  observations        String?       @db.Text
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  // Relations
+  items               PayrollItem[]
+
+  @@unique([companyId, periodoReferencia, type])
+  @@map("payrolls")
+}
+
+model PayrollItem {
+  id                String    @id @default(cuid())
+  payrollId         String
+  payroll           Payroll   @relation(fields: [payrollId], references: [id], onDelete: Cascade)
+  employeeId        String
+  employee          Employee  @relation(fields: [employeeId], references: [id])
+  salarioBase       Decimal   @db.Decimal(15, 2)
+  horasExtras       Decimal   @default(0) @db.Decimal(10, 2)
+  valorHorasExtras  Decimal   @default(0) @db.Decimal(15, 2)
+  adicionalNoturno  Decimal   @default(0) @db.Decimal(15, 2)
+  periculosidade    Decimal   @default(0) @db.Decimal(15, 2)
+  insalubridade     Decimal   @default(0) @db.Decimal(15, 2)
+  outrosProventos   Decimal   @default(0) @db.Decimal(15, 2)
+  totalBruto        Decimal   @db.Decimal(15, 2)
+  inss              Decimal   @default(0) @db.Decimal(15, 2)
+  irrf              Decimal   @default(0) @db.Decimal(15, 2)
+  valeTransporte    Decimal   @default(0) @db.Decimal(15, 2)
+  valeRefeicao      Decimal   @default(0) @db.Decimal(15, 2)
+  outrosDescontos   Decimal   @default(0) @db.Decimal(15, 2)
+  totalDescontos    Decimal   @db.Decimal(15, 2)
+  totalLiquido      Decimal   @db.Decimal(15, 2)
+  fgts              Decimal   @default(0) @db.Decimal(15, 2)
+  inssPatronal      Decimal   @default(0) @db.Decimal(15, 2)
+  createdAt         DateTime  @default(now())
+
+  @@map("payroll_items")
+}
+
+model EmployeeBenefit {
+  id                String      @id @default(cuid())
+  employeeId        String
+  employee          Employee    @relation(fields: [employeeId], references: [id])
+  type              BenefitType
+  description       String?     @db.Text
+  valorEmpresa      Decimal     @default(0) @db.Decimal(15, 2)
+  valorFuncionario  Decimal     @default(0) @db.Decimal(15, 2)
+  active            Boolean     @default(true)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@map("employee_benefits")
+}
+
+// ============================================================================
+// SPRINT 9 — COMPRAS (SOLICITAÇÕES, COTAÇÕES, PEDIDOS DE COMPRA)
+// ============================================================================
+
+model PurchaseRequest {
+  id              String                @id @default(cuid())
+  companyId       String
+  company         Company               @relation(fields: [companyId], references: [id])
+  numero          String                @db.VarChar(50)
+  solicitanteId   String
+  solicitante     User                  @relation("PurchaseRequestSolicitante", fields: [solicitanteId], references: [id])
+  aprovadorId     String?
+  aprovador       User?                 @relation("PurchaseRequestAprovador", fields: [aprovadorId], references: [id])
+  description     String                @db.Text
+  justificativa   String?               @db.Text
+  dataSolicitacao DateTime              @default(now())
+  dataAprovacao   DateTime?
+  status          PurchaseRequestStatus @default(RASCUNHO)
+  priority        Int                   @default(5)
+  observations    String?               @db.Text
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  // Relations
+  items               PurchaseRequestItem[]
+  supplierQuotations  SupplierQuotation[]
+  purchaseOrders      PurchaseOrder[]
+
+  @@unique([companyId, numero])
+  @@map("purchase_requests")
+}
+
+model PurchaseRequestItem {
+  id                String          @id @default(cuid())
+  purchaseRequestId String
+  purchaseRequest   PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+  productId         String
+  product           Product         @relation(fields: [productId], references: [id])
+  quantity          Decimal         @db.Decimal(15, 4)
+  unit              String          @db.VarChar(20)
+  estimatedPrice    Decimal?        @db.Decimal(15, 4)
+  description       String?         @db.Text
+  createdAt         DateTime        @default(now())
+
+  @@map("purchase_request_items")
+}
+
+model SupplierQuotation {
+  id                String                  @id @default(cuid())
+  companyId         String
+  company           Company                 @relation(fields: [companyId], references: [id])
+  purchaseRequestId String
+  purchaseRequest   PurchaseRequest         @relation(fields: [purchaseRequestId], references: [id])
+  supplierId        String
+  supplier          Person                  @relation("SupplierQuotationSupplier", fields: [supplierId], references: [id])
+  numero            String?                 @db.VarChar(50)
+  dataEnvio         DateTime?
+  dataResposta      DateTime?
+  dataValidade      DateTime?
+  status            SupplierQuotationStatus @default(PENDENTE)
+  totalValue        Decimal?                @db.Decimal(15, 2)
+  prazoEntrega      Int?                    // dias
+  condicaoPagamento String?                 @db.VarChar(100)
+  observations      String?                 @db.Text
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  // Relations
+  items             SupplierQuotationItem[]
+
+  @@map("supplier_quotations")
+}
+
+model SupplierQuotationItem {
+  id            String            @id @default(cuid())
+  quotationId   String
+  quotation     SupplierQuotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product           @relation(fields: [productId], references: [id])
+  quantity      Decimal           @db.Decimal(15, 4)
+  unitPrice     Decimal           @db.Decimal(15, 4)
+  totalPrice    Decimal           @db.Decimal(15, 2)
+  prazoEntrega  Int?              // dias
+  observations  String?           @db.Text
+  createdAt     DateTime          @default(now())
+
+  @@map("supplier_quotation_items")
+}
+
+model PurchaseOrder {
+  id                    String              @id @default(cuid())
+  companyId             String
+  company               Company             @relation(fields: [companyId], references: [id])
+  numero                String              @db.VarChar(50)
+  supplierId            String
+  supplier              Person              @relation("PurchaseOrderSupplier", fields: [supplierId], references: [id])
+  purchaseRequestId     String?
+  purchaseRequest       PurchaseRequest?    @relation(fields: [purchaseRequestId], references: [id])
+  dataEmissao           DateTime            @default(now())
+  dataEntregaPrevista   DateTime?
+  dataEntregaReal       DateTime?
+  condicaoPagamento     String?             @db.VarChar(100)
+  status                PurchaseOrderStatus @default(RASCUNHO)
+  subtotal              Decimal             @default(0) @db.Decimal(15, 2)
+  desconto              Decimal             @default(0) @db.Decimal(15, 2)
+  frete                 Decimal             @default(0) @db.Decimal(15, 2)
+  totalValue            Decimal             @default(0) @db.Decimal(15, 2)
+  tipoFrete             TipoFrete           @default(SEM_FRETE)
+  valorFrete            Decimal             @default(0) @db.Decimal(15, 2)
+  valorSeguro           Decimal             @default(0) @db.Decimal(15, 2)
+  valorOutrasDespesas   Decimal             @default(0) @db.Decimal(15, 2)
+  valorDesconto         Decimal             @default(0) @db.Decimal(15, 2)
+  observations          String?             @db.Text
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  // Relations
+  items                 PurchaseOrderItem[]
+  stockMovements        StockMovement[]
+
+  // Fluxo de Compras Integrado
+  purchaseReceipts      PurchaseReceipt[]
+  nfeInbox              NFeInbox[]
+  cteDocuments          CteDocument[]
+
+  @@unique([companyId, numero])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id                String        @id @default(cuid())
+  purchaseOrderId   String
+  purchaseOrder     PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  productId         String
+  product           Product       @relation(fields: [productId], references: [id])
+  quantity          Decimal       @db.Decimal(15, 4)
+  quantityReceived  Decimal       @default(0) @db.Decimal(15, 4)
+  unit              String        @db.VarChar(20)
+  unitPrice         Decimal       @db.Decimal(15, 4)
+  totalPrice        Decimal       @db.Decimal(15, 2)
+  icms              Decimal       @default(0) @db.Decimal(15, 2)
+  ipi               Decimal       @default(0) @db.Decimal(15, 2)
+  observations      String?       @db.Text
+  createdAt         DateTime      @default(now())
+
+  @@map("purchase_order_items")
+}
+
+// ============================================================================
+// SPRINT 9 — ESTOQUE (LOCAIS, SALDOS, MOVIMENTAÇÕES, INVENTÁRIO)
+// ============================================================================
+
+model StockLocation {
+  id          String    @id @default(cuid())
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id])
+  code        String    @db.VarChar(50)
+  name        String    @db.VarChar(200)
+  description String?   @db.Text
+  type        String    @db.VarChar(20) // ALMOXARIFADO, PRODUCAO, EXPEDICAO, QUARENTENA
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  stockBalances           StockBalance[]
+  stockMovements          StockMovement[]   @relation("StockMovementLocation")
+  stockMovementsDestino   StockMovement[]   @relation("StockMovementLocationDestination")
+  inventories             Inventory[]
+
+  @@unique([companyId, code])
+  @@map("stock_locations")
+}
+
+model StockBalance {
+  id                String        @id @default(cuid())
+  companyId         String
+  company           Company       @relation(fields: [companyId], references: [id])
+  productId         String
+  product           Product       @relation(fields: [productId], references: [id])
+  locationId        String
+  location          StockLocation @relation(fields: [locationId], references: [id])
+  quantity          Decimal       @default(0) @db.Decimal(15, 4)
+  reservedQuantity  Decimal       @default(0) @db.Decimal(15, 4)
+  availableQuantity Decimal       @default(0) @db.Decimal(15, 4)
+  averageCost       Decimal       @default(0) @db.Decimal(15, 4)
+  totalCost         Decimal       @default(0) @db.Decimal(15, 2)
+  minStock          Decimal       @default(0) @db.Decimal(15, 4)
+  maxStock          Decimal       @default(0) @db.Decimal(15, 4)
+  reorderPoint      Decimal       @default(0) @db.Decimal(15, 4)
+  lastMovementAt    DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@unique([productId, locationId])
+  @@index([companyId, productId])
+  @@map("stock_balances")
+}
+
+model StockMovement {
+  id                    String              @id @default(cuid())
+  companyId             String
+  company               Company             @relation(fields: [companyId], references: [id])
+  productId             String
+  product               Product             @relation(fields: [productId], references: [id])
+  locationId            String
+  location              StockLocation       @relation("StockMovementLocation", fields: [locationId], references: [id])
+  locationDestinationId String?
+  locationDestination   StockLocation?      @relation("StockMovementLocationDestination", fields: [locationDestinationId], references: [id])
+  type                  StockMovementType
+  source                StockMovementSource
+  quantity              Decimal             @db.Decimal(15, 4)
+  unitCost              Decimal             @default(0) @db.Decimal(15, 4)
+  totalCost             Decimal             @default(0) @db.Decimal(15, 2)
+  date                  DateTime            @default(now())
+  documentNumber        String?             @db.VarChar(50)
+  purchaseOrderId       String?
+  purchaseOrder         PurchaseOrder?      @relation(fields: [purchaseOrderId], references: [id])
+  saleOrderId           String?
+  saleOrder             SaleOrder?          @relation(fields: [saleOrderId], references: [id])
+  productionOrderId     String?
+  productionOrder       ProductionOrder?    @relation(fields: [productionOrderId], references: [id])
+  requisitionId         String?
+  requisition           Requisition?        @relation(fields: [requisitionId], references: [id])
+  userId                String
+  user                  User                @relation("StockMovementUser", fields: [userId], references: [id])
+  observations          String?             @db.Text
+  createdAt             DateTime            @default(now())
+
+  @@index([companyId, productId, date])
+  @@map("stock_movements")
+}
+
+model Inventory {
+  id              String          @id @default(cuid())
+  companyId       String
+  company         Company         @relation(fields: [companyId], references: [id])
+  numero          String          @db.VarChar(50)
+  locationId      String
+  location        StockLocation   @relation(fields: [locationId], references: [id])
+  description     String?         @db.Text
+  dataInicio      DateTime
+  dataFim         DateTime?
+  status          InventoryStatus @default(PLANEJADO)
+  responsavelId   String
+  responsavel     User            @relation("InventoryResponsavel", fields: [responsavelId], references: [id])
+  observations    String?         @db.Text
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  items           InventoryItem[]
+
+  @@unique([companyId, numero])
+  @@map("inventories")
+}
+
+model InventoryItem {
+  id                String    @id @default(cuid())
+  inventoryId       String
+  inventory         Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  productId         String
+  product           Product   @relation(fields: [productId], references: [id])
+  quantidadeSistema Decimal   @db.Decimal(15, 4)
+  quantidadeContada Decimal?  @db.Decimal(15, 4)
+  diferenca         Decimal?  @db.Decimal(15, 4)
+  custoUnitario     Decimal   @default(0) @db.Decimal(15, 4)
+  valorDiferenca    Decimal   @default(0) @db.Decimal(15, 2)
+  justificativa     String?   @db.Text
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("inventory_items")
+}
+
+// ============================================================================
+// SPRINT 10 — ASSISTENTE IA (CONVERSAS, MENSAGENS, FERRAMENTAS, INSIGHTS)
+// ============================================================================
+
+model AiConversation {
+  id              String               @id @default(cuid())
+  companyId       String
+  company         Company              @relation(fields: [companyId], references: [id])
+  userId          String
+  user            User                 @relation(fields: [userId], references: [id])
+  title           String?              @db.VarChar(300)
+  context         String?              @db.VarChar(100) // module context like "financeiro", "estoque"
+  status          AiConversationStatus @default(ATIVA)
+  messageCount    Int                  @default(0)
+  lastMessageAt   DateTime?
+  metadata        Json?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  // Relations
+  messages        AiMessage[]
+
+  @@index([companyId, userId])
+  @@map("ai_conversations")
+}
+
+model AiMessage {
+  id              String        @id @default(cuid())
+  conversationId  String
+  conversation    AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role            AiMessageRole
+  content         String        @db.Text
+  toolCalls       Json?         // array of tool calls made
+  toolResults     Json?         // results from tool calls
+  tokens          Int?
+  latencyMs       Int?
+  createdAt       DateTime      @default(now())
+
+  // Relations
+  toolExecutions  AiToolExecution[]
+
+  @@index([conversationId, createdAt])
+  @@map("ai_messages")
+}
+
+model AiToolExecution {
+  id              String     @id @default(cuid())
+  companyId       String
+  company         Company    @relation(fields: [companyId], references: [id])
+  messageId       String
+  message         AiMessage  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  toolType        AiToolType
+  input           Json
+  output          Json?
+  success         Boolean    @default(false)
+  errorMessage    String?    @db.Text
+  executionTimeMs Int?
+  createdAt       DateTime   @default(now())
+
+  @@map("ai_tool_executions")
+}
+
+model AiInsight {
+  id          String    @id @default(cuid())
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id])
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id])
+  title       String    @db.VarChar(300)
+  description String    @db.Text
+  category    String    @db.VarChar(100) // e.g. "financeiro", "estoque", "producao"
+  severity    String    @db.VarChar(20)  // "info", "warning", "critical"
+  data        Json?
+  actionable  Boolean   @default(false)
+  actionUrl   String?   @db.VarChar(500)
+  dismissed   Boolean   @default(false)
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("ai_insights")
+}
+
+// ============================================================================
+// SPRINT 10 — PORTAL DO CLIENTE (USUÁRIOS, TICKETS, DOCUMENTOS)
+// ============================================================================
+
+model PortalUser {
+  id          String            @id @default(cuid())
+  companyId   String
+  company     Company           @relation(fields: [companyId], references: [id])
+  personId    String
+  person      Person            @relation(fields: [personId], references: [id])
+  email       String            @db.VarChar(200)
+  passwordHash String           @db.VarChar(200)
+  name        String            @db.VarChar(200)
+  accessLevel PortalAccessLevel @default(VISUALIZAR)
+  active      Boolean           @default(true)
+  lastLoginAt DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  // Relations
+  tickets         PortalTicket[]
+  ticketMessages  PortalTicketMessage[]
+  portalDocuments PortalDocument[]
+  notifications   Notification[]
+
+  @@unique([companyId, email])
+  @@map("portal_users")
+}
+
+model PortalTicket {
+  id            String               @id @default(cuid())
+  companyId     String
+  company       Company              @relation(fields: [companyId], references: [id])
+  portalUserId  String
+  portalUser    PortalUser           @relation(fields: [portalUserId], references: [id])
+  assignedToId  String?
+  assignedTo    User?                @relation("PortalTicketAssigned", fields: [assignedToId], references: [id])
+  subject       String               @db.VarChar(300)
+  description   String               @db.Text
+  status        PortalTicketStatus   @default(ABERTO)
+  priority      PortalTicketPriority @default(MEDIA)
+  category      String?              @db.VarChar(100)
+  closedAt      DateTime?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  // Relations
+  messages      PortalTicketMessage[]
+
+  @@index([companyId, status])
+  @@map("portal_tickets")
+}
+
+model PortalTicketMessage {
+  id            String      @id @default(cuid())
+  ticketId      String
+  ticket        PortalTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  portalUserId  String?
+  portalUser    PortalUser?  @relation(fields: [portalUserId], references: [id])
+  userId        String?
+  user          User?        @relation("PortalTicketMessageUser", fields: [userId], references: [id])
+  content       String       @db.Text
+  isInternal    Boolean      @default(false) // internal notes not visible to client
+  createdAt     DateTime     @default(now())
+
+  @@map("portal_ticket_messages")
+}
+
+model PortalDocument {
+  id              String        @id @default(cuid())
+  companyId       String
+  company         Company       @relation(fields: [companyId], references: [id])
+  portalUserId    String?
+  portalUser      PortalUser?   @relation(fields: [portalUserId], references: [id])
+  personId        String
+  person          Person        @relation(fields: [personId], references: [id])
+  title           String        @db.VarChar(300)
+  description     String?       @db.Text
+  fileUrl         String        @db.VarChar(500)
+  fileType        String        @db.VarChar(50)
+  fileSize        Int?
+  category        String        @db.VarChar(50) // "nfe", "boleto", "orcamento", "contrato", "os"
+  saleOrderId     String?
+  saleOrder       SaleOrder?    @relation(fields: [saleOrderId], references: [id])
+  nfeDocumentId   String?
+  nfeDocument     NFeDocument?  @relation(fields: [nfeDocumentId], references: [id])
+  serviceOrderId  String?
+  serviceOrder    ServiceOrder? @relation(fields: [serviceOrderId], references: [id])
+  downloadCount   Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([companyId, personId])
+  @@map("portal_documents")
+}
+
+// ============================================================================
+// SPRINT 10 — NOTIFICAÇÕES DO SISTEMA
+// ============================================================================
+
+model Notification {
+  id            String           @id @default(cuid())
+  companyId     String
+  company       Company          @relation(fields: [companyId], references: [id])
+  userId        String?
+  user          User?            @relation(fields: [userId], references: [id])
+  portalUserId  String?
+  portalUser    PortalUser?      @relation(fields: [portalUserId], references: [id])
+  type          NotificationType @default(INFO)
+  title         String           @db.VarChar(300)
+  message       String           @db.Text
+  link          String?          @db.VarChar(500)
+  read          Boolean          @default(false)
+  readAt        DateTime?
+  data          Json?
+  createdAt     DateTime         @default(now())
+
+  @@index([companyId, userId, read])
+  @@index([companyId, portalUserId, read])
+  @@map("notifications")
+}
+
+// ============================================================================
+// GOVERNMENT TRANSMISSION
+// ============================================================================
+
+enum GovernmentTransmissionType {
+  NFE
+  NFCE
+  NFSE
+  CTE
+  MDFE
+  SPED_FISCAL
+  SPED_CONTRIBUICOES
+  ECD
+  ECF
+  ESOCIAL
+  REINF
+  DCTFWEB
+}
+
+model GovernmentTransmissionLog {
+  id               String   @id @default(cuid())
+  companyId        String
+  company          Company  @relation(fields: [companyId], references: [id])
+
+  type             GovernmentTransmissionType
+  ambiente         String   // "1" producao, "2" homologacao
+  nodeEnv          String   // "development" or "production"
+
+  // Request
+  endpoint         String
+  method           String   @default("POST")
+  requestXml       String?  @db.Text
+  requestPayload   String?  @db.Text
+
+  // Response
+  responseXml      String?  @db.Text
+  responsePayload  String?  @db.Text
+  statusCode       Int?
+
+  // Result
+  success          Boolean  @default(false)
+  protocolNumber   String?
+  receiptNumber    String?
+  errorCode        String?
+  errorMessage     String?  @db.Text
+
+  // Reference
+  documentId       String?  // ID do documento (NF-e, evento eSocial, etc.)
+  documentNumber   String?  // Numero do documento
+
+  // Metadata
+  userId           String?
+  processingTimeMs Int?
+
+  createdAt        DateTime @default(now())
+
+  @@index([companyId, type, createdAt])
+  @@index([companyId, ambiente])
+  @@index([documentId])
+  @@map("government_transmission_logs")
+}
+
+// ============================================================================
+// FLUXO DE COMPRAS INTEGRADO — CATÁLOGO DE FORNECEDORES, NF-e INBOX, RECEBIMENTO
+// ============================================================================
+
+model ProductSupplier {
+  id                    String   @id @default(cuid())
+  companyId             String
+  company               Company  @relation(fields: [companyId], references: [id])
+  productId             String
+  product               Product  @relation(fields: [productId], references: [id])
+  personId              String
+  person                Person   @relation("ProductSupplierPerson", fields: [personId], references: [id])
+
+  codigoFornecedor      String   @db.VarChar(100)  // código do produto no fornecedor
+  descricaoFornecedor   String   @db.VarChar(500)  // descrição do produto no fornecedor
+  unidadeFornecedor     String?  @db.VarChar(20)   // unidade de medida do fornecedor
+  fatorConversao        Decimal  @default(1) @db.Decimal(10, 4)  // fator entre unidade fornecedor e interna
+  precoUltCompra        Decimal? @db.Decimal(15, 2) // último preço de compra
+  prazoEntregaDias      Int?                        // prazo de entrega médio em dias
+  preferred             Boolean  @default(false)    // fornecedor preferencial para este produto
+  active                Boolean  @default(true)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  nfeInboxItems         NFeInboxItem[]
+
+  @@unique([companyId, productId, personId])
+  @@index([companyId, personId])
+  @@map("product_suppliers")
+}
+
+// ============================================================================
+// CT-e — CONHECIMENTO DE TRANSPORTE ELETRÔNICO (ENTRADA / FRETE CONTRATADO)
+// ============================================================================
+// A empresa não emite CT-e, mas RECEBE de transportadoras nos fretes de compras.
+// Este modelo registra o CT-e recebido e dispara as integrações:
+//   - Crédito ICMS no livro fiscal (quando insumo de produção, Lucro Real)
+//   - Rateio do custo de frete nas mercadorias da NF-e vinculada
+//   - Contas a pagar para a transportadora
+//   - Lançamento contábil automático (D: Estoque ou Frete / C: Fornecedores)
+model CteDocument {
+  id                  String          @id @default(cuid())
+  companyId           String
+  company             Company         @relation(fields: [companyId], references: [id])
+
+  // Identificação do CT-e
+  chaveAcesso         String?         @db.VarChar(44)
+  numero              String          @db.VarChar(20)
+  serie               String          @default("0") @db.VarChar(3)
+  dataEmissao         DateTime
+  dataEntrega         DateTime?
+
+  // Emissor (transportadora)
+  transportadoraId    String?
+  transportadora      Person?         @relation("CteTransportadora", fields: [transportadoraId], references: [id])
+  transportadoraCnpj  String          @db.VarChar(14)
+  transportadoraNome  String          @db.VarChar(200)
+
+  // Remetente e destinatário do transporte
+  remetenteCnpj       String?         @db.VarChar(14)
+  remetenteNome       String?         @db.VarChar(200)
+  destinatarioCnpj    String?         @db.VarChar(14)
+  destinatarioNome    String?         @db.VarChar(200)
+
+  // Dados do transporte
+  modalidade          CteModalidade   @default(RODOVIARIO)
+  naturezaPrestacao   String          @default("PRESTAÇÃO DE SERVIÇO DE TRANSPORTE") @db.VarChar(200)
+  cfop                String          @default("2352") @db.VarChar(4) // 1352 intraestadual / 2352 interestadual
+  ufInicio            String?         @db.VarChar(2)
+  ufFim               String?         @db.VarChar(2)
+  pesoTotalKg         Float?
+
+  // Valores financeiros
+  valorFrete          Decimal         @db.Decimal(15, 2)  // valor total do frete
+  valorSeguro         Decimal         @default(0) @db.Decimal(15, 2)
+  valorOutrasDespesas Decimal         @default(0) @db.Decimal(15, 2)
+  valorDesconto       Decimal         @default(0) @db.Decimal(15, 2)
+  valorTotal          Decimal         @db.Decimal(15, 2)  // total do CT-e
+
+  // ICMS sobre o frete (crédito a recuperar)
+  cstIcms             String?         @db.VarChar(3)
+  bcIcms              Decimal         @default(0) @db.Decimal(15, 2)
+  aliqIcms            Float           @default(12)  // alíquota sobre frete
+  valorIcms           Decimal         @default(0) @db.Decimal(15, 2)
+  creditoIcms         Boolean         @default(true)  // empresa pode aproveitar o crédito?
+
+  // Condição de pagamento (frete)
+  condicaoPagamento   String?         @db.VarChar(100)  // ex: "30 dias"
+  dataVencimentoFrete DateTime?
+
+  // Status e manifestação
+  status              CteStatus       @default(REGISTRADO)
+  manifestacao        CteManifestacao?
+  dataManifestacao    DateTime?
+  motivoCancelamento  String?         @db.Text
+
+  // XML bruto
+  xmlContent          String?         @db.Text
+
+  // Vínculos
+  purchaseOrderId     String?
+  purchaseOrder       PurchaseOrder?  @relation(fields: [purchaseOrderId], references: [id])
+  nfeInboxId          String?
+  nfeInbox            NFeInbox?       @relation(fields: [nfeInboxId], references: [id])
+
+  // Resultado das integrações (preenchidos ao escriturar)
+  financialMovementId String?         // título CP gerado
+  journalEntryId      String?         // lançamento contábil gerado
+  fiscalEntryId       String?         // escrituração fiscal
+
+  // Rateio de custo: flag indica se o custo já foi rateado na NF-e vinculada
+  custoRateado        Boolean         @default(false)
+  valorRateadoTotal   Decimal         @default(0) @db.Decimal(15, 2)
+
+  // Observações
+  observacoes         String?         @db.Text
+
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  @@index([companyId, status])
+  @@index([companyId, dataEmissao])
+  @@map("cte_documents")
+}
+
+model NFeInbox {
+  id                      String           @id @default(cuid())
+  companyId               String
+  company                 Company          @relation(fields: [companyId], references: [id])
+
+  chaveAcesso             String           @db.VarChar(44)
+  numero                  String
+  serie                   String
+  emitenteCnpj            String           @db.VarChar(14)
+  emitenteNome            String
+  emitentePessoaId        String?
+  emitentePessoa          Person?          @relation("NFeInboxEmitente", fields: [emitentePessoaId], references: [id])
+  dataEmissao             DateTime
+  valorTotal              Decimal          @db.Decimal(15, 2)
+  valorFrete              Decimal          @default(0) @db.Decimal(15, 2)
+  valorSeguro             Decimal          @default(0) @db.Decimal(15, 2)
+  valorOutrasDespesas     Decimal          @default(0) @db.Decimal(15, 2)
+  valorDesconto           Decimal          @default(0) @db.Decimal(15, 2)
+
+  status                  NFeInboxStatus   @default(PENDENTE)
+  manifestacao            ManifestacaoType?
+  dataManifestacao        DateTime?
+  xmlContent              String?          @db.Text  // XML bruto recebido da SEFAZ
+
+  // Vínculos opcionais
+  purchaseOrderId         String?
+  purchaseOrder           PurchaseOrder?   @relation(fields: [purchaseOrderId], references: [id])
+  purchaseReceiptId       String?
+  purchaseReceipt         PurchaseReceipt? @relation("NFeInboxReceipt", fields: [purchaseReceiptId], references: [id])
+  nfeDocumentId           String?
+  nfeDocument             NFeDocument?     @relation(fields: [nfeDocumentId], references: [id])
+
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
+
+  // Relations
+  items                   NFeInboxItem[]
+  linkedReceipts          PurchaseReceipt[] @relation("NFeInboxReceiptLink")
+  cteDocuments            CteDocument[]
+
+  @@unique([companyId, chaveAcesso])
+  @@index([companyId, status])
+  @@map("nfe_inbox")
+}
+
+model NFeInboxItem {
+  id                        String           @id @default(cuid())
+  inboxId                   String
+  inbox                     NFeInbox         @relation(fields: [inboxId], references: [id], onDelete: Cascade)
+
+  numeroItem                Int
+  codigoProdutoFornecedor   String           // código do produto na NF-e do fornecedor
+  descricaoProduto          String
+  ncm                       String           @db.VarChar(8)
+  cfop                      String           @db.VarChar(4)
+  unidade                   String           @db.VarChar(6)
+  quantidade                Decimal          @db.Decimal(15, 4)
+  valorUnitario             Decimal          @db.Decimal(15, 4)
+  valorTotal                Decimal          @db.Decimal(15, 2)
+  valorIcms                 Decimal          @default(0) @db.Decimal(15, 2)
+  valorIpi                  Decimal          @default(0) @db.Decimal(15, 2)
+  valorPis                  Decimal          @default(0) @db.Decimal(15, 2)
+  valorCofins               Decimal          @default(0) @db.Decimal(15, 2)
+
+  // Mapeamento para produto interno
+  productId                 String?
+  product                   Product?         @relation(fields: [productId], references: [id])
+  productSupplierId         String?
+  productSupplier           ProductSupplier? @relation(fields: [productSupplierId], references: [id])
+  mapeado                   Boolean          @default(false)
+
+  createdAt                 DateTime         @default(now())
+
+  @@index([inboxId])
+  @@map("nfe_inbox_items")
+}
+
+model PurchaseReceipt {
+  id                String         @id @default(cuid())
+  companyId         String
+  company           Company        @relation(fields: [companyId], references: [id])
+
+  numero            String         // auto-gerado: REC-YYYYMMDD-NNN
+  purchaseOrderId   String?
+  purchaseOrder     PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  nfeInboxId        String?
+  nfeInbox          NFeInbox?      @relation("NFeInboxReceiptLink", fields: [nfeInboxId], references: [id])
+  responsavelId     String?
+  responsavel       User?          @relation("PurchaseReceiptResponsavel", fields: [responsavelId], references: [id])
+
+  status            ReceiptStatus  @default(PENDENTE)
+  dataRecebimento   DateTime       @default(now())
+  dataConferencia   DateTime?
+  observacoes       String?        @db.Text
+
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  // Relations
+  items             PurchaseReceiptItem[]
+  nfeInboxRefs      NFeInbox[]     @relation("NFeInboxReceipt")
+
+  @@unique([companyId, numero])
+  @@index([companyId, status])
+  @@map("purchase_receipts")
+}
+
+model PurchaseReceiptItem {
+  id                    String          @id @default(cuid())
+  receiptId             String
+  receipt               PurchaseReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  productId             String
+  product               Product         @relation(fields: [productId], references: [id])
+
+  quantidadeNota        Decimal         @db.Decimal(15, 4)  // quantidade conforme NF-e
+  quantidadeRecebida    Decimal         @db.Decimal(15, 4)  // quantidade fisicamente recebida
+  quantidadeAprovada    Decimal         @default(0) @db.Decimal(15, 4)  // aprovada após inspeção
+  quantidadeDevolvida   Decimal         @default(0) @db.Decimal(15, 4)
+  valorUnitario         Decimal         @db.Decimal(15, 4)
+  valorFreteRateado     Decimal         @default(0) @db.Decimal(15, 2)  // frete rateado neste item
+  custoTotal            Decimal         @db.Decimal(15, 2)  // custo total incluindo frete
+  divergencia           Boolean         @default(false)
+  motivoDivergencia     String?         @db.Text
+
+  createdAt             DateTime        @default(now())
+
+  @@map("purchase_receipt_items")
+}
+
+// ============================================================================
+// APONTAMENTOS PRODUTIVOS (Sprint 11)
+// ============================================================================
+
+model JornadaTrabalho {
+  id          String    @id @default(cuid())
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id])
+  nome        String    @db.VarChar(100)
+  horaInicio  String    @db.VarChar(5)
+  horaFim     String    @db.VarChar(5)
+  intervaloH  Float     @default(1.0)
+  segSex      Boolean   @default(true)
+  sabado      Boolean   @default(false)
+  domingo     Boolean   @default(false)
+  ativo       Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  employees   Employee[] @relation("EmployeeJornada")
+
+  @@map("jornadas_trabalho")
+}
+
+model FeriadoCalendario {
+  id          String      @id @default(cuid())
+  companyId   String
+  company     Company     @relation(fields: [companyId], references: [id])
+  data        DateTime    @db.Date
+  descricao   String      @db.VarChar(200)
+  tipo        FeriadoTipo @default(FERIADO)
+  createdAt   DateTime    @default(now())
+
+  @@unique([companyId, data])
+  @@map("feriados_calendario")
+}
+
+model EtapaOS {
+  id             String       @id @default(cuid())
+  serviceOrderId String
+  serviceOrder   ServiceOrder @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
+  sequencia      Int
+  descricao      String       @db.VarChar(300)
+  tempoEstimadoH Float?
+  status         EtapaStatus  @default(PENDENTE)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  apontamentos   Apontamento[]
+
+  @@index([serviceOrderId])
+  @@map("etapas_os")
+}
+
+model EtapaCalderaria {
+  id                String          @id @default(cuid())
+  calderariaOrderId String
+  calderariaOrder   CalderariaOrder @relation(fields: [calderariaOrderId], references: [id], onDelete: Cascade)
+  sequencia         Int
+  descricao         String          @db.VarChar(300)
+  tempoEstimadoH    Float?
+  status            EtapaStatus     @default(PENDENTE)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  apontamentos      Apontamento[]
+
+  @@index([calderariaOrderId])
+  @@map("etapas_calderaria")
+}
+
+model Apontamento {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+
+  // Vínculo Produção
+  productionOrderId String?
+  productionOrder   ProductionOrder? @relation(fields: [productionOrderId], references: [id])
+  routingStepId     String?
+  routingStep       RoutingStep?     @relation(fields: [routingStepId], references: [id])
+
+  // Vínculo Oficina
+  serviceOrderId    String?
+  serviceOrder      ServiceOrder?    @relation(fields: [serviceOrderId], references: [id])
+  etapaOsId         String?
+  etapaOs           EtapaOS?         @relation(fields: [etapaOsId], references: [id])
+
+  // Vínculo Calderaria
+  calderariaOrderId String?
+  calderariaOrder   CalderariaOrder? @relation(fields: [calderariaOrderId], references: [id])
+  etapaCalderariaId String?
+  etapaCalderaria   EtapaCalderaria? @relation(fields: [etapaCalderariaId], references: [id])
+
+  // Timing
+  inicio      DateTime
+  fim         DateTime?
+  pausado     Boolean           @default(false)
+  totalHoras  Decimal?          @db.Decimal(10, 4)
+
+  // Produção
+  quantidadeProduzida Float?
+  quantidadeRejeitada Float?
+  motivoParada        String?   @db.VarChar(300)
+
+  status       ApontamentoStatus @default(EM_ANDAMENTO)
+  observations String?           @db.Text
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([companyId, employeeId, status])
+  @@index([productionOrderId])
+  @@index([serviceOrderId])
+  @@index([calderariaOrderId])
+  @@map("apontamentos")
+}

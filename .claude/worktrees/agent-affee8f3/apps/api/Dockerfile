@@ -1,0 +1,58 @@
+# ============================================================================
+# Stage 1: Builder
+# ============================================================================
+FROM node:20-alpine AS builder
+
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+
+WORKDIR /app
+
+# Copy workspace config
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY apps/api/package.json ./apps/api/
+COPY packages/ ./packages/
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy source code
+COPY apps/api/ ./apps/api/
+
+# Generate Prisma client
+RUN pnpm --filter @erp/db db:generate
+
+# Build NestJS
+RUN pnpm --filter @erp/api build
+
+# ============================================================================
+# Stage 2: Production
+# ============================================================================
+FROM node:20-alpine AS production
+
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+
+WORKDIR /app
+
+# Copy workspace config
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY apps/api/package.json ./apps/api/
+COPY packages/ ./packages/
+
+# Install production dependencies only
+RUN pnpm install --frozen-lockfile --prod
+
+# Copy Prisma schema and generate client
+COPY packages/db/prisma/ ./packages/db/prisma/
+RUN pnpm --filter @erp/db db:generate
+
+# Copy built application
+COPY --from=builder /app/apps/api/dist ./apps/api/dist
+
+# Create non-root user
+RUN addgroup --system --gid 1001 nestjs && \
+    adduser --system --uid 1001 nestjs
+USER nestjs
+
+EXPOSE 3001
+
+CMD ["node", "apps/api/dist/main.js"]
