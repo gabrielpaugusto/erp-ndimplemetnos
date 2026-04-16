@@ -41,9 +41,9 @@ COPY packages/ ./packages/
 # Install production dependencies only
 RUN pnpm install --frozen-lockfile --prod
 
-# Copy Prisma schema and generate client
-COPY packages/db/prisma/ ./packages/db/prisma/
-RUN pnpm --filter @erp/db db:generate
+# Copia o cliente Prisma já gerado pelo builder (evita precisar de prisma CLI)
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 # Copy built application
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
