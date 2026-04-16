@@ -21,6 +21,9 @@ COPY apps/api/ ./apps/api/
 # Generate Prisma client
 RUN npm install -g prisma@6.4.0 && prisma generate --schema packages/db/prisma/schema.prisma
 
+# Compila o pacote @erp/db para JavaScript (necessário em produção)
+RUN pnpm --filter @erp/db build
+
 # Build NestJS
 RUN pnpm --filter @erp/api build
 
@@ -46,6 +49,9 @@ RUN npm install -g prisma@6.4.0 && prisma generate --schema packages/db/prisma/s
 
 # Copy built application
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
+
+# Copia o pacote db compilado (JavaScript, não TypeScript)
+COPY --from=builder /app/packages/db/dist ./packages/db/dist
 
 # Create non-root user
 RUN addgroup --system --gid 1001 nestjs && \
