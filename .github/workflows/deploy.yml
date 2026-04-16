@@ -122,8 +122,11 @@ jobs:
             docker pull $IMAGE_API
             docker pull $IMAGE_WEB
 
-            # Sobe todos os serviços (na primeira vez inicia tudo; nas demais atualiza só api e web)
-            docker compose -f docker-compose.cloud.yml --env-file .env.production up -d
+            # Garante que o .env existe para o docker compose ler as variáveis
+            cp /opt/erp/.env.production /opt/erp/.env
+
+            # Sobe todos os serviços
+            docker compose -f docker-compose.cloud.yml up -d
 
             # Remove imagens antigas (libera espaço)
             docker image prune -f
