@@ -122,8 +122,8 @@ jobs:
             docker pull $IMAGE_API
             docker pull $IMAGE_WEB
 
-            # Reinicia apenas os serviços de aplicação (DB/Redis/MinIO ficam intactos)
-            docker compose -f docker-compose.cloud.yml up -d --no-deps api web
+            # Sobe todos os serviços (na primeira vez inicia tudo; nas demais atualiza só api e web)
+            docker compose -f docker-compose.cloud.yml --env-file .env.production up -d
 
             # Remove imagens antigas (libera espaço)
             docker image prune -f
