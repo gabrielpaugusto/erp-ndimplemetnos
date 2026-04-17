@@ -62,9 +62,11 @@ COPY --from=builder /app/packages/db/dist ./packages/db/dist
 RUN sed -i 's|"main": "./src/index.ts"|"main": "./dist/index.js"|g' packages/db/package.json && \
     sed -i 's|"types": "./src/index.ts"|"types": "./dist/index.d.ts"|g' packages/db/package.json
 
-# Create non-root user
+# Create non-root user e diretorios necessários
 RUN addgroup --system --gid 1001 nestjs && \
-    adduser --system --uid 1001 nestjs
+    adduser --system --uid 1001 nestjs && \
+    mkdir -p /backups && \
+    chown nestjs:nestjs /backups
 USER nestjs
 
 EXPOSE 3001
