@@ -53,6 +53,10 @@ COPY --from=builder /app/apps/api/dist ./apps/api/dist
 # Copia o pacote db compilado (JavaScript, não TypeScript)
 COPY --from=builder /app/packages/db/dist ./packages/db/dist
 
+# Força main a apontar para dist (não src) — ignora cache
+RUN sed -i 's|"main": "./src/index.ts"|"main": "./dist/index.js"|g' packages/db/package.json && \
+    sed -i 's|"types": "./src/index.ts"|"types": "./dist/index.d.ts"|g' packages/db/package.json
+
 # Create non-root user
 RUN addgroup --system --gid 1001 nestjs && \
     adduser --system --uid 1001 nestjs
