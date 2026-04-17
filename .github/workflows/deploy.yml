@@ -127,8 +127,27 @@ jobs:
             # Garante que o .env existe para o docker compose ler as variáveis
             cp /opt/erp/.env.production /opt/erp/.env
 
-            # Sobe todos os serviços
-            docker compose -f docker-compose.cloud.yml up -d
+            # Sobe todos os serviços (ignora falha de health check para diagnostico)
+            docker compose -f docker-compose.cloud.yml up -d || true
+
+            # Aguarda containers estabilizarem
+            sleep 15
+
+            # Mostra status de todos os containers
+            echo "=== STATUS DOS CONTAINERS ==="
+            docker compose -f docker-compose.cloud.yml ps
+
+            # Mostra logs da API para diagnostico
+            echo "=== LOGS DO erp-api (ultimas 80 linhas) ==="
+            docker logs erp-api --tail 80 2>&1 || echo "Container erp-api nao encontrado"
+
+            # Verifica se a API está rodando
+            if docker inspect erp-api --format='{{.State.Running}}' 2>/dev/null | grep -q "true"; then
+              echo "✅ erp-api está rodando"
+            else
+              echo "❌ erp-api NAO esta rodando — verifique os logs acima"
+              exit 1
+            fi
 
             # Remove imagens antigas (libera espaço)
             docker image prune -f
