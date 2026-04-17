@@ -24,9 +24,10 @@ RUN npm install -g prisma@6.4.0 && prisma generate --schema packages/db/prisma/s
 # Cache bust arg — força recompilacao do @erp/db quando necessario
 ARG CACHE_BUST=1
 
-# Compila o pacote @erp/db para JavaScript (necessário em produção)
+# Compila o pacote @erp/db para JavaScript (--noCheck = transpila sem type-check)
 RUN echo "==> tsconfig db:" && cat packages/db/tsconfig.json && \
-    pnpm --filter @erp/db build
+    pnpm --filter @erp/db build && \
+    echo "==> dist gerado:" && ls packages/db/dist/
 
 # Build NestJS
 RUN pnpm --filter @erp/api build
