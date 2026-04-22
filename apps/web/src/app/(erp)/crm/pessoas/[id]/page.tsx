@@ -267,7 +267,7 @@ export default function EditarPessoaPage() {
             municipio: a.municipio || undefined,
             uf: a.uf || undefined,
             cep: a.cep.replace(/\D/g, '') || undefined,
-            principal: a.main,
+            principal: a.type === 'PRINCIPAL',
           })),
         contacts: contacts
           .filter(c => c.phone.trim() || c.email.trim() || c.name.trim())
@@ -565,8 +565,6 @@ export default function EditarPessoaPage() {
                     showType
                     type={addr.type}
                     onTypeChange={(t) => updateAddressField(addr.id, 'type', t)}
-                    main={addr.main}
-                    onMainChange={(m) => updateAddressField(addr.id, 'main', m)}
                     showIbge={false}
                   />
                 </div>

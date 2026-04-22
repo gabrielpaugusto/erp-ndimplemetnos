@@ -33,6 +33,7 @@ interface PersonForm {
   tradeName: string;
   rgIe: string;
   municipalRegistration: string;
+  telefoneGeral: string;
   roles: string[];
   creditLimit: string;
   paymentCondition: string;
@@ -101,6 +102,7 @@ function NovaPessoaPageInner() {
     tradeName: '',
     rgIe: '',
     municipalRegistration: '',
+    telefoneGeral: '',
     roles: roleParam ? Array.from(new Set([roleParam, 'CLIENTE'])) : ['CLIENTE'],
     creditLimit: '',
     paymentCondition: '',
@@ -116,6 +118,11 @@ function NovaPessoaPageInner() {
 
   const [addresses, setAddresses] = useState<PersonAddress[]>([emptyAddress()]);
   const [contacts, setContacts] = useState<Contact[]>([emptyContact()]);
+  const [emailsNfe, setEmailsNfe] = useState<string[]>(['']);
+
+  const addEmailNfe = () => setEmailsNfe((prev) => [...prev, '']);
+  const removeEmailNfe = (idx: number) => setEmailsNfe((prev) => prev.filter((_, i) => i !== idx));
+  const updateEmailNfe = (idx: number, val: string) => setEmailsNfe((prev) => prev.map((e, i) => i === idx ? val : e));
 
   // Verificação de duplicidade por CPF/CNPJ
   const [duplicatePerson, setDuplicatePerson] = useState<{ id: string; razaoSocial: string } | null>(null);
@@ -252,17 +259,38 @@ function NovaPessoaPageInner() {
             municipio: a.municipio || undefined,
             uf: a.uf || undefined,
             cep: a.cep.replace(/\D/g, '') || undefined,
-            principal: a.main,
+            principal: a.type === 'PRINCIPAL',
           })),
-        contacts: contacts
-          .filter(c => c.phone.trim() || c.email.trim() || c.name.trim())
-          .map(c => ({
-            type: c.type,
-            value: c.phone || c.email || c.name,
-            name: c.name || undefined,
-            department: c.role || undefined,
-            principal: c.main,
-          })),
+        contacts: [
+          // Telefone geral da empresa (campo fixo na aba Dados Gerais)
+          ...(form.telefoneGeral.replace(/\D/g, '') ? [{
+            type: 'TELEFONE',
+            value: form.telefoneGeral.replace(/\D/g, ''),
+            name: undefined,
+            department: 'GERAL',
+            principal: true,
+          }] : []),
+          // E-mails para envio de NF-e
+          ...emailsNfe
+            .filter(e => e.trim())
+            .map(e => ({
+              type: 'EMAIL_NFE',
+              value: e.trim(),
+              name: undefined,
+              department: undefined,
+              principal: false,
+            })),
+          // Contatos detalhados da aba Contatos
+          ...contacts
+            .filter(c => c.phone.trim() || c.email.trim() || c.name.trim())
+            .map(c => ({
+              type: c.type,
+              value: c.phone || c.email || c.name,
+              name: c.name || undefined,
+              department: c.role || undefined,
+              principal: c.main,
+            })),
+        ],
       };
 
       const res = await apiFetch(`/api/persons?companyId=${companyId}`, {
@@ -280,9 +308,10 @@ function NovaPessoaPageInner() {
       }
 
       if (andNew) {
-        setForm({ type: 'PJ', document: '', name: '', tradeName: '', rgIe: '', municipalRegistration: '', roles: ['CLIENTE'], creditLimit: '', paymentCondition: '', notes: '', active: true, taxRegime: '', tipoFornecedor: '', retencaoIss: false, retencaoFederal: false, retencaoInss: false, municipioIbge: '' });
+        setForm({ type: 'PJ', document: '', name: '', tradeName: '', rgIe: '', municipalRegistration: '', telefoneGeral: '', roles: ['CLIENTE'], creditLimit: '', paymentCondition: '', notes: '', active: true, taxRegime: '', tipoFornecedor: '', retencaoIss: false, retencaoFederal: false, retencaoInss: false, municipioIbge: '' });
         setAddresses([emptyAddress()]);
         setContacts([emptyContact()]);
+        setEmailsNfe(['']);
         setNameError('');
         setNameTouched(false);
         setActiveTab('geral');
@@ -487,6 +516,63 @@ function NovaPessoaPageInner() {
                 </div>
               )}
 
+              {/* Telefone geral + E-mails NF-e */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Telefone geral */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Telefone
+                    <span className="ml-1 text-xs text-slate-400 font-normal">(contato geral)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={maskPhone(form.telefoneGeral)}
+                    onChange={(e) => updateForm('telefoneGeral', e.target.value.replace(/\D/g, ''))}
+                    placeholder="(00) 0000-0000"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* E-mails p/ NF-e */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    E-mail p/ NF-e
+                    <span className="ml-1 text-xs text-slate-400 font-normal">(para envio de nota e XML)</span>
+                  </label>
+                  <div className="space-y-2">
+                    {emailsNfe.map((email, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => updateEmailNfe(idx, e.target.value)}
+                          placeholder="email@empresa.com.br"
+                          className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                        {emailsNfe.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeEmailNfe(idx)}
+                            className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            title="Remover e-mail"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={addEmailNfe}
+                      className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      <Plus className="w-3 h-3" />
+                      Adicionar e-mail
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               {/* Papel */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-3">
@@ -612,8 +698,6 @@ function NovaPessoaPageInner() {
                     showType
                     type={addr.type}
                     onTypeChange={(t) => updateAddressField(addr.id, 'type', t)}
-                    main={addr.main}
-                    onMainChange={(m) => updateAddressField(addr.id, 'main', m)}
                     showIbge={false}
                   />
                 </div>

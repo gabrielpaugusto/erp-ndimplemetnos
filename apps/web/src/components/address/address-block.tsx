@@ -121,36 +121,20 @@ export default function AddressBlock({
 
   return (
     <div className="space-y-4">
-      {/* Tipo + Principal */}
-      {(showType || onMainChange) && (
-        <div className="flex items-center gap-4">
-          {showType && onTypeChange && (
-            <div className="flex-1">
-              <label className={labelCls}>Tipo</label>
-              <select
-                value={type}
-                onChange={(e) => onTypeChange(e.target.value)}
-                disabled={disabled}
-                className={selectCls}
-              >
-                {ADDRESS_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </select>
-            </div>
-          )}
-          {onMainChange && (
-            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer mt-4">
-              <input
-                type="checkbox"
-                checked={main}
-                onChange={(e) => onMainChange(e.target.checked)}
-                disabled={disabled}
-                className="w-4 h-4 text-blue-600 rounded"
-              />
-              Endereço principal
-            </label>
-          )}
+      {/* Tipo */}
+      {showType && onTypeChange && (
+        <div>
+          <label className={labelCls}>Tipo</label>
+          <select
+            value={type}
+            onChange={(e) => onTypeChange(e.target.value)}
+            disabled={disabled}
+            className={selectCls}
+          >
+            {ADDRESS_TYPES.map((t) => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
+          </select>
         </div>
       )}
 
