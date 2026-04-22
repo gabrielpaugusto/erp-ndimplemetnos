@@ -104,11 +104,14 @@ jobs:
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          CERT_ENCRYPTION_KEY: ${{ secrets.CERT_ENCRYPTION_KEY }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
+          envs: CERT_ENCRYPTION_KEY
           script: |
             set -e
             cd /opt/erp
@@ -123,6 +126,16 @@ jobs:
             # Baixa novas imagens
             docker pull $IMAGE_API
             docker pull $IMAGE_WEB
+
+            # Injeta CERT_ENCRYPTION_KEY no .env.production (garante que nunca suma após redeploy)
+            if [ -n "$CERT_ENCRYPTION_KEY" ]; then
+              grep -v '^CERT_ENCRYPTION_KEY=' /opt/erp/.env.production > /tmp/env_clean.txt || true
+              printf 'CERT_ENCRYPTION_KEY=%s\n' "$CERT_ENCRYPTION_KEY" >> /tmp/env_clean.txt
+              mv /tmp/env_clean.txt /opt/erp/.env.production
+              echo "✅ CERT_ENCRYPTION_KEY atualizada no .env.production"
+            else
+              echo "⚠️  Secret CERT_ENCRYPTION_KEY não definida no GitHub — chave NÃO atualizada"
+            fi
 
             # Garante que o .env existe para o docker compose ler as variáveis
             cp /opt/erp/.env.production /opt/erp/.env
