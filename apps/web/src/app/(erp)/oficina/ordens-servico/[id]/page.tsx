@@ -26,9 +26,13 @@ import {
   BarChart3,
   RefreshCw,
   TrendingUp,
+  QrCode,
+  Printer,
+  X,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { fmtCurrency, fmtQty } from '@/lib/format';
+import { QRCodeSVG } from 'qrcode.react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -282,12 +286,13 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 // ── SubtarefaRow ──────────────────────────────────────────────────────────────
 
 function SubtarefaRow({
-  sub, osStatus, busy, onApontamento,
+  sub, osStatus, busy, onApontamento, onShowQr,
 }: {
   sub: OsSubtarefa;
   osStatus: OSStatus;
   busy: boolean;
   onApontamento: (id: string, action: 'start' | 'pause' | 'stop') => void;
+  onShowQr: (sub: OsSubtarefa) => void;
 }) {
   const isRunning = sub.status === 'EM_EXECUCAO';
   const isPaused  = sub.status === 'PAUSADA';
@@ -342,6 +347,15 @@ function SubtarefaRow({
           </div>
         )}
       </div>
+
+      {/* QR Code button */}
+      <button
+        onClick={() => onShowQr(sub)}
+        title="Exibir QR Code para apontamento mobile"
+        className="shrink-0 p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+      >
+        <QrCode className="w-4 h-4" />
+      </button>
 
       {/* Actions */}
       {canApoint && !isDone && (
@@ -405,6 +419,7 @@ export default function OrdemServicoDetailPage() {
   const [apontBusy,  setApontBusy]  = useState(false);
   const [actionErr,  setActionErr]  = useState<string | null>(null);
   const [apontErr,   setApontErr]   = useState<string | null>(null);
+  const [qrSubtarefa, setQrSubtarefa] = useState<OsSubtarefa | null>(null);
 
   // Modals
   const [modal, setModal] = useState<
@@ -904,6 +919,7 @@ export default function OrdemServicoDetailPage() {
                           osStatus={order.status}
                           busy={apontBusy}
                           onApontamento={doApontamento}
+                          onShowQr={setQrSubtarefa}
                         />
                       ))}
                     </div>
@@ -1407,6 +1423,68 @@ export default function OrdemServicoDetailPage() {
             </button>
           </div>
         </Modal>
+      )}
+
+      {/* ── Modal QR Code ─────────────────────────────────────────────────── */}
+      {qrSubtarefa && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setQrSubtarefa(null)}>
+          <div
+            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm text-center"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <QrCode className="w-5 h-5 text-blue-600" />
+                <h3 className="text-base font-bold text-slate-900">QR Code — Apontamento</h3>
+              </div>
+              <button onClick={() => setQrSubtarefa(null)} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
+                <X className="w-4 h-4 text-slate-400" />
+              </button>
+            </div>
+
+            <p className="text-sm text-slate-600 mb-1 font-medium truncate">{qrSubtarefa.nome}</p>
+            <p className="text-xs text-slate-400 mb-4">OS {order?.numero}</p>
+
+            <div className="flex justify-center mb-4">
+              <div className="p-3 bg-white border-2 border-slate-200 rounded-xl inline-block">
+                <QRCodeSVG
+                  value={`${typeof window !== 'undefined' ? window.location.origin : 'https://erp.ndimplementos.com.br'}/mobile/apontar/${qrSubtarefa.id}`}
+                  size={180}
+                  level="M"
+                  includeMargin={false}
+                />
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-400 mb-4 font-mono break-all">
+              /mobile/apontar/{qrSubtarefa.id}
+            </p>
+
+            <button
+              onClick={() => {
+                const printWin = window.open('', '_blank', 'width=400,height=500');
+                if (!printWin) return;
+                printWin.document.write(`
+                  <html><head><title>QR Code — ${qrSubtarefa.nome}</title>
+                  <style>body{font-family:sans-serif;text-align:center;padding:20px}h2{font-size:16px;margin-bottom:4px}p{font-size:12px;color:#666;margin:2px 0}</style>
+                  </head><body>
+                  <h2>${qrSubtarefa.nome}</h2>
+                  <p>OS ${order?.numero}</p>
+                  <div style="margin:16px auto;display:inline-block">
+                    <img src="${document.querySelector('#qr-img-' + qrSubtarefa.id.replace(/-/g,''))?.getAttribute('src') ?? ''}" style="width:180px;height:180px" />
+                  </div>
+                  <p style="font-size:10px;margin-top:8px">Escaneie para apontar via app mobile</p>
+                  </body></html>
+                `);
+                printWin.document.close();
+                printWin.print();
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 border border-slate-300 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              <Printer className="w-4 h-4" /> Imprimir QR Code
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

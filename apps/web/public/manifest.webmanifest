@@ -40,6 +40,13 @@
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
+      "name": "App Mecânico",
+      "short_name": "Mecânico",
+      "description": "Apontamentos e controle de OS para mecânicos",
+      "url": "/mobile",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
       "name": "Apontamentos",
       "short_name": "Apontamentos",
       "description": "Registrar apontamento produtivo",

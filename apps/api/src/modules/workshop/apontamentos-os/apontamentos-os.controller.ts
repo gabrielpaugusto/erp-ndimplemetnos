@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Param, Query, UseGuards, NotFoundException } from '@nestjs/common';
 import { JwtAuthGuard } from '@/modules/core/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '@/modules/core/auth/decorators/current-user.decorator';
 import { ApontamentosOsService } from './apontamentos-os.service';
@@ -56,6 +56,24 @@ export class ApontamentosOsController {
   @Get('os/:serviceOrderId/eficiencia')
   getEficienciaOS(@Param('serviceOrderId') serviceOrderId: string) {
     return this.service.getEficienciaOS(serviceOrderId);
+  }
+
+  // ── Subtarefa Detalhes (mobile QR) ───────────────────────────────────────
+
+  @Get('subtarefas/:id')
+  async getSubtarefaDetalhes(@Param('id') id: string) {
+    try {
+      return await this.service.getSubtarefaDetalhes(id);
+    } catch {
+      throw new NotFoundException('Subtarefa não encontrada');
+    }
+  }
+
+  @Get('subtarefas/:id/ativo')
+  async getApontamentoAtivo(@Param('id') id: string) {
+    const apt = await this.service.getApontamentoAtivo(id);
+    if (!apt) return null;
+    return apt;
   }
 
   // ── Relatórios ────────────────────────────────────────────────────────────

@@ -5751,6 +5751,13 @@ model Equipamento {
   // Hodômetro (para caminhões)
   kmAtual         Int?
 
+  // Documentação e Frota
+  renavam              String?   @db.VarChar(11)   // RENAVAM — 9 ou 11 dígitos
+  seguro               Boolean   @default(false)
+  seguradoraNome       String?   @db.VarChar(100)
+  vigenciaSeguro       DateTime?                   // Data de vencimento da apólice
+  dataProximaRevisao   DateTime?                   // Próxima revisão programada
+
   observations    String?   @db.Text
   ativo           Boolean   @default(true)
   createdAt       DateTime  @default(now())

@@ -473,6 +473,45 @@ export class ApontamentosOsService {
     };
   }
 
+  // ── Detalhes de Subtarefa (mobile QR) ────────────────────────────────────
+
+  async getSubtarefaDetalhes(osSubtarefaId: string) {
+    const sub = await this.prisma.osSubtarefa.findUnique({
+      where: { id: osSubtarefaId },
+      include: {
+        osTarefa: {
+          select: {
+            titulo: true,
+            serviceOrder: {
+              select: {
+                id: true,
+                numero: true,
+                equipamento: { select: { placa: true, modelo: true, marca: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!sub) throw new Error('Subtarefa não encontrada');
+    return sub;
+  }
+
+  async getApontamentoAtivo(osSubtarefaId: string) {
+    const apt = await this.prisma.apontamento.findFirst({
+      where: { osSubtarefaId, fim: null },
+      include: {
+        employee: {
+          select: {
+            matricula: true,
+            person: { select: { razaoSocial: true } },
+          },
+        },
+      },
+    });
+    return apt; // null se nenhum ativo
+  }
+
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   private async fecharSegmentoAtivo(apontamentoId: string) {
