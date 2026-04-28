@@ -1,13 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Body,
-  Param,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '@/modules/core/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '@/modules/core/auth/decorators/current-user.decorator';
 import { ServiceOrderService } from './service-order.service';
@@ -20,31 +11,12 @@ export class ServiceOrderController {
   constructor(private readonly serviceOrderService: ServiceOrderService) {}
 
   @Get()
-  findAll(
-    @CurrentUser() user: { id: string; companyId: string },
-    @Query('search') search?: string,
-    @Query('status') status?: string,
-    @Query('type') type?: string,
-    @Query('priority') priority?: string,
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-  ) {
-    return this.serviceOrderService.findAll(user.companyId, {
-      search,
-      status,
-      type,
-      priority,
-      startDate,
-      endDate,
-      page,
-      limit,
-    });
+  findAll(@CurrentUser() user: any, @Query() query: any) {
+    return this.serviceOrderService.findAll(user.companyId, query);
   }
 
   @Get('stats')
-  getStats(@CurrentUser() user: { id: string; companyId: string }) {
+  getStats(@CurrentUser() user: any) {
     return this.serviceOrderService.getStats(user.companyId);
   }
 
@@ -54,66 +26,71 @@ export class ServiceOrderController {
   }
 
   @Post()
-  create(
-    @CurrentUser() user: { id: string; companyId: string },
-    @Body() createServiceOrderDto: CreateServiceOrderDto,
-  ) {
-    return this.serviceOrderService.create(
-      user.companyId,
-      createServiceOrderDto,
-    );
+  create(@CurrentUser() user: any, @Body() dto: CreateServiceOrderDto) {
+    return this.serviceOrderService.create(user.companyId, dto);
   }
 
   @Patch(':id')
-  update(
-    @Param('id') id: string,
-    @Body() updateServiceOrderDto: UpdateServiceOrderDto,
-  ) {
-    return this.serviceOrderService.update(id, updateServiceOrderDto);
+  update(@Param('id') id: string, @Body() dto: UpdateServiceOrderDto) {
+    return this.serviceOrderService.update(id, dto);
   }
 
-  @Post(':id/start')
-  start(@Param('id') id: string) {
-    return this.serviceOrderService.start(id);
+  // ── Fluxo de Status ───────────────────────────────────────────────────────
+
+  @Post(':id/enviar-aprovacao')
+  enviarParaAprovacao(@Param('id') id: string) {
+    return this.serviceOrderService.enviarParaAprovacao(id);
   }
 
-  @Post(':id/wait-parts')
-  waitParts(@Param('id') id: string) {
-    return this.serviceOrderService.waitParts(id);
+  @Post(':id/aprovar')
+  aprovar(@Param('id') id: string) {
+    return this.serviceOrderService.aprovar(id);
   }
 
-  @Post(':id/complete')
-  complete(@Param('id') id: string) {
-    return this.serviceOrderService.complete(id);
+  @Post(':id/iniciar')
+  iniciar(@Param('id') id: string) {
+    return this.serviceOrderService.iniciar(id);
   }
 
-  @Post(':id/deliver')
-  deliver(@Param('id') id: string) {
-    return this.serviceOrderService.deliver(id);
+  @Post(':id/aguardar-pecas')
+  aguardarPecas(@Param('id') id: string) {
+    return this.serviceOrderService.aguardarPecas(id);
   }
 
-  @Post(':id/cancel')
-  cancel(@Param('id') id: string) {
-    return this.serviceOrderService.cancel(id);
+  @Post(':id/retornar-execucao')
+  retornarExecucao(@Param('id') id: string) {
+    return this.serviceOrderService.retornarExecucao(id);
   }
 
-  // ── Sprint 2.3 — Timeline ────────────────────────────────────────────────
+  @Post(':id/concluir')
+  concluir(@Param('id') id: string) {
+    return this.serviceOrderService.concluir(id);
+  }
+
+  @Post(':id/faturar')
+  faturar(@Param('id') id: string) {
+    return this.serviceOrderService.faturar(id);
+  }
+
+  @Post(':id/venda-perdida')
+  vendaPerdida(@Param('id') id: string, @Body('motivo') motivo: string) {
+    return this.serviceOrderService.vendaPerdida(id, motivo);
+  }
+
+  @Post(':id/cancelar')
+  cancelar(@Param('id') id: string) {
+    return this.serviceOrderService.cancelar(id);
+  }
+
+  // ── Timeline e Reservas ───────────────────────────────────────────────────
 
   @Get(':id/timeline')
-  getTimeline(
-    @CurrentUser() user: { id: string; companyId: string },
-    @Param('id') id: string,
-  ) {
+  getTimeline(@CurrentUser() user: any, @Param('id') id: string) {
     return this.serviceOrderService.getTimeline(id, user.companyId);
   }
 
-  // ── Sprint 2.4 — Reservas de Estoque ────────────────────────────────────
-
   @Get(':id/reservas')
-  getReservas(
-    @CurrentUser() user: { id: string; companyId: string },
-    @Param('id') id: string,
-  ) {
+  getReservas(@CurrentUser() user: any, @Param('id') id: string) {
     return this.serviceOrderService.getReservas(id, user.companyId);
   }
 }

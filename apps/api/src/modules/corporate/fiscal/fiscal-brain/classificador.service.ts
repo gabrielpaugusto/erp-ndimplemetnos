@@ -3,17 +3,34 @@ import Anthropic from '@anthropic-ai/sdk';
 import { KnowledgeBaseService } from './knowledge-base.service';
 
 export interface ContextoOperacao {
-  // Empresa
+  // Empresa (tomadora/destinatária da operação)
   cnaeEmitente: string;
   regimeTributario: 'SN' | 'LP' | 'LR';
   ufEmitente: string;
   isIndustrial: boolean; // estabelecimento industrial?
 
-  // Destinatário
+  // Contraparte (fornecedor em ENTRADA / cliente em SAIDA)
   ufDestinatario: string;
   isContribuinte: boolean; // contribuinte do ICMS?
   cnaeDestinatario?: string;
   isConsumidorFinal: boolean;
+  /**
+   * Ramo de atividade da contraparte: INDUSTRIA, ATACADISTA_EQUIPARADO, COMERCIO,
+   * PRESTADOR_SERVICO, IMPORTADOR, PESSOA_FISICA.
+   * Substitui o campo legado tipoFornecedor para classificação fiscal.
+   */
+  ramoAtividadeFornecedor?: string;
+  /**
+   * Natureza jurídica da contraparte: MEI, EI, SLU, LTDA, SA_FECHADA, SA_ABERTA,
+   * SS, COOPERATIVA, ASSOCIACAO, FUNDACAO, ORGAO_PUBLICO, OUTROS.
+   * MEI é natureza jurídica — fiscalmente tratado como Simples Nacional.
+   */
+  naturezaJuridicaFornecedor?: string;
+  /**
+   * Regime tributário da contraparte: SIMPLES_NACIONAL, LUCRO_PRESUMIDO, LUCRO_REAL.
+   * MEI não é regime — se o fornecedor é MEI, informe SIMPLES_NACIONAL aqui.
+   */
+  taxRegimeFornecedor?: string;
 
   // Operação
   tipoOperacao: 'SAIDA' | 'ENTRADA';
@@ -105,6 +122,14 @@ export class ClassificadorService {
     if (ctx.isContribuinte) words.push('contribuinte');
     if (!ctx.isContribuinte && ctx.isConsumidorFinal) words.push('consumidor final', 'DIFAL');
     if (ctx.ufEmitente !== ctx.ufDestinatario) words.push('interestadual');
+    // Enriquece com ramo de atividade da contraparte
+    if (ctx.ramoAtividadeFornecedor === 'INDUSTRIA') words.push('industrialização', 'fabricante', 'CFOP 1.101');
+    if (ctx.ramoAtividadeFornecedor === 'IMPORTADOR') words.push('importação', 'produto importado', 'Res. Senado 13/2012', 'ICMS 4%');
+    if (ctx.ramoAtividadeFornecedor === 'PRESTADOR_SERVICO') words.push('serviço', 'NFS-e', 'ISS');
+    if (ctx.ramoAtividadeFornecedor === 'ATACADISTA_EQUIPARADO') words.push('atacado', 'equiparado', 'crédito integral');
+    // Enriquece com regime/natureza jurídica do fornecedor
+    if (ctx.taxRegimeFornecedor === 'SIMPLES_NACIONAL') words.push('Simples Nacional', 'CSOSN', 'sem crédito ICMS');
+    if (ctx.naturezaJuridicaFornecedor === 'MEI') words.push('MEI', 'microempreendedor', 'Simples Nacional');
     return words;
   }
 
@@ -135,6 +160,9 @@ UF: ${ctx.ufDestinatario}
 Contribuinte ICMS: ${ctx.isContribuinte ? 'SIM' : 'NÃO'}
 Consumidor final: ${ctx.isConsumidorFinal ? 'SIM' : 'NÃO'}
 ${ctx.cnaeDestinatario ? `CNAE: ${ctx.cnaeDestinatario}` : ''}
+${ctx.ramoAtividadeFornecedor ? `Ramo de atividade: ${ctx.ramoAtividadeFornecedor}` : ''}
+${ctx.naturezaJuridicaFornecedor ? `Natureza jurídica: ${ctx.naturezaJuridicaFornecedor}` : ''}
+${ctx.taxRegimeFornecedor ? `Regime tributário: ${ctx.taxRegimeFornecedor}` : ''}
 
 ━━ NATUREZA DA OPERAÇÃO ━━
 ${ctx.naturezaOperacao}
@@ -192,13 +220,28 @@ Retorne SOMENTE um JSON válido, sem markdown, sem explicação fora do JSON. Us
 const SYSTEM_PROMPT = `Você é um especialista sênior em legislação tributária brasileira com 20 anos de experiência.
 Sua função é classificar documentos fiscais (NF-e, NFS-e, CT-e) de forma precisa e fundamentada.
 
+TAXONOMIA DE CLASSIFICAÇÃO DO SISTEMA (importante — não confundir os conceitos):
+• Regime Tributário: SIMPLES_NACIONAL | LUCRO_PRESUMIDO | LUCRO_REAL
+  – MEI NÃO é regime tributário. MEI é uma natureza jurídica que adota o Simples Nacional como regime.
+  – Quando o fornecedor for MEI, trate-o como SIMPLES_NACIONAL para fins de crédito fiscal.
+• Natureza Jurídica: MEI | EI | SLU | LTDA | SA_FECHADA | SA_ABERTA | SS | COOPERATIVA | ASSOCIACAO | FUNDACAO | ORGAO_PUBLICO | OUTROS
+  – Determina o tipo societário, mas NÃO define o regime de tributação diretamente.
+  – MEI e EI podem ser Simples Nacional; LTDA pode ser qualquer regime.
+• Ramo de Atividade: INDUSTRIA | ATACADISTA_EQUIPARADO | COMERCIO | PRESTADOR_SERVICO | IMPORTADOR | PESSOA_FISICA
+  – Define a natureza da operação para fins de CFOP, crédito de ICMS e PIS/COFINS.
+  – Fornecedor INDUSTRIA → crédito integral de ICMS na entrada (CFOP 1.101 / 2.101).
+  – Fornecedor IMPORTADOR → verificar ICMS 4% (Res. Senado 13/2012 se produto importado).
+  – Fornecedor SIMPLES_NACIONAL ou MEI → sem destaque de ICMS → sem crédito na entrada.
+
 REGRAS:
 1. Retorne APENAS um objeto JSON válido. Nada antes, nada depois.
 2. Nunca invente fundamentos legais — use apenas o que foi fornecido ou o que você tem certeza.
 3. Quando houver dúvida legítima, reduza a confiança (confianca < 92) em vez de inventar.
-4. Considere SEMPRE o regime tributário da empresa (SN, LP, LR) — as alíquotas de PIS/COFINS diferem.
+4. Considere SEMPRE o regime tributário da empresa compradora (SN, LP, LR) — as alíquotas de PIS/COFINS diferem.
 5. Para Simples Nacional: use CSOSN em vez de CST ICMS.
 6. Para operações interestaduais: verifique se há DIFAL, ICMS-ST, alíquota 12% ou 7%.
+7. Se ramoAtividadeFornecedor = SIMPLES_NACIONAL ou taxRegimeFornecedor = SIMPLES_NACIONAL → sem crédito ICMS na entrada → CST 60 ou CSOSN correspondente.
+8. Se naturezaJuridicaFornecedor = MEI → trate como Simples Nacional para todos os efeitos fiscais.
 
 ESTRUTURA JSON OBRIGATÓRIA:
 {

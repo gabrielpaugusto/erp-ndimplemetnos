@@ -21,7 +21,7 @@ enum TaxRegime {
   LUCRO_REAL
   LUCRO_PRESUMIDO
   SIMPLES_NACIONAL
-  MEI
+  // MEI removido: MEI é Natureza Jurídica, não regime. Fiscalmente tratado como SIMPLES_NACIONAL.
 }
 
 enum PersonType {
@@ -289,21 +289,25 @@ enum WorkCenterType {
 
 // Sprint 6 — Oficina / Calderaria / Requisições
 enum ServiceOrderStatus {
-  ABERTA
-  AGUARDANDO_PECAS
-  EM_EXECUCAO
-  AGUARDANDO_APROVACAO
-  CONCLUIDA
-  ENTREGUE
-  CANCELADA
+  ORCAMENTO            // Orçamento em elaboração (antes de virar OS)
+  AGUARD_APROVACAO     // Orçamento enviado, aguardando cliente aprovar
+  APROVADA             // Cliente aprovou, OS pode iniciar
+  EM_EXECUCAO          // Serviço em andamento
+  AGUARD_PECAS         // Parada aguardando chegada de peças
+  CONCLUIDA            // Serviço finalizado, aguarda entrega/faturamento
+  FATURADA             // NF emitida, processo encerrado
+  VENDA_PERDIDA        // Cliente rejeitou o orçamento (KPI comercial)
+  CANCELADA            // Cancelamento operacional (erro, duplicidade, etc.)
 }
 
 enum ServiceOrderType {
-  MANUTENCAO
-  REFORMA
-  INSTALACAO
-  GARANTIA
-  ORCAMENTO
+  MECANICA     // Manutenção mecânica / elétrica
+  CALDERARIA   // Estrutura, solda, chaparia
+  PINTURA      // Jateamento, pintura, acabamento
+  MISTA        // Combinação de tipos (mecânica + calderaria, etc.)
+  GARANTIA     // Reparo em garantia (fabricante reembolsa)
+  INSTALACAO   // Instalação de carroceria em veículo
+  INTERNA      // Serviço interno (sem cobrança ao cliente)
 }
 
 enum ServiceOrderPriority {
@@ -311,6 +315,52 @@ enum ServiceOrderPriority {
   NORMAL
   ALTA
   URGENTE
+}
+
+// Quem paga pela OS
+enum TipoPagadorOS {
+  CLIENTE      // Cliente paga diretamente
+  FABRICA      // Fábrica/fabricante reembolsa (ex: Guerra warranty)
+  SEGURADORA   // Seguradora cobre o sinistro
+  TERCEIRO     // Terceiro responsável (ex: outro transportador)
+  PROPRIA      // ND absorve o custo (garantia interna, retorno de serviço)
+}
+
+// Tipos de equipamento gerenciados
+enum TipoEquipamento {
+  CAMINHAO      // Chassi (VIN) + placa
+  REBOQUE       // Placa, SEM chassi
+  SEMIRREBOQUE  // Chassi (VIN) + placa
+  CARROCERIA    // Número de série (formato VIN), SEM placa
+}
+
+// Estado da carroceria no ciclo de vida
+enum CarroceriaStatus {
+  EM_PRODUCAO       // OP em andamento, ainda na fábrica
+  AGUARD_VEICULO    // OP concluída, serial atribuído, esperando caminhão
+  AGUARD_INSTALACAO // Caminhão chegou, OS de instalação aberta
+  INSTALADA         // Instalação concluída
+}
+
+// Como a carroceria será montada no veículo
+enum TipoMontagem {
+  INTERNO      // Montagem realizada pela própria ND
+  EXTERNO      // Montagem por terceiro
+  KIT_ENVIADO  // Kit enviado para o cliente montar
+}
+
+// Contexto de uso do catálogo de tarefas
+enum TarefaContexto {
+  SERVICO   // Tarefas de oficina / OS
+  PRODUCAO  // Tarefas de produção / OP
+}
+
+// Tipo de item na OS (substitui campo String livre)
+enum OsItemTipo {
+  PECA                // Peça de reposição (NF-e)
+  SERVICO             // Mão de obra (NFS-e)
+  MATERIAL_CALDERARIA // Material calderaria (chapa, perfil, etc.)
+  TERCEIRO            // Serviço terceirizado (subcontratado)
 }
 
 enum RequisitionStatus {
@@ -343,6 +393,14 @@ enum CalderariaServiceType {
   TRATAMENTO_TERMICO
   JATEAMENTO
   MONTAGEM_ESTRUTURAL
+}
+
+enum CalderariaOrderStatus {
+  ABERTA
+  EM_EXECUCAO
+  AGUARDANDO_MATERIAL
+  CONCLUIDA
+  CANCELADA
 }
 
 // Sprint 8 — Contabilidade, Financeiro, RH
@@ -407,9 +465,10 @@ enum EmployeeStatus {
 }
 
 enum ApontamentoRole {
-  OPERADOR
-  LIDER
-  MASTER
+  MECANICO   // Oficina — aponta em OS/subtarefas
+  OPERADOR   // Produção — aponta em OP/subtarefas
+  LIDER      // Supervisor — visualiza painel Ao Vivo
+  MASTER     // Administrador — acesso total
 }
 
 enum ApontamentoStatus {
@@ -704,6 +763,10 @@ model Company {
   telefone            String?   @db.VarChar(20)
   email               String?   @db.VarChar(200)
 
+  // Natureza Jurídica da empresa (ex: LTDA, SA_FECHADA) — gerenciável via Configurações
+  naturezaJuridicaId  String?
+  naturezaJuridica    NaturezaJuridica? @relation(fields: [naturezaJuridicaId], references: [id])
+
   // Fiscal
   taxRegime           TaxRegime @default(LUCRO_REAL)
   issRetidoMunicipio  Boolean   @default(false)  // município exige retenção de ISS na fonte
@@ -903,6 +966,10 @@ model Company {
 
   // FiscalBrain Chat
   fiscalBrainChatMessages  FiscalBrainChatMessage[]
+
+  // Sprint 7 — OS Module (Equipamentos + Catálogo de Tarefas)
+  equipamentos             Equipamento[]
+  tarefasCatalogo          TarefaCatalogo[]
 
   @@map("companies")
 }
@@ -1222,7 +1289,16 @@ model Person {
   taxRegime           TaxRegime?
 
   // Classificação fiscal do fornecedor (determina IPI, crédito ICMS na entrada)
+  // LEGADO — mantido para compatibilidade durante migração (Fase 2 remove este campo)
   tipoFornecedor      TipoFornecedor?
+
+  // Natureza Jurídica (ex: LTDA, MEI, SA_FECHADA) — gerenciável via Configurações
+  naturezaJuridicaId  String?
+  naturezaJuridica    NaturezaJuridica? @relation(fields: [naturezaJuridicaId], references: [id])
+
+  // Ramo de Atividade (ex: INDUSTRIA, COMERCIO) — substitui tipoFornecedor na Fase 2
+  ramoAtividadeId     String?
+  ramoAtividade       RamoAtividade?    @relation(fields: [ramoAtividadeId], references: [id])
 
   // Dados fiscais para retenções
   optanteSimples       Boolean   @default(false)    // optante do Simples Nacional
@@ -1289,6 +1365,9 @@ model Person {
   // Sprint 4 — MRP
   mrpSuggestions          MrpSuggestion[] @relation("MrpSuggestionSupplier")
 
+  // Sprint 7 — Equipamentos (proprietário do veículo/implemento)
+  equipamentos            Equipamento[]   @relation("EquipamentoProprietario")
+
   @@unique([companyId, cpfCnpj])
   @@index([razaoSocial])
   @@map("persons")
@@ -1346,6 +1425,47 @@ model PersonBankAccount {
 // ============================================================================
 // TABELAS FISCAIS
 // ============================================================================
+
+// ============================================================================
+// TABELAS DE DOMÍNIO — CLASSIFICAÇÕES EMPRESARIAIS
+// Gerenciáveis via ERP (Configurações → Tabelas de Domínio)
+// ============================================================================
+
+model NaturezaJuridica {
+  id        String   @id @default(cuid())
+  codigoIbge String? @db.VarChar(10)  // ex: "206-2" (código oficial IBGE/Receita Federal)
+  sigla     String   @db.VarChar(20)  // ex: "LTDA", "MEI", "SA_FECHADA"
+  descricao String   @db.VarChar(200) // ex: "Sociedade Empresária Limitada"
+  ativo     Boolean  @default(true)
+  ordem     Int      @default(0)      // ordenação no select
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  persons   Person[]
+  companies Company[]
+
+  @@unique([sigla])
+  @@index([ativo, ordem])
+  @@map("naturezas_juridicas")
+}
+
+model RamoAtividade {
+  id        String   @id @default(cuid())
+  codigo    String   @db.VarChar(30)  // chave usada pelo motor fiscal: "INDUSTRIA", "COMERCIO" etc.
+  descricao String   @db.VarChar(200) // ex: "Indústria"
+  ativo     Boolean  @default(true)
+  ordem     Int      @default(0)      // ordenação no select
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  persons   Person[]
+
+  @@unique([codigo])
+  @@index([ativo, ordem])
+  @@map("ramos_atividade")
+}
 
 model Ncm {
   id                    String    @id @default(cuid())
@@ -1463,6 +1583,82 @@ model Pais {
   @@map("paises")
 }
 
+// ============================================================================
+// TABELAS DE REFERÊNCIA FISCAL — CST / CSOSN / ICMS
+// ============================================================================
+
+model CstIcms {
+  id          String   @id @default(cuid())
+  code        String   @unique @db.VarChar(3)   // ex: "00", "10", "40"
+  description String   @db.VarChar(300)
+  categoria   String   @db.VarChar(30)           // ex: TRIBUTADO, ISENTO, NAO_TRIBUTADO
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("cst_icms")
+}
+
+model Csosn {
+  id          String   @id @default(cuid())
+  code        String   @unique @db.VarChar(3)   // ex: "101", "400", "500"
+  description String   @db.VarChar(300)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("csosn")
+}
+
+model CstIpi {
+  id          String   @id @default(cuid())
+  code        String   @unique @db.VarChar(2)   // ex: "00", "50", "99"
+  description String   @db.VarChar(300)
+  tipo        String   @db.VarChar(10)           // ENTRADA | SAIDA
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("cst_ipi")
+}
+
+model CstPisCofins {
+  id          String   @id @default(cuid())
+  code        String   @unique @db.VarChar(2)   // ex: "01", "49", "70"
+  description String   @db.VarChar(300)
+  tipo        String   @db.VarChar(10)           // ENTRADA | SAIDA | AMBOS
+  regime      String   @db.VarChar(20)           // NAO_CUMULATIVO | AMBOS
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("cst_pis_cofins")
+}
+
+model IcmsInterestadual {
+  id        String   @id @default(cuid())
+  ufOrigem  String   @db.VarChar(2)
+  ufDestino String   @db.VarChar(2)
+  aliquota  Float                         // 7 ou 12 (NORMAL) | 4 (IMPORTADO)
+  tipo      String   @db.VarChar(10)      // NORMAL | IMPORTADO
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([ufOrigem, ufDestino, tipo], name: "ufOrigem_ufDestino_tipo")
+  @@index([ufOrigem])
+  @@index([ufDestino])
+  @@map("icms_interestadual")
+}
+
+model AliquotaIcmsUf {
+  id               String   @id @default(cuid())
+  uf               String   @unique @db.VarChar(2)
+  nome             String   @db.VarChar(50)
+  aliquotaPadrao   Float                          // alíquota interna padrão (%)
+  aliquotaFcp      Float    @default(0)           // Fundo de Combate à Pobreza (%)
+  regiao           String   @db.VarChar(20)       // NORTE, NORDESTE, SUL, SUDESTE, CENTRO_OESTE
+  codigoIbge       String   @db.VarChar(2)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("aliquotas_icms_uf")
+}
 
 // ============================================================================
 // TABELA DE ABREVIAÇÕES PADRÃO DE MATERIAIS
@@ -2212,10 +2408,16 @@ model ProductionOrder {
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
 
+  // Carroceria que esta OP está produzindo (Equipamento.tipo = CARROCERIA)
+  // Preenchido ao abrir a OP — serial number da carroceria é gerado neste momento
+  carroceriaId        String?
+  carroceria          Equipamento?          @relation("CarroceriaProducao", fields: [carroceriaId], references: [id])
+
   // Relations
   items               ProductionOrderItem[]
   pointings           ProductionPointing[]
   apontamentos        Apontamento[]
+  opTarefas           OpTarefa[]            // catálogo de tarefas snapshot
 
   // Oficina / Calderaria / Requisições
   calderariaOrders    CalderariaOrder[]
@@ -2277,22 +2479,43 @@ model ServiceOrder {
   companyId         String
   company           Company              @relation(fields: [companyId], references: [id])
   numero            String               @db.VarChar(50)
+
+  // Cliente / solicitante
   personId          String
   person            Person               @relation(fields: [personId], references: [id])
+
   type              ServiceOrderType
-  status            ServiceOrderStatus   @default(ABERTA)
+  status            ServiceOrderStatus   @default(ORCAMENTO)
   priority          ServiceOrderPriority @default(NORMAL)
 
-  // Veículo
-  veiculoDescricao  String               @db.VarChar(500)
-  veiculoPlaca      String?              @db.VarChar(10)
-  veiculoChassi     String?              @db.VarChar(30)
-  veiculoKm         Int?
+  // Quem paga (define fluxo fiscal e de cobrança)
+  tipoPagador       TipoPagadorOS        @default(CLIENTE)
+
+  // Equipamento que entrou na OS (substitui campos texto livres)
+  equipamentoId     String?
+  equipamento       Equipamento?         @relation(fields: [equipamentoId], references: [id])
+  kmEntrada         Int?                 // hodômetro na entrada (para caminhões)
+
+  // OS de INSTALAÇÃO — carroceria sendo instalada
+  carroceriaId      String?              // Equipamento.tipo = CARROCERIA sendo instalada
+  // (carroceria é um Equipamento separado do veículo que chegou)
+
+  // Garantia (quando tipoPagador = FABRICA / tipo = GARANTIA)
+  garantiaFabricante       String?  @db.VarChar(200) // ex: "Guerra Implementos"
+  garantiaNumeroProcesso   String?  @db.VarChar(100) // nº do processo de reembolso
+  garantiaReembolsaPecas   Boolean  @default(false)  // fabricante reembolsa peças?
+  garantiaReembolsaMO      Boolean  @default(false)  // fabricante reembolsa MO?
+  garantiaDataSolicitacao  DateTime?
+  garantiaDataReembolso    DateTime?
+  garantiaValorReembolso   Decimal? @db.Decimal(15, 2)
 
   // Defeito / Diagnóstico / Solução
   defeitoRelatado   String               @db.Text
   diagnostico       String?              @db.Text
   solucao           String?              @db.Text
+
+  // Motivo quando status = VENDA_PERDIDA
+  motivoVendaPerdida String?             @db.Text
 
   // Datas
   dataEntrada       DateTime
@@ -2300,10 +2523,11 @@ model ServiceOrder {
   dataConclusao     DateTime?
   dataEntrega       DateTime?
 
-  // Valores
-  valorPecas        Float                @default(0)
-  valorMaoDeObra    Float                @default(0)
-  valorTotal        Float                @default(0)
+  // Valores calculados (atualizados ao salvar itens)
+  valorPecas        Decimal              @default(0) @db.Decimal(15, 2)
+  valorMaoDeObra    Decimal              @default(0) @db.Decimal(15, 2)
+  valorTerceiros    Decimal              @default(0) @db.Decimal(15, 2)
+  valorTotal        Decimal              @default(0) @db.Decimal(15, 2)
 
   // Responsável (técnico atribuído)
   responsavelId     String?
@@ -2316,9 +2540,10 @@ model ServiceOrder {
 
   // Relations
   items             ServiceOrderItem[]
+  osTarefas         OsTarefa[]           // catálogo de tarefas snapshot
   requisitions      Requisition[]
   calderariaOrders  CalderariaOrder[]
-  etapasOs          EtapaOS[]
+  etapasOs          EtapaOS[]            // mantido para compatibilidade
   apontamentos      Apontamento[]
 
   // Fiscal (Sprint 7)
@@ -2330,6 +2555,7 @@ model ServiceOrder {
   @@unique([companyId, numero])
   @@index([personId])
   @@index([status])
+  @@index([equipamentoId])
   @@map("service_orders")
 }
 
@@ -2337,13 +2563,21 @@ model ServiceOrderItem {
   id              String        @id @default(cuid())
   serviceOrderId  String
   serviceOrder    ServiceOrder  @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
+
   productId       String?
   product         Product?      @relation(fields: [productId], references: [id])
+
   description     String        @db.VarChar(500)
   quantity        Float
-  unitPrice       Float
-  totalPrice      Float
-  type            String        @db.VarChar(20) // PECA, SERVICO, TERCEIRO
+  unitPrice       Decimal       @db.Decimal(15, 2)
+  totalPrice      Decimal       @db.Decimal(15, 2)
+  tipo            OsItemTipo    @default(PECA)
+
+  // Custo de instalação — agrega ao custo total da carroceria?
+  // Todos os itens de OS de INSTALACAO agregam custo; a questão é se faturam à parte.
+  agregaCustoCarroceria Boolean @default(false) // true = soma ao custoInstalacao da carroceria
+  faturavel             Boolean @default(true)  // false = incluso no produto (não gera NF adicional)
+  incluidoNoProduto     Boolean @default(false) // true = já embutido no preço da carroceria
 
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
@@ -2369,7 +2603,7 @@ model CalderariaOrder {
   description             String                @db.VarChar(500)
   materialDescription     String?               @db.VarChar(500)
 
-  status                  ServiceOrderStatus    @default(ABERTA)
+  status                  CalderariaOrderStatus @default(ABERTA)
 
   // Tempos
   dataInicio              DateTime?
@@ -3124,17 +3358,21 @@ model Employee {
   observations    String?        @db.Text
 
   // Apontamentos
-  apontamentoRole ApontamentoRole @default(OPERADOR)
-  jornadaId       String?
-  jornada         JornadaTrabalho? @relation("EmployeeJornada", fields: [jornadaId], references: [id])
+  apontamentoRole      ApontamentoRole  @default(OPERADOR)
+  jornadaId            String?
+  jornada              JornadaTrabalho? @relation("EmployeeJornada", fields: [jornadaId], references: [id])
+  // Carga horária mensal padrão (ex: 176h para 44h/semana)
+  // Sobrescrita por CargaMensalOverride para meses específicos (férias, admissão no meio do mês, etc.)
+  cargaMensalPadraoH   Float            @default(176)
 
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
   // Relations
-  payrollItems    PayrollItem[]
-  benefits        EmployeeBenefit[]
-  apontamentos    Apontamento[]
+  payrollItems         PayrollItem[]
+  benefits             EmployeeBenefit[]
+  apontamentos         Apontamento[]
+  cargaMensalOverrides CargaMensalOverride[]
 
   @@unique([companyId, matricula])
   @@map("employees")
@@ -4172,34 +4410,41 @@ model Apontamento {
   employeeId  String
   employee    Employee @relation(fields: [employeeId], references: [id])
 
-  // Vínculo Produção
+  // ── Vínculo Produção (OP) ────────────────────────────────────────────────
   productionOrderId String?
   productionOrder   ProductionOrder? @relation(fields: [productionOrderId], references: [id])
   routingStepId     String?
   routingStep       RoutingStep?     @relation(fields: [routingStepId], references: [id])
+  // Novo: subtarefa do catálogo de tarefas da OP (snapshot)
+  opSubtarefaId     String?
+  opSubtarefa       OpSubtarefa?     @relation("ApontamentoOpSubtarefa", fields: [opSubtarefaId], references: [id])
 
-  // Vínculo Oficina
+  // ── Vínculo Oficina (OS) ─────────────────────────────────────────────────
   serviceOrderId    String?
   serviceOrder      ServiceOrder?    @relation(fields: [serviceOrderId], references: [id])
   etapaOsId         String?
   etapaOs           EtapaOS?         @relation(fields: [etapaOsId], references: [id])
+  // Novo: subtarefa do catálogo de tarefas da OS (snapshot)
+  osSubtarefaId     String?
+  osSubtarefa       OsSubtarefa?     @relation("ApontamentoOsSubtarefa", fields: [osSubtarefaId], references: [id])
 
-  // Vínculo Calderaria
+  // ── Vínculo Calderaria ───────────────────────────────────────────────────
   calderariaOrderId String?
   calderariaOrder   CalderariaOrder? @relation(fields: [calderariaOrderId], references: [id])
   etapaCalderariaId String?
   etapaCalderaria   EtapaCalderaria? @relation(fields: [etapaCalderariaId], references: [id])
 
-  // Timing
+  // ── Timing ───────────────────────────────────────────────────────────────
   inicio      DateTime
-  fim         DateTime?
-  pausado     Boolean           @default(false)
-  totalHoras  Decimal?          @db.Decimal(10, 4)
+  fim         DateTime? // NULL = apontamento em aberto (ativo ou pausado)
+  pausado     Boolean   @default(false)
+  // totalHoras = SUM(segmentos.horas) — calculado ao fechar cada segmento
+  totalHoras  Decimal?  @db.Decimal(10, 4)
 
-  // Produção
+  // ── Produção (OP) ────────────────────────────────────────────────────────
   quantidadeProduzida Float?
   quantidadeRejeitada Float?
-  motivoParada        String?   @db.VarChar(300)
+  motivoParada        String? @db.VarChar(300)
 
   status       ApontamentoStatus @default(EM_ANDAMENTO)
   observations String?           @db.Text
@@ -4207,10 +4452,15 @@ model Apontamento {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  // Segmentos START/PAUSE/RESUME/STOP
+  segmentos    ApontamentoSegmento[]
+
   @@index([companyId, employeeId, status])
   @@index([productionOrderId])
   @@index([serviceOrderId])
   @@index([calderariaOrderId])
+  @@index([osSubtarefaId])
+  @@index([opSubtarefaId])
   @@map("apontamentos")
 }
 
@@ -5413,4 +5663,324 @@ model FiscalBrainChatMessage {
 
   @@index([companyId, createdAt])
   @@map("fiscal_brain_chat_messages")
+}
+
+// ============================================================================
+// MÓDULO OS/OP — TABELAS DE DOMÍNIO — CARROCERIAS
+// ============================================================================
+
+model TipoCarroceria {
+  id           String   @id @default(cuid())
+  codigoLegal  String   @unique @db.VarChar(10) // Código oficial da legislação (ex: "102" = Basculante)
+  nome         String   @db.VarChar(100)
+  descricao    String?  @db.VarChar(500)
+  ativo        Boolean  @default(true)
+  ordem        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  modelos      ModeloCarroceria[]
+  equipamentos Equipamento[]
+
+  @@map("tipos_carroceria")
+}
+
+model ModeloCarroceria {
+  id               String         @id @default(cuid())
+  tipoCarroceriaId String
+  tipoCarroceria   TipoCarroceria @relation(fields: [tipoCarroceriaId], references: [id])
+  nome             String         @db.VarChar(100)
+  descricao        String?        @db.VarChar(500)
+  fabricante       String?        @db.VarChar(100) // ex: "Guerra" para semi-reboques
+  ativo            Boolean        @default(true)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  equipamentos     Equipamento[]
+
+  @@index([tipoCarroceriaId])
+  @@map("modelos_carroceria")
+}
+
+// ============================================================================
+// MÓDULO OS/OP — EQUIPAMENTOS (BASE DE VEÍCULOS E IMPLEMENTOS)
+// ============================================================================
+
+model Equipamento {
+  id            String          @id @default(cuid())
+  companyId     String
+  company       Company         @relation(fields: [companyId], references: [id])
+
+  tipo          TipoEquipamento
+
+  // Identificação comum
+  marca         String?         @db.VarChar(100)
+  modelo        String?         @db.VarChar(100)
+  anoFabricacao Int?
+  anoModelo     Int?
+  cor           String?         @db.VarChar(50)
+
+  // Identificadores por tipo:
+  // CAMINHAO + SEMIRREBOQUE → chassi (VIN 17 chars) + placa
+  // REBOQUE                 → placa apenas (sem chassi)
+  // CARROCERIA              → serialNumber (formato ND-YYYY-NNN), sem placa
+  chassi        String?         @db.VarChar(17) // VIN — CAMINHAO, SEMIRREBOQUE
+  placa         String?         @db.VarChar(8)  // CAMINHAO, REBOQUE, SEMIRREBOQUE
+  serialNumber  String?         @db.VarChar(20) // CARROCERIA — ex: ND-2026-001
+
+  // Apenas SEMIRREBOQUE
+  marcaGuerra   Boolean         @default(false) // Guerra → regras de garantia especiais
+
+  // Apenas CARROCERIA
+  tipoCarroceriaId   String?
+  tipoCarroceria     TipoCarroceria?   @relation(fields: [tipoCarroceriaId], references: [id])
+  modeloCarroceriaId String?
+  modeloCarroceria   ModeloCarroceria? @relation(fields: [modeloCarroceriaId], references: [id])
+  carroceriaStatus   CarroceriaStatus?
+  tipoMontagem       TipoMontagem?
+
+  // Custo da carroceria (atualizado ao fechar OP e OS de instalação)
+  custoProducao     Decimal? @db.Decimal(15, 2) // custo da OP
+  custoInstalacao   Decimal? @db.Decimal(15, 2) // MO instalação + extras agregados
+  custoTotal        Decimal? @db.Decimal(15, 2) // custoProducao + custoInstalacao
+
+  // Proprietário (cliente)
+  proprietarioId  String?
+  proprietario    Person?   @relation("EquipamentoProprietario", fields: [proprietarioId], references: [id])
+
+  // Hodômetro (para caminhões)
+  kmAtual         Int?
+
+  observations    String?   @db.Text
+  ativo           Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Vínculos carroceria ↔ veículo
+  carroceriaVinculos EquipamentoVinculo[] @relation("CarroceriaVinculo")
+  veiculoVinculos    EquipamentoVinculo[] @relation("VeiculoVinculo")
+
+  // OS associadas (veículo ou carroceria que entrou na oficina)
+  ordensServico      ServiceOrder[]
+  // OP que produziu esta carroceria
+  ordensProducao     ProductionOrder[]   @relation("CarroceriaProducao")
+
+  @@index([companyId, tipo])
+  @@index([chassi])
+  @@index([placa])
+  @@index([serialNumber])
+  @@map("equipamentos")
+}
+
+model EquipamentoVinculo {
+  id              String      @id @default(cuid())
+  // CARROCERIA que está montada sobre o veículo
+  carroceriaId    String
+  carroceria      Equipamento @relation("CarroceriaVinculo", fields: [carroceriaId], references: [id])
+  // REBOQUE ou SEMIRREBOQUE que suporta a carroceria
+  veiculoId       String
+  veiculo         Equipamento @relation("VeiculoVinculo", fields: [veiculoId], references: [id])
+
+  dataVinculo     DateTime    @default(now())
+  dataDesvinculo  DateTime?
+  ativo           Boolean     @default(true)
+  observations    String?     @db.Text
+  createdAt       DateTime    @default(now())
+
+  @@index([carroceriaId])
+  @@index([veiculoId])
+  @@map("equipamento_vinculos")
+}
+
+// ============================================================================
+// MÓDULO OS/OP — CATÁLOGO DE TAREFAS (DOIS NÍVEIS: TAREFA → SUBTAREFA)
+// ============================================================================
+
+model TarefaCatalogo {
+  id           String         @id @default(cuid())
+  companyId    String
+  company      Company        @relation(fields: [companyId], references: [id])
+
+  codigo       String         @db.VarChar(20)  // ex: T010, T020, P001
+  nome         String         @db.VarChar(200)
+  contexto     TarefaContexto                  // SERVICO (OS) ou PRODUCAO (OP)
+  // tempo_padrao = SOMA subtarefas se tiver; senão, este campo
+  tempoPadraoH Float?
+  ativo        Boolean        @default(true)
+  observations String?        @db.Text
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  subtarefas   SubtarefaCatalogo[]
+  osTarefas    OsTarefa[]
+  opTarefas    OpTarefa[]
+
+  @@unique([companyId, codigo])
+  @@index([companyId, contexto, ativo])
+  @@map("tarefas_catalogo")
+}
+
+model SubtarefaCatalogo {
+  id               String         @id @default(cuid())
+  tarefaCatalogoId String
+  tarefaCatalogo   TarefaCatalogo @relation(fields: [tarefaCatalogoId], references: [id], onDelete: Cascade)
+
+  nome             String         @db.VarChar(200)
+  tempoPadraoH     Float
+  ordem            Int            @default(0)
+  observations     String?        @db.Text
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  osSubtarefas     OsSubtarefa[]
+  opSubtarefas     OpSubtarefa[]
+
+  @@index([tarefaCatalogoId, ordem])
+  @@map("subtarefas_catalogo")
+}
+
+// ============================================================================
+// OS — TAREFAS SNAPSHOT (cópia imutável do catálogo no momento de inclusão)
+// Alterações no catálogo NÃO afetam OS já abertas.
+// ============================================================================
+
+model OsTarefa {
+  id               String          @id @default(cuid())
+  serviceOrderId   String
+  serviceOrder     ServiceOrder    @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
+
+  // Referência ao catálogo (nullable — catálogo pode ser alterado/excluído)
+  tarefaCatalogoId String?
+  tarefaCatalogo   TarefaCatalogo? @relation(fields: [tarefaCatalogoId], references: [id])
+
+  // Snapshot — preserva nome e tempo no momento da inclusão
+  titulo           String          @db.VarChar(200)
+  tempoPadraoH     Float?
+  ordem            Int             @default(0)
+
+  status           EtapaStatus     @default(PENDENTE)
+  observacoes      String?         @db.Text
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  subtarefas       OsSubtarefa[]
+
+  @@index([serviceOrderId])
+  @@map("os_tarefas")
+}
+
+model OsSubtarefa {
+  id                  String             @id @default(cuid())
+  osTarefaId          String
+  osTarefa            OsTarefa           @relation(fields: [osTarefaId], references: [id], onDelete: Cascade)
+
+  subtarefaCatalogoId String?
+  subtarefaCatalogo   SubtarefaCatalogo? @relation(fields: [subtarefaCatalogoId], references: [id])
+
+  // Snapshot
+  nome                String             @db.VarChar(200)
+  tempoPadraoH        Float
+  ordem               Int                @default(0)
+
+  status              EtapaStatus        @default(PENDENTE)
+  horasApontadas      Decimal            @default(0) @db.Decimal(10, 4) // atualizado a cada STOP
+  observacoes         String?            @db.Text
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  apontamentos        Apontamento[]      @relation("ApontamentoOsSubtarefa")
+
+  @@index([osTarefaId])
+  @@map("os_subtarefas")
+}
+
+// ============================================================================
+// OP — TAREFAS SNAPSHOT (mesmo padrão, contexto de produção)
+// ============================================================================
+
+model OpTarefa {
+  id                String          @id @default(cuid())
+  productionOrderId String
+  productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+
+  tarefaCatalogoId  String?
+  tarefaCatalogo    TarefaCatalogo? @relation(fields: [tarefaCatalogoId], references: [id])
+
+  titulo            String          @db.VarChar(200)
+  tempoPadraoH      Float?
+  ordem             Int             @default(0)
+
+  status            EtapaStatus     @default(PENDENTE)
+  observacoes       String?         @db.Text
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  subtarefas        OpSubtarefa[]
+
+  @@index([productionOrderId])
+  @@map("op_tarefas")
+}
+
+model OpSubtarefa {
+  id                  String             @id @default(cuid())
+  opTarefaId          String
+  opTarefa            OpTarefa           @relation(fields: [opTarefaId], references: [id], onDelete: Cascade)
+
+  subtarefaCatalogoId String?
+  subtarefaCatalogo   SubtarefaCatalogo? @relation(fields: [subtarefaCatalogoId], references: [id])
+
+  nome                String             @db.VarChar(200)
+  tempoPadraoH        Float
+  ordem               Int                @default(0)
+
+  status              EtapaStatus        @default(PENDENTE)
+  horasApontadas      Decimal            @default(0) @db.Decimal(10, 4)
+  observacoes         String?            @db.Text
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  apontamentos        Apontamento[]      @relation("ApontamentoOpSubtarefa")
+
+  @@index([opTarefaId])
+  @@map("op_subtarefas")
+}
+
+// ============================================================================
+// APONTAMENTO SEGMENTO — Rastreia START/PAUSE/RESUME/STOP com precisão
+// Elimina o problema de contar tempo de pausa como horas trabalhadas.
+// horas totais do apontamento = SUM(segmentos.horas WHERE fim IS NOT NULL)
+// ============================================================================
+
+model ApontamentoSegmento {
+  id            String      @id @default(cuid())
+  apontamentoId String
+  apontamento   Apontamento @relation(fields: [apontamentoId], references: [id], onDelete: Cascade)
+
+  inicio        DateTime
+  fim           DateTime?                          // NULL = segmento ativo
+  horas         Decimal?    @db.Decimal(10, 4)     // calculado ao fechar (PAUSE/STOP)
+
+  @@index([apontamentoId])
+  @@map("apontamento_segmentos")
+}
+
+// ============================================================================
+// CARGA MENSAL OVERRIDE — Sobrescreve a carga horária padrão por mês/ano
+// Usado para férias, afastamentos, meses com admissão/demissão no meio.
+// ============================================================================
+
+model CargaMensalOverride {
+  id         String   @id @default(cuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  ano        Int
+  mes        Int      // 1–12
+  cargaH     Float    // horas efetivas para este mês
+  motivo     String?  @db.VarChar(200) // "Férias", "Afastamento INSS", "Admitido em 15/03"
+
+  createdAt  DateTime @default(now())
+
+  @@unique([employeeId, ano, mes])
+  @@map("carga_mensal_overrides")
 }

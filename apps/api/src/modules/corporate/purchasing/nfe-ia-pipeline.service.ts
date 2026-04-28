@@ -66,7 +66,14 @@ export class NfeIaPipelineService {
       where: { id: inboxId, companyId },
       include: {
         items: true,
-        emitentePessoa: { select: { id: true } },
+        emitentePessoa: {
+          select: {
+            id: true,
+            taxRegime: true,
+            ramoAtividade: { select: { codigo: true } },
+            naturezaJuridica: { select: { sigla: true } },
+          },
+        },
         company: {
           select: {
             uf: true,
@@ -97,11 +104,19 @@ export class NfeIaPipelineService {
       inbox.company.uf ||
       'SP';
 
-    const ufDestinatario  = inbox.company.uf || 'SP';
+    const ufDestinatario   = inbox.company.uf || 'SP';
     const regimeTributario = mapTaxRegime(inbox.company.taxRegime as string);
     const cnaeDestinatario = inbox.company.cnaePrincipal || '4669999';
     // CNAE do emitente — sem informação direta no inbox; usa genérico
     const cnaeEmitente = '4669999';
+
+    // Classificação do fornecedor (emitente da NF-e de entrada)
+    const emitente = inbox.emitentePessoa as any;
+    const ramoAtividadeFornecedor   = emitente?.ramoAtividade?.codigo ?? undefined;
+    const naturezaJuridicaFornecedor = emitente?.naturezaJuridica?.sigla ?? undefined;
+    // MEI é natureza jurídica → para fins de regime, trata como Simples Nacional
+    const taxRegimeFornecedorRaw = emitente?.taxRegime ?? undefined;
+    const taxRegimeFornecedor = taxRegimeFornecedorRaw ?? undefined;
 
     const results: PipelineItemResult[] = [];
 
@@ -118,6 +133,10 @@ export class NfeIaPipelineService {
           isContribuinte:    true,
           isConsumidorFinal: false,
           cnaeDestinatario,
+          // Classificação do fornecedor — enriquece o raciocínio da IA
+          ramoAtividadeFornecedor,
+          naturezaJuridicaFornecedor,
+          taxRegimeFornecedor,
           produtos: [{
             ncm:        item.ncm,
             descricao:  item.descricaoProduto,

@@ -1,22 +1,17 @@
 import {
-  IsString,
-  IsOptional,
-  IsEnum,
-  IsNumber,
-  IsInt,
-  IsDateString,
-  IsArray,
-  ValidateNested,
-  Min,
+  IsString, IsOptional, IsEnum, IsNumber, IsInt, IsBoolean,
+  IsDateString, IsArray, ValidateNested, Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum ServiceOrderType {
-  MANUTENCAO = 'MANUTENCAO',
-  REFORMA = 'REFORMA',
-  INSTALACAO = 'INSTALACAO',
+  MECANICA = 'MECANICA',
+  CALDERARIA = 'CALDERARIA',
+  PINTURA = 'PINTURA',
+  MISTA = 'MISTA',
   GARANTIA = 'GARANTIA',
-  ORCAMENTO = 'ORCAMENTO',
+  INSTALACAO = 'INSTALACAO',
+  INTERNA = 'INTERNA',
 }
 
 export enum ServiceOrderPriority {
@@ -26,9 +21,18 @@ export enum ServiceOrderPriority {
   URGENTE = 'URGENTE',
 }
 
-export enum ServiceOrderItemType {
+export enum TipoPagadorOS {
+  CLIENTE = 'CLIENTE',
+  FABRICA = 'FABRICA',
+  SEGURADORA = 'SEGURADORA',
+  TERCEIRO = 'TERCEIRO',
+  PROPRIA = 'PROPRIA',
+}
+
+export enum OsItemTipo {
   PECA = 'PECA',
   SERVICO = 'SERVICO',
+  MATERIAL_CALDERARIA = 'MATERIAL_CALDERARIA',
   TERCEIRO = 'TERCEIRO',
 }
 
@@ -48,8 +52,22 @@ export class CreateServiceOrderItemDto {
   @Min(0)
   unitPrice: number;
 
-  @IsEnum(ServiceOrderItemType)
-  type: ServiceOrderItemType;
+  @IsOptional()
+  @IsEnum(OsItemTipo)
+  tipo?: OsItemTipo;
+
+  // Custo de instalação
+  @IsOptional()
+  @IsBoolean()
+  agregaCustoCarroceria?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  faturavel?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  incluidoNoProduto?: boolean;
 }
 
 export class CreateServiceOrderDto {
@@ -63,21 +81,37 @@ export class CreateServiceOrderDto {
   @IsEnum(ServiceOrderPriority)
   priority?: ServiceOrderPriority;
 
-  @IsString()
-  veiculoDescricao: string;
+  @IsOptional()
+  @IsEnum(TipoPagadorOS)
+  tipoPagador?: TipoPagadorOS;
 
+  // Equipamento (substitui campos texto livres)
   @IsOptional()
   @IsString()
-  veiculoPlaca?: string;
-
-  @IsOptional()
-  @IsString()
-  veiculoChassi?: string;
+  equipamentoId?: string;
 
   @IsOptional()
   @IsInt()
   @Min(0)
-  veiculoKm?: number;
+  kmEntrada?: number;
+
+  // OS de instalação — carroceria sendo instalada
+  @IsOptional()
+  @IsString()
+  carroceriaId?: string;
+
+  // Garantia
+  @IsOptional()
+  @IsString()
+  garantiaFabricante?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  garantiaReembolsaPecas?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  garantiaReembolsaMO?: boolean;
 
   @IsString()
   defeitoRelatado: string;

@@ -3,9 +3,15 @@ import {
   IsOptional,
   IsNumber,
   IsInt,
+  IsEnum,
   IsDateString,
   Min,
 } from 'class-validator';
+
+export enum ApontamentoRoleEnum {
+  MECANICO = 'MECANICO',
+  OPERADOR = 'OPERADOR',
+}
 
 export class CreateEmployeeDto {
   @IsString()
@@ -47,6 +53,10 @@ export class CreateEmployeeDto {
   @IsInt()
   @Min(1)
   jornadaSemanal?: number;
+
+  @IsOptional()
+  @IsEnum(ApontamentoRoleEnum)
+  apontamentoRole?: ApontamentoRoleEnum;
 
   @IsOptional()
   @IsString()

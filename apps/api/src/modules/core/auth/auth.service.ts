@@ -229,11 +229,18 @@ export class AuthService {
       })),
     );
 
+    // Resolve employeeId — if this user is linked to an Employee record
+    const employee = await this.prisma.employee.findFirst({
+      where: { userId: user.id, companyId: user.companyId },
+      select: { id: true },
+    });
+
     return {
       id: user.id,
       email: user.email,
       name: user.name,
       companyId: user.companyId,
+      employeeId: employee?.id ?? null,
       status: user.status,
       company: user.company,
       roles: user.roles.map((ur) => ({

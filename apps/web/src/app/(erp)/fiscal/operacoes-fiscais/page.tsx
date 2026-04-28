@@ -37,10 +37,10 @@ const TIPOS_FORN = [
   { value: 'INDUSTRIA',             label: 'Indústria' },
   { value: 'ATACADISTA_EQUIPARADO', label: 'Atacadista Equiparado' },
   { value: 'COMERCIO',              label: 'Comércio' },
-  { value: 'SIMPLES_NACIONAL',      label: 'Simples Nacional' },
-  { value: 'MEI',                   label: 'MEI' },
+  { value: 'PRESTADOR_SERVICO',     label: 'Prestador de Serviço' },
   { value: 'IMPORTADOR',            label: 'Importador' },
   { value: 'PESSOA_FISICA',         label: 'Pessoa Física' },
+  { value: 'SIMPLES_NACIONAL',      label: 'Simples Nacional (regime)' },
 ];
 
 const TIPOS_CLI = [
@@ -53,7 +53,6 @@ const REGIMES = [
   { value: 'LUCRO_REAL',      label: 'Lucro Real' },
   { value: 'LUCRO_PRESUMIDO', label: 'Lucro Presumido' },
   { value: 'SIMPLES_NACIONAL',label: 'Simples Nacional' },
-  { value: 'MEI',             label: 'MEI' },
 ];
 
 const FINALIDADES = [

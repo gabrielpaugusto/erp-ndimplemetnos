@@ -60,6 +60,21 @@ const FISCAL_BRAIN_TOOLS: Anthropic.Tool[] = [
         ufOrigem: { type: 'string', description: 'UF de origem (emitente)' },
         ufDestino: { type: 'string', description: 'UF de destino (destinatário)' },
         valor: { type: 'number', description: 'Valor da operação em reais' },
+        ramoAtividadeFornecedor: {
+          type: 'string',
+          enum: ['INDUSTRIA', 'ATACADISTA_EQUIPARADO', 'COMERCIO', 'PRESTADOR_SERVICO', 'IMPORTADOR', 'PESSOA_FISICA'],
+          description: 'Ramo de atividade do fornecedor/emitente (para operações de ENTRADA)',
+        },
+        naturezaJuridicaFornecedor: {
+          type: 'string',
+          enum: ['MEI', 'EI', 'SLU', 'LTDA', 'SA_FECHADA', 'SA_ABERTA', 'SS', 'COOPERATIVA', 'ASSOCIACAO', 'FUNDACAO', 'ORGAO_PUBLICO', 'OUTROS'],
+          description: 'Natureza jurídica do fornecedor. MEI = Microempreendedor Individual (trata como Simples Nacional)',
+        },
+        taxRegimeFornecedor: {
+          type: 'string',
+          enum: ['SIMPLES_NACIONAL', 'LUCRO_PRESUMIDO', 'LUCRO_REAL'],
+          description: 'Regime tributário do fornecedor. MEI NÃO é regime — informe SIMPLES_NACIONAL.',
+        },
       },
       required: ['tipoOperacao', 'ncm', 'ufOrigem', 'ufDestino'],
     },
@@ -84,6 +99,21 @@ function buildSystemPrompt(): string {
 - **8413** — Bombas para líquidos (tanques)
 - **8544** — Cabos e chicotes elétricos
 
+## CLASSIFICAÇÃO DE FORNECEDORES/CLIENTES NO ERP
+O sistema utiliza três campos separados — não confunda:
+- **Regime Tributário**: SIMPLES_NACIONAL | LUCRO_PRESUMIDO | LUCRO_REAL
+  - MEI **não é** regime tributário — é Natureza Jurídica que adota o Simples Nacional
+- **Natureza Jurídica**: MEI | EI | SLU | LTDA | SA_FECHADA | SA_ABERTA | SS | COOPERATIVA | ASSOCIACAO | FUNDACAO | ORGAO_PUBLICO | OUTROS
+- **Ramo de Atividade**: INDUSTRIA | ATACADISTA_EQUIPARADO | COMERCIO | PRESTADOR_SERVICO | IMPORTADOR | PESSOA_FISICA
+
+**Impacto fiscal do Ramo de Atividade na entrada de NF-e:**
+- INDUSTRIA → crédito integral de ICMS (CFOP 1.101 / 2.101)
+- ATACADISTA_EQUIPARADO → crédito integral (equiparado a industrial)
+- COMERCIO → crédito conforme alíquota (CFOP 1.102 / 2.102)
+- IMPORTADOR → verificar ICMS 4% (Res. Senado 13/2012)
+- PRESTADOR_SERVICO → sem ICMS, incide ISS / NFS-e
+- Fornecedor SIMPLES_NACIONAL ou MEI → sem destaque de ICMS → **sem crédito na entrada**
+
 ## OPERAÇÕES TÍPICAS DA EMPRESA
 
 ### ENTRADAS (Compras para industrialização)
@@ -91,6 +121,7 @@ function buildSystemPrompt(): string {
 - Matéria-prima de outros estados → CFOP **2.101** | CST 00 | ICMS 12% ou 7% conforme origem
 - Componentes importados (>40% conteúdo importado) → CFOP **3.101** | CST 00 | ICMS 4% (Res. Senado 13/2012)
 - Compra para revenda (sem industrialização) → CFOP **1.102** / **2.102**
+- Compra de fornecedor Simples Nacional ou MEI → CFOP 1.101 ou 1.102 | **sem crédito ICMS** (CST 60)
 
 ### SAÍDAS (Vendas de produção própria)
 - Venda para SP → CFOP **5.101** | CST 00 | ICMS 12% (alíquota interna SP)
@@ -347,6 +378,10 @@ export class FiscalBrainChatService {
       isIndustrial: input.tipoOperacao === 'SAIDA',
       isContribuinte: true,
       isConsumidorFinal: false,
+      // Classificação do fornecedor fornecida pelo usuário na simulação
+      ramoAtividadeFornecedor:    input.ramoAtividadeFornecedor   ?? undefined,
+      naturezaJuridicaFornecedor: input.naturezaJuridicaFornecedor ?? undefined,
+      taxRegimeFornecedor:        input.taxRegimeFornecedor        ?? undefined,
       produtos: [{
         ncm: input.ncm,
         descricao: input.descricaoProduto ?? input.ncm,

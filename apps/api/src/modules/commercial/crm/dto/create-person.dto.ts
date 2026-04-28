@@ -22,15 +22,26 @@ export enum TaxRegime {
   LUCRO_REAL = 'LUCRO_REAL',
   LUCRO_PRESUMIDO = 'LUCRO_PRESUMIDO',
   SIMPLES_NACIONAL = 'SIMPLES_NACIONAL',
-  MEI = 'MEI',
+  // MEI removido: MEI é Natureza Jurídica. Fiscalmente tratado como SIMPLES_NACIONAL.
 }
 
+/** @deprecated Use RamoAtividadeEnum. Mantido para compatibilidade com regras customizadas. */
 export enum TipoFornecedorEnum {
   INDUSTRIA = 'INDUSTRIA',
   ATACADISTA_EQUIPARADO = 'ATACADISTA_EQUIPARADO',
   COMERCIO = 'COMERCIO',
   SIMPLES_NACIONAL = 'SIMPLES_NACIONAL',
   MEI = 'MEI',
+  IMPORTADOR = 'IMPORTADOR',
+  PESSOA_FISICA = 'PESSOA_FISICA',
+}
+
+/** Ramo de atividade do fornecedor — substitui TipoFornecedorEnum (Fase 2) */
+export enum RamoAtividadeEnum {
+  INDUSTRIA = 'INDUSTRIA',
+  ATACADISTA_EQUIPARADO = 'ATACADISTA_EQUIPARADO',
+  COMERCIO = 'COMERCIO',
+  PRESTADOR_SERVICO = 'PRESTADOR_SERVICO',
   IMPORTADOR = 'IMPORTADOR',
   PESSOA_FISICA = 'PESSOA_FISICA',
 }
@@ -159,9 +170,20 @@ export class CreatePersonDto {
   @IsEnum(TaxRegime)
   taxRegime?: TaxRegime;
 
+  /** @deprecated Use ramoAtividadeId. Mantido para compatibilidade. */
   @IsOptional()
   @IsEnum(TipoFornecedorEnum)
   tipoFornecedor?: TipoFornecedorEnum;
+
+  /** Natureza Jurídica (FK para tabela naturezas_juridicas — gerenciável via ERP) */
+  @IsOptional()
+  @IsString()
+  naturezaJuridicaId?: string;
+
+  /** Ramo de Atividade (FK para tabela ramos_atividade — substitui tipoFornecedor) */
+  @IsOptional()
+  @IsString()
+  ramoAtividadeId?: string;
 
   @IsOptional()
   @IsBoolean()

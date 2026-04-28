@@ -330,10 +330,11 @@ export function Sidebar() {
           {sidebarOpen && expandedGroups['_configuracoes'] && (
             <div className="ml-4 mt-1 space-y-0.5">
               {[
-                { path: '/configuracoes/empresa',  label: 'Dados da Empresa' },
-                { path: '/configuracoes/usuarios', label: 'Usuarios do Sistema' },
-                { path: '/configuracoes/perfis',   label: 'Perfis de Acesso' },
-                { path: '/configuracoes/backup',   label: 'Backup do Banco' },
+                { path: '/configuracoes/empresa',        label: 'Dados da Empresa' },
+                { path: '/configuracoes/usuarios',       label: 'Usuarios do Sistema' },
+                { path: '/configuracoes/perfis',         label: 'Perfis de Acesso' },
+                { path: '/configuracoes/tabelas-dominio',label: 'Tabelas de Domínio' },
+                { path: '/configuracoes/backup',         label: 'Backup do Banco' },
               ].map((item) => (
                 <Link
                   key={item.path}

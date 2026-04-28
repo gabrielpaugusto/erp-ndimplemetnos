@@ -80,7 +80,7 @@ export class CalderariaService {
       where: { id },
       include: {
         serviceOrder: {
-          select: { id: true, numero: true, status: true, veiculoDescricao: true },
+          select: { id: true, numero: true, status: true, equipamento: { select: { placa: true, tipo: true } } },
         },
         productionOrder: {
           select: { id: true, numero: true, status: true },

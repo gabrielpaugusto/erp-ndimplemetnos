@@ -65,9 +65,13 @@ export const ERP_MODULES = {
     label: 'Oficina',
     icon: 'Wrench',
     children: {
-      SERVICE_ORDER: { label: 'Ordens de Serviço', path: '/oficina/ordens-servico', icon: 'ClipboardList' },
-      CALDERARIA: { label: 'Calderaria', path: '/calderaria', icon: 'Flame' },
-      REQUISITION: { label: 'Requisições', path: '/requisicoes', icon: 'ArrowRightLeft' },
+      SERVICE_ORDER:    { label: 'Ordens de Serviço',    path: '/oficina/ordens-servico',      icon: 'ClipboardList' },
+      AO_VIVO:          { label: 'Painel Ao Vivo',       path: '/oficina/ao-vivo',             icon: 'Activity'      },
+      EQUIPAMENTOS:     { label: 'Equipamentos',         path: '/oficina/equipamentos',        icon: 'Truck'         },
+      TAREFAS_CATALOGO: { label: 'Catálogo de Tarefas',  path: '/oficina/tarefas-catalogo',    icon: 'ClipboardList' },
+      EFICIENCIA:       { label: 'Eficiência Mecânicos', path: '/oficina/relatorios/eficiencia-mecanicos', icon: 'TrendingUp' },
+      CALDERARIA:       { label: 'Calderaria',           path: '/calderaria',                  icon: 'Flame'         },
+      REQUISITION:      { label: 'Requisições',          path: '/requisicoes',                 icon: 'ArrowRightLeft'},
     },
   },
 
