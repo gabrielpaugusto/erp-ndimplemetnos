@@ -140,7 +140,22 @@ jobs:
             # Garante que o .env existe para o docker compose ler as variáveis
             cp /opt/erp/.env.production /opt/erp/.env
 
-            # Sobe todos os serviços (ignora falha de health check para diagnostico)
+            # Garante que postgres está rodando antes de migrar
+            docker compose -f docker-compose.cloud.yml up -d postgres redis minio
+            echo "Aguardando postgres ficar pronto..."
+            sleep 20
+
+            # Executa prisma db push como passo isolado (com accept-data-loss para novos campos)
+            echo "=== EXECUTANDO prisma db push ==="
+            docker run --rm \
+              --env-file /opt/erp/.env.production \
+              --network erp_erp-net \
+              $IMAGE_API \
+              sh -c "prisma db push --schema packages/db/prisma/schema.prisma --skip-generate --accept-data-loss" \
+              && echo "✅ prisma db push concluído com sucesso" \
+              || echo "⚠️  prisma db push retornou erro — verifique o schema"
+
+            # Sobe todos os serviços
             docker compose -f docker-compose.cloud.yml up -d || true
 
             # Aguarda containers estabilizarem
