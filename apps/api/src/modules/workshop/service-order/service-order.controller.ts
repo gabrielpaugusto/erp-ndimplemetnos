@@ -4,6 +4,7 @@ import { CurrentUser } from '@/modules/core/auth/decorators/current-user.decorat
 import { ServiceOrderService } from './service-order.service';
 import { CreateServiceOrderDto } from './dto/create-service-order.dto';
 import { UpdateServiceOrderDto } from './dto/update-service-order.dto';
+import { FaturarOsDto } from './dto/faturar-os.dto';
 
 @Controller('service-orders')
 @UseGuards(JwtAuthGuard)
@@ -68,8 +69,8 @@ export class ServiceOrderController {
   }
 
   @Post(':id/faturar')
-  faturar(@Param('id') id: string) {
-    return this.serviceOrderService.faturar(id);
+  faturar(@Param('id') id: string, @Body() dto: FaturarOsDto) {
+    return this.serviceOrderService.faturar(id, dto);
   }
 
   @Post(':id/venda-perdida')

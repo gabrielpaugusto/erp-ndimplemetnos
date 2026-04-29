@@ -9,6 +9,7 @@ import { DocumentEventService } from '@/modules/core/audit/document-event.servic
 import { StockReservationService } from '@/modules/core/stock-reservation/stock-reservation.service';
 import { CreateServiceOrderDto } from './dto/create-service-order.dto';
 import { UpdateServiceOrderDto } from './dto/update-service-order.dto';
+import { FaturarOsDto } from './dto/faturar-os.dto';
 
 @Injectable()
 export class ServiceOrderService {
@@ -271,7 +272,7 @@ export class ServiceOrderService {
     });
   }
 
-  async faturar(id: string) {
+  async faturar(id: string, dto: FaturarOsDto = {}) {
     const order = await this.getOrFail(id);
     if (order.status !== 'CONCLUIDA') {
       throw new BadRequestException(`OS precisa estar CONCLUIDA para faturamento`);
@@ -283,6 +284,12 @@ export class ServiceOrderService {
       include: { person: { select: { id: true, razaoSocial: true } } },
     });
 
+    // ── Gerar títulos de contas a receber ────────────────────────────────────
+    const valorTotal  = Number((order as any).valorTotal ?? 0);
+    if (valorTotal > 0) {
+      await this.gerarTitulosCobranca(order, dto, valorTotal);
+    }
+
     // Se OS de instalação, registra custo na carroceria
     if (order.type === 'INSTALACAO' && (order as any).carroceriaId) {
       await this.agregarCustoInstalacao(id, (order as any).carroceriaId);
@@ -290,6 +297,68 @@ export class ServiceOrderService {
 
     this.integration.onServiceOrderDelivered(id, order.companyId, 'system').catch(() => {});
     return result;
+  }
+
+  // ── Gerar parcelas de contas a receber ────────────────────────────────────
+
+  private async gerarTitulosCobranca(order: any, dto: FaturarOsDto, valorTotal: number) {
+    const numParcelas   = Math.max(1, dto.numParcelas   ?? 1);
+    const intervaloDias = Math.max(1, dto.intervaloDias ?? 30);
+    const valorParcela  = Math.round((valorTotal / numParcelas) * 100) / 100;
+
+    // Primeira vencimento: parâmetro ou hoje
+    const base = dto.dataVencimento1 ? new Date(dto.dataVencimento1) : new Date();
+    base.setHours(12, 0, 0, 0); // normaliza hora para evitar DST
+
+    // Número base: usa o número da OS como referência
+    const hoje    = new Date();
+    const dateStr = hoje.getFullYear().toString()
+      + (hoje.getMonth() + 1).toString().padStart(2, '0')
+      + hoje.getDate().toString().padStart(2, '0');
+    const prefix = `CR-${dateStr}`;
+
+    const lastMovement = await this.prisma.financialMovement.findFirst({
+      where: { companyId: order.companyId, numero: { startsWith: prefix } },
+      orderBy: { numero: 'desc' },
+    });
+    let seq = 1;
+    if (lastMovement) {
+      const parts = lastMovement.numero.split('-');
+      seq = parseInt(parts[parts.length - 1], 10) + 1;
+    }
+
+    const parcelas = [];
+    for (let i = 0; i < numParcelas; i++) {
+      const vencimento = new Date(base);
+      vencimento.setDate(vencimento.getDate() + i * intervaloDias);
+
+      // Última parcela absorve diferença de centavos
+      const valor = i === numParcelas - 1
+        ? Math.round((valorTotal - valorParcela * (numParcelas - 1)) * 100) / 100
+        : valorParcela;
+
+      const numero = `${prefix}-${(seq + i).toString().padStart(3, '0')}`;
+      const sufixoParcela = numParcelas > 1 ? ` (${i + 1}/${numParcelas})` : '';
+
+      parcelas.push({
+        companyId:     order.companyId,
+        type:          'RECEITA' as const,
+        personId:      order.personId,
+        serviceOrderId: order.id,
+        description:   `OS ${order.numero}${sufixoParcela}`,
+        numero,
+        parcela:       i + 1,
+        totalParcelas: numParcelas,
+        valor,
+        dataEmissao:   new Date(),
+        dataVencimento: vencimento,
+        paymentMethod: dto.formaPagamento ?? null,
+        status:        'PENDENTE' as const,
+        observations:  dto.observations ?? null,
+      });
+    }
+
+    await this.prisma.financialMovement.createMany({ data: parcelas });
   }
 
   async vendaPerdida(id: string, motivo: string) {

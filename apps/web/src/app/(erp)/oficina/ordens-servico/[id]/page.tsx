@@ -423,12 +423,18 @@ export default function OrdemServicoDetailPage() {
 
   // Modals
   const [modal, setModal] = useState<
-    null | 'cancelar' | 'venda-perdida' | 'concluir' | 'add-tarefa'
+    null | 'cancelar' | 'venda-perdida' | 'concluir' | 'add-tarefa' | 'faturar'
   >(null);
   const [cancelMotivo,  setCancelMotivo]  = useState('');
   const [vpMotivo,      setVpMotivo]      = useState('');
   const [diagnostico,   setDiagnostico]   = useState('');
   const [solucao,       setSolucao]       = useState('');
+
+  // Faturamento modal state
+  const [fatNumParcelas,    setFatNumParcelas]    = useState(1);
+  const [fatIntervaloDias,  setFatIntervaloDias]  = useState(30);
+  const [fatDataVenc1,      setFatDataVenc1]      = useState(() => new Date().toISOString().slice(0, 10));
+  const [fatFormaPgto,      setFatFormaPgto]      = useState('PIX');
 
   // Add-tarefa modal
   const [tarefasCatalogo,    setTarefasCatalogo]    = useState<TarefaCatalogo[]>([]);
@@ -1235,7 +1241,13 @@ export default function OrdemServicoDetailPage() {
               )}
               {order.status === 'CONCLUIDA' && (
                 <button
-                  onClick={() => doStatus('faturar')}
+                  onClick={() => {
+                    setFatNumParcelas(1);
+                    setFatIntervaloDias(30);
+                    setFatDataVenc1(new Date().toISOString().slice(0, 10));
+                    setFatFormaPgto('PIX');
+                    setModal('faturar');
+                  }}
                   disabled={actionBusy}
                   className="inline-flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold transition-colors disabled:opacity-50 shadow-sm"
                 >
@@ -1247,6 +1259,169 @@ export default function OrdemServicoDetailPage() {
           </div>
         </div>
       )}
+
+      {/* ── Modal: Faturar ─────────────────────────────────────────────────── */}
+      {modal === 'faturar' && order && (() => {
+        const valorTotal   = Number(order.valorTotal ?? 0);
+        const valorParcela = fatNumParcelas > 0 ? Math.round((valorTotal / fatNumParcelas) * 100) / 100 : valorTotal;
+
+        // Gera preview das parcelas
+        const parcelas = Array.from({ length: fatNumParcelas }, (_, i) => {
+          const venc = new Date(fatDataVenc1 + 'T12:00:00');
+          venc.setDate(venc.getDate() + i * fatIntervaloDias);
+          const valor = i === fatNumParcelas - 1
+            ? Math.round((valorTotal - valorParcela * (fatNumParcelas - 1)) * 100) / 100
+            : valorParcela;
+          return { num: i + 1, venc, valor };
+        });
+
+        const formasPgto = [
+          { value: 'PIX',            label: 'PIX' },
+          { value: 'BOLETO',         label: 'Boleto' },
+          { value: 'TRANSFERENCIA',  label: 'Transferência' },
+          { value: 'CARTAO_CREDITO', label: 'Cartão de Crédito' },
+          { value: 'CARTAO_DEBITO',  label: 'Cartão de Débito' },
+          { value: 'DINHEIRO',       label: 'Dinheiro' },
+          { value: 'CHEQUE',         label: 'Cheque' },
+          { value: 'PROMISSORIA',    label: 'Promissória' },
+        ];
+
+        return (
+          <Modal title="Faturar Ordem de Serviço" onClose={() => setModal(null)}>
+            {/* Resumo financeiro */}
+            <div className="bg-slate-50 rounded-lg p-4 mb-5 space-y-1.5">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Peças</span>
+                <span className="font-medium">{fmtCurrency(Number(order.valorPecas ?? 0))}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Mão de Obra</span>
+                <span className="font-medium">{fmtCurrency(Number(order.valorMaoDeObra ?? 0))}</span>
+              </div>
+              {Number(order.valorTerceiros ?? 0) > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Terceiros</span>
+                  <span className="font-medium">{fmtCurrency(Number(order.valorTerceiros ?? 0))}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-sm font-bold border-t border-slate-200 pt-1.5 mt-1.5">
+                <span className="text-slate-700">Total</span>
+                <span className="text-blue-700 text-base">{fmtCurrency(valorTotal)}</span>
+              </div>
+            </div>
+
+            {/* Forma de pagamento */}
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Forma de pagamento</label>
+                <select
+                  value={fatFormaPgto}
+                  onChange={(e) => setFatFormaPgto(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {formasPgto.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Parcelas</label>
+                <select
+                  value={fatNumParcelas}
+                  onChange={(e) => setFatNumParcelas(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value={1}>À Vista (1×)</option>
+                  {[2,3,4,5,6,7,8,9,10,11,12].map((n) => (
+                    <option key={n} value={n}>{n}× de {fmtCurrency(Math.round((valorTotal / n) * 100) / 100)}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {fatNumParcelas > 1 && (
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">1º vencimento</label>
+                  <input
+                    type="date"
+                    value={fatDataVenc1}
+                    onChange={(e) => setFatDataVenc1(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Intervalo (dias)</label>
+                  <select
+                    value={fatIntervaloDias}
+                    onChange={(e) => setFatIntervaloDias(Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value={7}>7 dias</option>
+                    <option value={14}>14 dias</option>
+                    <option value={21}>21 dias</option>
+                    <option value={30}>30 dias</option>
+                    <option value={45}>45 dias</option>
+                    <option value={60}>60 dias</option>
+                    <option value={90}>90 dias</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* Preview das parcelas */}
+            {fatNumParcelas > 1 && (
+              <div className="mb-5">
+                <p className="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wide">Preview das parcelas</p>
+                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="text-left px-3 py-2 text-xs text-slate-500 font-medium">#</th>
+                        <th className="text-left px-3 py-2 text-xs text-slate-500 font-medium">Vencimento</th>
+                        <th className="text-right px-3 py-2 text-xs text-slate-500 font-medium">Valor</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {parcelas.map((p) => (
+                        <tr key={p.num}>
+                          <td className="px-3 py-2 text-slate-500">{p.num}/{fatNumParcelas}</td>
+                          <td className="px-3 py-2 text-slate-700">{p.venc.toLocaleDateString('pt-BR')}</td>
+                          <td className="px-3 py-2 text-right font-semibold text-slate-900">{fmtCurrency(p.valor)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                onClick={() => setModal(null)}
+                className="px-4 py-2 text-sm text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                disabled={actionBusy}
+                onClick={async () => {
+                  setModal(null);
+                  await doStatus('faturar', {
+                    numParcelas:   fatNumParcelas,
+                    intervaloDias: fatIntervaloDias,
+                    dataVencimento1: fatDataVenc1,
+                    formaPagamento: fatFormaPgto,
+                  });
+                }}
+                className="inline-flex items-center gap-2 px-5 py-2 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              >
+                <DollarSign className="w-4 h-4" />
+                {fatNumParcelas === 1 ? 'Confirmar Faturamento' : `Faturar em ${fatNumParcelas}×`}
+              </button>
+            </div>
+          </Modal>
+        );
+      })()}
 
       {/* ── Modal: Cancelar ────────────────────────────────────────────────── */}
       {modal === 'cancelar' && (

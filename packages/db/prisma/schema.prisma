@@ -2560,6 +2560,9 @@ model ServiceOrder {
   // Fiscal (Sprint 7)
   nfeDocuments      NFeDocument[]
 
+  // Financeiro — títulos gerados no faturamento (F3)
+  financialMovements FinancialMovement[] @relation("ServiceOrderMovements")
+
   // Portal (Sprint 10)
   portalDocuments   PortalDocument[]
 
@@ -3257,6 +3260,8 @@ model FinancialMovement {
   nfeDocument       NFeDocument?             @relation(fields: [nfeDocumentId], references: [id])
   saleOrderId       String?
   saleOrder         SaleOrder?               @relation(fields: [saleOrderId], references: [id])
+  serviceOrderId    String?                  // OS que originou este título
+  serviceOrder      ServiceOrder?            @relation("ServiceOrderMovements", fields: [serviceOrderId], references: [id])
   cteDocumentId     String?                  // CT-e de frete que gerou este título
   observations      String?                  @db.Text
 
