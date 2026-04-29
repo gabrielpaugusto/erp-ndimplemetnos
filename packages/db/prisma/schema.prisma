@@ -3382,6 +3382,7 @@ model Employee {
   dataAdmissao    DateTime
   dataDemissao    DateTime?
   salarioBase     Decimal        @db.Decimal(15, 2)
+  valorHora       Decimal?       @db.Decimal(10, 2)  // R$/hora — base para custo real de MO nos apontamentos
   status          EmployeeStatus @default(ATIVO)
   ctps            String?        @db.VarChar(30)
   pis             String?        @db.VarChar(20)

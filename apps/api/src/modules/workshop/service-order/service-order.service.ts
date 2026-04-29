@@ -321,15 +321,19 @@ export class ServiceOrderService {
 
     const custoItens = itens.reduce((s, i) => s + Number(i.totalPrice), 0);
 
-    // MO de apontamentos
+    // MO de apontamentos: horas × valor_hora do funcionário
     const apts = await this.prisma.apontamento.findMany({
       where: { serviceOrderId, fim: { not: null } },
-      select: { totalHoras: true },
+      select: {
+        totalHoras: true,
+        employee: { select: { valorHora: true } },
+      },
     });
-    const horasMO = apts.reduce((s, a) => s + Number(a.totalHoras ?? 0), 0);
-
-    // Valor hora padrão — usa 0 por ora (integrar com RH futuramente)
-    const custoMO = horasMO * 0; // TODO: buscar valor_hora do Employee
+    const custoMO = apts.reduce((s, a) => {
+      const horas     = Number(a.totalHoras ?? 0);
+      const valorHora = Number((a.employee as any)?.valorHora ?? 0);
+      return s + horas * valorHora;
+    }, 0);
 
     const custoInstalacao = custoItens + custoMO;
 

@@ -22,6 +22,7 @@ export default function NovoFuncionarioPage() {
   const [dataAdmissao, setDataAdmissao] = useState(new Date().toISOString().slice(0, 10));
   const [salarioBase, setSalarioBase] = useState('');
   const [jornadaSemanal, setJornadaSemanal] = useState('44');
+  const [valorHora, setValorHora] = useState('');
   // Documentos
   const [ctps, setCtps] = useState('');
   const [pis, setPis] = useState('');
@@ -50,6 +51,7 @@ export default function NovoFuncionarioPage() {
           dataAdmissao,
           salarioBase: parseFloat(salarioBase),
           jornadaSemanal: parseInt(jornadaSemanal),
+          ...(valorHora && { valorHora: parseFloat(valorHora) }),
           ...(ctps && { ctps: ctps.trim() }),
           ...(pis  && { pis:  pis.trim()  }),
         }),
@@ -145,6 +147,11 @@ export default function NovoFuncionarioPage() {
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Jornada Semanal (h)</label>
             <input type="number" value={jornadaSemanal} onChange={(e) => setJornadaSemanal(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Valor Hora (R$/h)</label>
+            <input type="number" value={valorHora} onChange={(e) => setValorHora(e.target.value)} placeholder="0,00" step="0.01" min="0" className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent" />
+            <p className="text-xs text-slate-400 mt-1">Usado para cálculo de custo real de mão de obra nos apontamentos</p>
           </div>
         </div>
       </div>

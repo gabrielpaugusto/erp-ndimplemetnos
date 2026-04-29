@@ -254,15 +254,22 @@ export class CalderariaService {
    * Calcula custo real da ordem: soma itens de requisições + apontamentos finalizados.
    */
   private async calcularCustoReal(calderariaOrderId: string): Promise<number> {
-    // Soma apontamentos finalizados (tempo × valor_hora — por ora usa 0 para MO)
+    // Soma apontamentos finalizados: horas × valor_hora do funcionário
     const apontamentos = await this.prisma.apontamento.findMany({
       where: { calderariaOrderId, fim: { not: null } },
-      select: { totalHoras: true },
+      select: {
+        totalHoras: true,
+        employee: { select: { valorHora: true } },
+      },
     });
-    const horasMO = apontamentos.reduce((s, a) => s + Number(a.totalHoras ?? 0), 0);
-    const custoMO = horasMO * 0; // TODO: buscar valor_hora do Employee
 
-    // Por ora retorna só MO (materiais viriam das requisições)
+    const custoMO = apontamentos.reduce((s, a) => {
+      const horas     = Number(a.totalHoras ?? 0);
+      const valorHora = Number((a.employee as any)?.valorHora ?? 0);
+      return s + horas * valorHora;
+    }, 0);
+
+    // TODO: somar também materiais das requisições entregues
     return custoMO;
   }
 

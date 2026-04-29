@@ -59,6 +59,11 @@ export class CreateEmployeeDto {
   apontamentoRole?: ApontamentoRoleEnum;
 
   @IsOptional()
+  @IsNumber()
+  @Min(0)
+  valorHora?: number;
+
+  @IsOptional()
   @IsString()
   observations?: string;
 }
