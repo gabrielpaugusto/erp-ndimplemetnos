@@ -403,6 +403,17 @@ enum CalderariaOrderStatus {
   CANCELADA
 }
 
+enum CalderariaModo {
+  SERVICO_INTERNO    // Suporte interno à produção/OS — sem cobrar ao cliente
+  INSTALACAO         // Instalação de carroceria em caminhão — agrega custo à OP
+  FABRICACAO_AVULSA  // Fabrica peça/kit sob medida — gera item faturável na OS
+}
+
+enum ResultadoTipo {
+  ITEM     // Peça física — exige NCM
+  SERVICO  // Serviço — exige código LC116
+}
+
 // Sprint 8 — Contabilidade, Financeiro, RH
 enum AccountType {
   ATIVO
@@ -2603,6 +2614,9 @@ model CalderariaOrder {
   description             String                @db.VarChar(500)
   materialDescription     String?               @db.VarChar(500)
 
+  // Modo operacional
+  modo                    CalderariaModo        @default(SERVICO_INTERNO)
+
   status                  CalderariaOrderStatus @default(ABERTA)
 
   // Tempos
@@ -2618,6 +2632,23 @@ model CalderariaOrder {
   observations            String?               @db.Text
   especificacoesTecnicas  String?               @db.Text // espessura, tipo material, tipo solda etc.
 
+  // ── Fabricação Avulsa ──────────────────────────────────────────────────────
+  // Campos preenchidos quando modo = FABRICACAO_AVULSA
+  resultadoTipo           ResultadoTipo?        // ITEM ou SERVICO
+  resultadoNome           String?               @db.VarChar(200) // Nome da peça/serviço resultante
+  resultadoNcm            String?               @db.VarChar(10)  // NCM (obrigatório para ITEM)
+  resultadoCodigoServico  String?               @db.VarChar(10)  // Código LC116 (para SERVICO)
+  resultadoUnidade        String?               @db.VarChar(20)  // UN, KG, M, M2, etc.
+  resultadoQtd            Float?
+  valorCustoReal          Decimal?              @db.Decimal(15, 2) // Custo real calculado (materiais + MO)
+  valorVenda              Decimal?              @db.Decimal(15, 2) // Preço ao cliente
+  margemPercentual        Float?                // % de margem aplicada ao custo
+  osItemGeradoId          String?               // ID do ServiceOrderItem gerado automaticamente ao concluir
+
+  // ── Desenho Técnico (Excalidraw) ──────────────────────────────────────────
+  desenhoData             Json?                 // Estado completo do Excalidraw (editável)
+  desenhoPng              String?               @db.Text           // Base64 PNG para preview e impressão
+
   createdAt               DateTime              @default(now())
   updatedAt               DateTime              @updatedAt
 
@@ -2629,6 +2660,7 @@ model CalderariaOrder {
   @@unique([companyId, numero])
   @@index([serviceOrderId])
   @@index([status])
+  @@index([modo])
   @@map("calderaria_orders")
 }
 

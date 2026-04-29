@@ -3,7 +3,7 @@ const nextConfig = {
   // 'standalone' ativado automaticamente no Docker (NEXT_OUTPUT=standalone).
   // Localmente no Windows/OneDrive fica desativado para evitar erro de symlink.
   ...(process.env.NEXT_OUTPUT === 'standalone' ? { output: 'standalone' } : {}),
-  transpilePackages: ['@erp/shared'],
+  transpilePackages: ['@erp/shared', '@excalidraw/excalidraw'],
   async rewrites() {
     return [
       {

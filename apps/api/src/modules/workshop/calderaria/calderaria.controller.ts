@@ -22,19 +22,14 @@ export class CalderariaController {
   @Get()
   findAll(
     @CurrentUser() user: { id: string; companyId: string },
-    @Query('search') search?: string,
-    @Query('status') status?: string,
+    @Query('search')      search?: string,
+    @Query('status')      status?: string,
     @Query('serviceType') serviceType?: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
+    @Query('modo')        modo?: string,
+    @Query('page')        page?: string,
+    @Query('limit')       limit?: string,
   ) {
-    return this.calderariaService.findAll(user.companyId, {
-      search,
-      status,
-      serviceType,
-      page,
-      limit,
-    });
+    return this.calderariaService.findAll(user.companyId, { search, status, serviceType, modo, page, limit });
   }
 
   @Get('stats')
@@ -50,21 +45,27 @@ export class CalderariaController {
   @Post()
   create(
     @CurrentUser() user: { id: string; companyId: string },
-    @Body() createCalderariaOrderDto: CreateCalderariaOrderDto,
+    @Body() dto: CreateCalderariaOrderDto,
   ) {
-    return this.calderariaService.create(
-      user.companyId,
-      createCalderariaOrderDto,
-    );
+    return this.calderariaService.create(user.companyId, dto);
   }
 
   @Patch(':id')
-  update(
-    @Param('id') id: string,
-    @Body() updateCalderariaOrderDto: UpdateCalderariaOrderDto,
-  ) {
-    return this.calderariaService.update(id, updateCalderariaOrderDto);
+  update(@Param('id') id: string, @Body() dto: UpdateCalderariaOrderDto) {
+    return this.calderariaService.update(id, dto);
   }
+
+  // ── Desenho Excalidraw ────────────────────────────────────────────────────
+
+  @Patch(':id/desenho')
+  saveDesenho(
+    @Param('id') id: string,
+    @Body() body: { desenhoData: any; desenhoPng?: string },
+  ) {
+    return this.calderariaService.saveDesenho(id, body.desenhoData, body.desenhoPng ?? null);
+  }
+
+  // ── Status ────────────────────────────────────────────────────────────────
 
   @Post(':id/start')
   start(@Param('id') id: string) {

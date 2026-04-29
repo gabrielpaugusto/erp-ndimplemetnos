@@ -31,6 +31,11 @@ export class UpdateCalderariaOrderDto extends PartialType(CreateCalderariaOrderD
   tempoReal?: number;
 
   @IsOptional()
+  @IsNumber()
+  @Min(0)
+  valorCustoReal?: number;
+
+  @IsOptional()
   @IsString()
   responsavelId?: string;
 }
