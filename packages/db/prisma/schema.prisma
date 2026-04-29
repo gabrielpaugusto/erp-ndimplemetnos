@@ -2520,6 +2520,16 @@ model ServiceOrder {
   garantiaDataReembolso    DateTime?
   garantiaValorReembolso   Decimal? @db.Decimal(15, 2)
 
+  // Fabricante cadastrado (Person PJ) — reembolso a receber em tipoPagador = FABRICA
+  fabricantePersonId       String?
+  fabricantePerson         Person?  @relation("ServiceOrderFabricante", fields: [fabricantePersonId], references: [id])
+
+  // Seguradora (Person PJ) — tipoPagador = SEGURADORA
+  seguradoraId             String?
+  seguradora               Person?  @relation("ServiceOrderSeguradora", fields: [seguradoraId], references: [id])
+  apoliceNumero            String?  @db.VarChar(50)   // nº da apólice de seguro
+  sinistroNumero           String?  @db.VarChar(50)   // nº do sinistro / processo
+
   // Defeito / Diagnóstico / Solução
   defeitoRelatado   String               @db.Text
   diagnostico       String?              @db.Text

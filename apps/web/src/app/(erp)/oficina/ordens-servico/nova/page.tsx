@@ -84,6 +84,10 @@ interface OSForm {
   garantiaFabricante: string;
   garantiaReembolsaPecas: boolean;
   garantiaReembolsaMO: boolean;
+  fabricantePersonId: string;  // F2 — Person PJ do fabricante
+  seguradoraId: string;        // F2 — Person PJ da seguradora
+  apoliceNumero: string;       // F2
+  sinistroNumero: string;      // F2
   defeitoRelatado: string;
   dataEntrada: string;
   dataPrevisao: string;
@@ -263,6 +267,10 @@ export default function NovaOrdemServicoPage() {
     garantiaFabricante: '',
     garantiaReembolsaPecas: false,
     garantiaReembolsaMO: false,
+    fabricantePersonId: '',
+    seguradoraId: '',
+    apoliceNumero: '',
+    sinistroNumero: '',
     defeitoRelatado: '',
     dataEntrada: new Date().toISOString().slice(0, 16), // datetime-local format
     dataPrevisao: '',
@@ -426,10 +434,17 @@ export default function NovaOrdemServicoPage() {
         body.carroceriaId = form.carroceriaId;
       }
 
-      if (form.type === 'GARANTIA') {
+      if (form.type === 'GARANTIA' || form.tipoPagador === 'FABRICA') {
         if (form.garantiaFabricante) body.garantiaFabricante = form.garantiaFabricante;
         body.garantiaReembolsaPecas = form.garantiaReembolsaPecas;
         body.garantiaReembolsaMO    = form.garantiaReembolsaMO;
+        if (form.fabricantePersonId) body.fabricantePersonId = form.fabricantePersonId;
+      }
+
+      if (form.tipoPagador === 'SEGURADORA') {
+        if (form.seguradoraId)   body.seguradoraId   = form.seguradoraId;
+        if (form.apoliceNumero)  body.apoliceNumero  = form.apoliceNumero;
+        if (form.sinistroNumero) body.sinistroNumero = form.sinistroNumero;
       }
 
       const res = await apiFetch('/api/service-orders', {
@@ -556,6 +571,36 @@ export default function NovaOrdemServicoPage() {
             </select>
           </div>
 
+          {/* F2 — Seguradora: campos extras quando tipoPagador = SEGURADORA */}
+          {form.tipoPagador === 'SEGURADORA' && (
+            <div className="col-span-full mt-1 p-4 bg-sky-50 border border-sky-200 rounded-lg space-y-4">
+              <p className="text-xs font-semibold text-sky-700 uppercase tracking-wide">Dados da Seguradora</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-sky-700 mb-1.5">Seguradora (cadastro)</label>
+                  <select
+                    value={form.seguradoraId}
+                    onChange={(e) => updateForm('seguradoraId', e.target.value)}
+                    className="w-full px-3 py-2.5 border border-sky-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  >
+                    <option value="">— Selecione —</option>
+                    {persons.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-sky-700 mb-1.5">Nº Apólice</label>
+                  <input type="text" value={form.apoliceNumero} onChange={(e) => updateForm('apoliceNumero', e.target.value)}
+                    placeholder="Ex: 123456/2024" className="w-full px-3 py-2.5 border border-sky-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-sky-700 mb-1.5">Nº Sinistro</label>
+                  <input type="text" value={form.sinistroNumero} onChange={(e) => updateForm('sinistroNumero', e.target.value)}
+                    placeholder="Ex: SIN-2024-00042" className="w-full px-3 py-2.5 border border-sky-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500" />
+                </div>
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">Prioridade</label>
             <select
@@ -662,12 +707,12 @@ export default function NovaOrdemServicoPage() {
           </div>
         )}
 
-        {/* Garantia: dados extra */}
-        {form.type === 'GARANTIA' && (
+        {/* Garantia / Fabricante: dados extra */}
+        {(form.type === 'GARANTIA' || form.tipoPagador === 'FABRICA') && (
           <div className="mt-5 pt-5 border-t border-orange-200">
             <div className="flex items-center gap-2 mb-4">
               <Shield className="w-4 h-4 text-orange-600" />
-              <span className="text-sm font-semibold text-orange-800">Dados de Garantia</span>
+              <span className="text-sm font-semibold text-orange-800">Dados de Garantia / Fabricante</span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -676,9 +721,21 @@ export default function NovaOrdemServicoPage() {
                   type="text"
                   value={form.garantiaFabricante}
                   onChange={(e) => updateForm('garantiaFabricante', e.target.value)}
-                  placeholder="Ex: ND Implementos — Processo 2024/0042"
+                  placeholder="Ex: Guerra Implementos — Proc. 2024/0042"
                   className="w-full px-3 py-2.5 border border-orange-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-orange-700 mb-1.5">Fabricante cadastrado (para reembolso)</label>
+                <select
+                  value={form.fabricantePersonId}
+                  onChange={(e) => updateForm('fabricantePersonId', e.target.value)}
+                  className="w-full px-3 py-2.5 border border-orange-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                >
+                  <option value="">— Selecione (opcional) —</option>
+                  {persons.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                </select>
+                <p className="text-xs text-orange-500 mt-1">Título de reembolso será gerado contra este cadastro</p>
               </div>
               <div className="flex flex-col gap-3 justify-center">
                 <label className="flex items-center gap-2.5 cursor-pointer">
@@ -688,7 +745,7 @@ export default function NovaOrdemServicoPage() {
                     onChange={(e) => updateForm('garantiaReembolsaPecas', e.target.checked)}
                     className="w-4 h-4 text-orange-600 rounded border-orange-300 focus:ring-orange-500"
                   />
-                  <span className="text-sm text-orange-900">Reembolsa peças</span>
+                  <span className="text-sm text-orange-900">Fabricante reembolsa peças</span>
                 </label>
                 <label className="flex items-center gap-2.5 cursor-pointer">
                   <input
@@ -697,7 +754,7 @@ export default function NovaOrdemServicoPage() {
                     onChange={(e) => updateForm('garantiaReembolsaMO', e.target.checked)}
                     className="w-4 h-4 text-orange-600 rounded border-orange-300 focus:ring-orange-500"
                   />
-                  <span className="text-sm text-orange-900">Reembolsa mão de obra</span>
+                  <span className="text-sm text-orange-900">Fabricante reembolsa mão de obra</span>
                 </label>
               </div>
             </div>

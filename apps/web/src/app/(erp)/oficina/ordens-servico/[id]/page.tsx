@@ -795,12 +795,32 @@ export default function OrdemServicoDetailPage() {
         </div>
       </div>
 
-      {/* ── Garantia info ──────────────────────────────────────────────────── */}
-      {order.type === 'GARANTIA' && order.garantiaFabricante && (
+      {/* ── Seguradora info ────────────────────────────────────────────────── */}
+      {(order as any).tipoPagador === 'SEGURADORA' && (
+        <div className="bg-sky-50 border border-sky-200 rounded-xl p-4 flex items-start gap-3">
+          <Shield className="w-5 h-5 text-sky-500 shrink-0 mt-0.5" />
+          <div className="space-y-1 text-sm flex-1">
+            <p className="font-semibold text-sky-800">
+              Seguradora:{' '}
+              {(order as any).seguradora?.razaoSocial ?? '—'}
+            </p>
+            <div className="flex flex-wrap gap-4 text-xs text-sky-600">
+              {(order as any).apoliceNumero && <span>Apólice: <strong>{(order as any).apoliceNumero}</strong></span>}
+              {(order as any).sinistroNumero && <span>Sinistro: <strong>{(order as any).sinistroNumero}</strong></span>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Garantia / Fabricante info ─────────────────────────────────────── */}
+      {((order as any).tipoPagador === 'FABRICA' || order.type === 'GARANTIA') && order.garantiaFabricante && (
         <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-start gap-3">
           <Shield className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
-          <div className="space-y-1 text-sm">
-            <p className="font-semibold text-orange-800">Garantia: {order.garantiaFabricante}</p>
+          <div className="space-y-1 text-sm flex-1">
+            <p className="font-semibold text-orange-800">Garantia / Fabricante: {order.garantiaFabricante}</p>
+            {(order as any).fabricantePerson && (
+              <p className="text-xs text-orange-600">Cadastro: {(order as any).fabricantePerson.razaoSocial}</p>
+            )}
             <p className="text-orange-700 text-xs">
               {order.garantiaReembolsaPecas ? '✓ Reembolsa peças' : '✗ Não reembolsa peças'} ·{' '}
               {order.garantiaReembolsaMO ? '✓ Reembolsa MO' : '✗ Não reembolsa MO'}

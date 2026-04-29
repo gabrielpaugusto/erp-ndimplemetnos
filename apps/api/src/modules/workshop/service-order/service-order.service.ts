@@ -96,6 +96,8 @@ export class ServiceOrderService {
       where: { id },
       include: {
         person: { select: { id: true, razaoSocial: true, cpfCnpj: true, nomeFantasia: true } },
+        seguradora: { select: { id: true, razaoSocial: true, cpfCnpj: true } },
+        fabricantePerson: { select: { id: true, razaoSocial: true, cpfCnpj: true } },
         equipamento: {
           include: {
             tipoCarroceria: { select: { id: true, nome: true, codigoLegal: true } },
@@ -155,10 +157,15 @@ export class ServiceOrderService {
           valorMaoDeObra,
           valorTerceiros,
           valorTotal,
-          // Garantia
+          // Garantia / Fabricante
           garantiaFabricante: data.garantiaFabricante,
           garantiaReembolsaPecas: data.garantiaReembolsaPecas ?? false,
           garantiaReembolsaMO: data.garantiaReembolsaMO ?? false,
+          fabricantePersonId: data.fabricantePersonId ?? null,
+          // Seguradora
+          seguradoraId: data.seguradoraId ?? null,
+          apoliceNumero: data.apoliceNumero ?? null,
+          sinistroNumero: data.sinistroNumero ?? null,
           items: items.length > 0
             ? {
                 create: items.map((item) => ({
@@ -302,15 +309,45 @@ export class ServiceOrderService {
   // ── Gerar parcelas de contas a receber ────────────────────────────────────
 
   private async gerarTitulosCobranca(order: any, dto: FaturarOsDto, valorTotal: number) {
+    const tipoPagador = order.tipoPagador as string;
+
+    // ── PROPRIA: ND absorve — sem título financeiro ────────────────────────
+    if (tipoPagador === 'PROPRIA') return;
+
+    // ── Determina pagador e valor de acordo com o tipo ─────────────────────
+    let pagadorId: string = order.personId;
+    let valorEfetivo: number = valorTotal;
+    let descSufixo = '';
+
+    if (tipoPagador === 'SEGURADORA') {
+      // Título contra a seguradora, não contra o cliente
+      pagadorId = order.seguradoraId ?? order.personId;
+      if (order.sinistroNumero) descSufixo = ` — Sinistro ${order.sinistroNumero}`;
+      else if (order.apoliceNumero) descSufixo = ` — Apólice ${order.apoliceNumero}`;
+
+    } else if (tipoPagador === 'FABRICA') {
+      // Reembolso do fabricante — apenas o valor reembolsável
+      let valorReembolso = 0;
+      if (order.garantiaReembolsaPecas) valorReembolso += Number(order.valorPecas  ?? 0);
+      if (order.garantiaReembolsaMO)    valorReembolso += Number(order.valorMaoDeObra ?? 0);
+      if (valorReembolso <= 0) return; // nada reembolsável → sem título
+      valorEfetivo = valorReembolso;
+      pagadorId = order.fabricantePersonId ?? order.personId;
+      descSufixo = order.garantiaFabricante
+        ? ` — Reembolso ${order.garantiaFabricante}`
+        : ' — Reembolso Fabricante';
+
+    }
+    // CLIENTE ou TERCEIRO: usa personId e valorTotal (default)
+
+    // ── Gera as parcelas ───────────────────────────────────────────────────
     const numParcelas   = Math.max(1, dto.numParcelas   ?? 1);
     const intervaloDias = Math.max(1, dto.intervaloDias ?? 30);
-    const valorParcela  = Math.round((valorTotal / numParcelas) * 100) / 100;
+    const valorParcela  = Math.round((valorEfetivo / numParcelas) * 100) / 100;
 
-    // Primeira vencimento: parâmetro ou hoje
     const base = dto.dataVencimento1 ? new Date(dto.dataVencimento1) : new Date();
-    base.setHours(12, 0, 0, 0); // normaliza hora para evitar DST
+    base.setHours(12, 0, 0, 0);
 
-    // Número base: usa o número da OS como referência
     const hoje    = new Date();
     const dateStr = hoje.getFullYear().toString()
       + (hoje.getMonth() + 1).toString().padStart(2, '0')
@@ -327,34 +364,33 @@ export class ServiceOrderService {
       seq = parseInt(parts[parts.length - 1], 10) + 1;
     }
 
-    const parcelas = [];
+    const parcelas: any[] = [];
     for (let i = 0; i < numParcelas; i++) {
       const vencimento = new Date(base);
       vencimento.setDate(vencimento.getDate() + i * intervaloDias);
 
-      // Última parcela absorve diferença de centavos
       const valor = i === numParcelas - 1
-        ? Math.round((valorTotal - valorParcela * (numParcelas - 1)) * 100) / 100
+        ? Math.round((valorEfetivo - valorParcela * (numParcelas - 1)) * 100) / 100
         : valorParcela;
 
       const numero = `${prefix}-${(seq + i).toString().padStart(3, '0')}`;
       const sufixoParcela = numParcelas > 1 ? ` (${i + 1}/${numParcelas})` : '';
 
       parcelas.push({
-        companyId:     order.companyId,
-        type:          'RECEITA' as const,
-        personId:      order.personId,
+        companyId:      order.companyId,
+        type:           'RECEITA' as const,
+        personId:       pagadorId,
         serviceOrderId: order.id,
-        description:   `OS ${order.numero}${sufixoParcela}`,
+        description:    `OS ${order.numero}${descSufixo}${sufixoParcela}`,
         numero,
-        parcela:       i + 1,
-        totalParcelas: numParcelas,
+        parcela:        i + 1,
+        totalParcelas:  numParcelas,
         valor,
-        dataEmissao:   new Date(),
+        dataEmissao:    new Date(),
         dataVencimento: vencimento,
-        paymentMethod: dto.formaPagamento ?? null,
-        status:        'PENDENTE' as const,
-        observations:  dto.observations ?? null,
+        paymentMethod:  dto.formaPagamento ?? null,
+        status:         'PENDENTE' as const,
+        observations:   dto.observations ?? null,
       });
     }
 

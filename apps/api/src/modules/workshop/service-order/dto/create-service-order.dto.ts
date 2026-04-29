@@ -100,7 +100,7 @@ export class CreateServiceOrderDto {
   @IsString()
   carroceriaId?: string;
 
-  // Garantia
+  // Garantia / Fabricante
   @IsOptional()
   @IsString()
   garantiaFabricante?: string;
@@ -112,6 +112,23 @@ export class CreateServiceOrderDto {
   @IsOptional()
   @IsBoolean()
   garantiaReembolsaMO?: boolean;
+
+  @IsOptional()
+  @IsString()
+  fabricantePersonId?: string; // Person PJ — fabricante para reembolso
+
+  // Seguradora
+  @IsOptional()
+  @IsString()
+  seguradoraId?: string; // Person PJ — seguradora
+
+  @IsOptional()
+  @IsString()
+  apoliceNumero?: string;
+
+  @IsOptional()
+  @IsString()
+  sinistroNumero?: string;
 
   @IsString()
   defeitoRelatado: string;
