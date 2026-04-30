@@ -10,14 +10,19 @@ import { StockReservationService } from '@/modules/core/stock-reservation/stock-
 import { CreateServiceOrderDto } from './dto/create-service-order.dto';
 import { UpdateServiceOrderDto } from './dto/update-service-order.dto';
 import { FaturarOsDto } from './dto/faturar-os.dto';
+import { NfeService } from '@/modules/corporate/fiscal/nfe/nfe.service';
+import { Logger } from '@nestjs/common';
 
 @Injectable()
 export class ServiceOrderService {
+  private readonly logger = new Logger(ServiceOrderService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly integration: IntegrationService,
     private readonly documentEvents: DocumentEventService,
     private readonly stockReservations: StockReservationService,
+    private readonly nfeService: NfeService,
   ) {}
 
   async findAll(
@@ -119,6 +124,10 @@ export class ServiceOrderService {
         },
         requisitions: { select: { id: true, numero: true, status: true, type: true, createdAt: true } },
         calderariaOrders: { select: { id: true, numero: true, status: true, serviceType: true, createdAt: true } },
+        nfeDocuments: {
+          select: { id: true, numero: true, status: true, dataEmissao: true, valorTotal: true, chaveAcesso: true },
+          orderBy: { createdAt: 'desc' },
+        },
       },
     });
 
@@ -303,7 +312,131 @@ export class ServiceOrderService {
     }
 
     this.integration.onServiceOrderDelivered(id, order.companyId, 'system').catch(() => {});
+
+    // ── NF-e automática com FiscalBrain (não bloqueia o faturamento) ─────────
+    if ((order as any).tipoPagador !== 'PROPRIA') {
+      this.criarNfeDeOs(id, order.companyId).catch((err) => {
+        this.logger.warn(`[F1] Falha ao gerar NF-e automática para OS ${id}: ${err?.message ?? err}`);
+      });
+    }
+
     return result;
+  }
+
+  // ── NF-e automática ao faturar OS ─────────────────────────────────────────
+
+  private async criarNfeDeOs(serviceOrderId: string, companyId: string): Promise<void> {
+    // Carrega a OS com itens faturáveis e seus produtos (para NCM)
+    const order = await this.prisma.serviceOrder.findUnique({
+      where: { id: serviceOrderId },
+      include: {
+        person: { select: { id: true, razaoSocial: true, cpfCnpj: true } },
+        items: {
+          where: { faturavel: true },
+          include: {
+            product: { select: { id: true, ncmCode: true, unit: true } },
+          },
+        },
+        seguradora: { select: { id: true } },
+      },
+    });
+
+    if (!order) {
+      this.logger.warn(`[F1] OS ${serviceOrderId} não encontrada para NF-e`);
+      return;
+    }
+
+    const itensFaturaveis = (order.items as any[]).filter(
+      (i) => Number(i.totalPrice) > 0,
+    );
+
+    if (itensFaturaveis.length === 0) {
+      this.logger.log(`[F1] OS ${serviceOrderId} sem itens faturáveis — NF-e não gerada`);
+      return;
+    }
+
+    // ── Determina destinatário da NF-e pelo tipoPagador ─────────────────────
+    const tipoPagador = (order as any).tipoPagador as string;
+    let personId: string = (order as any).personId;
+    if (tipoPagador === 'SEGURADORA' && (order as any).seguradoraId) {
+      personId = (order as any).seguradoraId;
+    } else if (tipoPagador === 'FABRICA' && (order as any).fabricantePersonId) {
+      personId = (order as any).fabricantePersonId;
+    }
+
+    // ── Natureza da operação pelo tipo de OS ─────────────────────────────────
+    const naturezaMap: Record<string, string> = {
+      MECANICA:        'Prestação de Serviços de Manutenção',
+      CALDERARIA:      'Prestação de Serviços de Calderaria',
+      PINTURA:         'Prestação de Serviços de Pintura',
+      MISTA:           'Prestação de Serviços de Oficina',
+      GARANTIA:        'Prestação de Serviços em Garantia',
+      INSTALACAO:      'Instalação de Equipamentos',
+      INTERNA:         'Serviços Internos',
+    };
+    const naturezaOperacao = naturezaMap[(order as any).type as string] ?? 'Prestação de Serviços';
+
+    // ── CFOP padrão por tipo de item (FiscalBrain irá refinar depois) ────────
+    const cfopPorTipo: Record<string, string> = {
+      SERVICO:             '5933', // Prestação de serviços
+      MATERIAL_CALDERARIA: '5933',
+      PECA:                '5102', // Venda mercadoria dentro do estado (default)
+      TERCEIRO:            '5933',
+    };
+    // NCM padrão quando produto não tem NCM: 9987 (serviços de reparação)
+    const NCM_SERVICO_DEFAULT = '99879000';
+    const NCM_PECA_DEFAULT    = '87089900'; // Outras partes e acessórios p/ veículos
+
+    // ── Monta itens da NF-e ──────────────────────────────────────────────────
+    const nfeItems = itensFaturaveis.map((item: any) => {
+      const tipo: string = item.tipo ?? 'SERVICO';
+      const produto = item.product;
+
+      const ncmCode  = produto?.ncmCode  ?? (tipo === 'PECA' ? NCM_PECA_DEFAULT : NCM_SERVICO_DEFAULT);
+      const cfopCode = cfopPorTipo[tipo]  ?? '5933';
+      const unit     = produto?.unit      ?? 'UN';
+
+      return {
+        productId:   produto?.id ?? undefined,
+        description: String(item.description).substring(0, 500),
+        ncmCode,
+        cfopCode,
+        quantity:    Number(item.quantity),
+        unitPrice:   Number(item.unitPrice),
+        unit,
+      };
+    });
+
+    // ── Informações complementares ───────────────────────────────────────────
+    const infos: string[] = [`OS: ${(order as any).numero}`];
+    if ((order as any).sinistroNumero) infos.push(`Sinistro: ${(order as any).sinistroNumero}`);
+    if ((order as any).apoliceNumero)  infos.push(`Apólice: ${(order as any).apoliceNumero}`);
+    if ((order as any).garantiaFabricante) infos.push(`Garantia: ${(order as any).garantiaFabricante}`);
+
+    this.logger.log(`[F1] Criando NF-e RASCUNHO para OS ${serviceOrderId} (${nfeItems.length} item(s))`);
+
+    // ── Cria NF-e como RASCUNHO ───────────────────────────────────────────────
+    const nfe = await this.nfeService.create(companyId, {
+      type: 'SAIDA' as any,
+      finality: 'NORMAL' as any,
+      operation: 'VENDA' as any,
+      personId,
+      serviceOrderId,
+      naturezaOperacao,
+      dataEmissao: new Date().toISOString(),
+      informacoesComplementares: infos.join(' | '),
+      items: nfeItems,
+    });
+
+    this.logger.log(`[F1] NF-e ${nfe.id} criada (RASCUNHO) — iniciando classificação FiscalBrain`);
+
+    // ── FiscalBrain classifica os itens (CFOP/CST/NCM/alíquotas corretos) ───
+    try {
+      await this.nfeService.calculateTaxes(nfe.id);
+      this.logger.log(`[F1] FiscalBrain concluiu classificação da NF-e ${nfe.id}`);
+    } catch (err: unknown) {
+      this.logger.warn(`[F1] calculateTaxes falhou para NF-e ${nfe.id}: ${err instanceof Error ? err.message : err}`);
+    }
   }
 
   // ── Gerar parcelas de contas a receber ────────────────────────────────────

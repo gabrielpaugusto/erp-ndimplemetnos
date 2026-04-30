@@ -29,6 +29,8 @@ import {
   QrCode,
   Printer,
   X,
+  Receipt,
+  ExternalLink,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { fmtCurrency, fmtQty } from '@/lib/format';
@@ -99,6 +101,15 @@ interface EficienciaTarefa {
   subtarefas: EficienciaSubtarefa[];
 }
 
+interface NFeDoc {
+  id: string;
+  numero?: number | null;
+  status: string;
+  dataEmissao?: string | null;
+  valorTotal?: number | string | null;
+  chaveAcesso?: string | null;
+}
+
 interface OrderData {
   id: string;
   numero: string;
@@ -141,6 +152,7 @@ interface OrderData {
   osTarefas: OsTarefa[];
   requisitions: { id: string; numero: string; status: string; type: string; createdAt: string }[];
   calderariaOrders: { id: string; numero: string; status: string; serviceType?: string }[];
+  nfeDocuments?: NFeDoc[];
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -234,6 +246,26 @@ const REQ_STATUS_BADGE: Record<string, string> = {
   RASCUNHO: 'bg-slate-100 text-slate-600', SOLICITADA: 'bg-cyan-100 text-cyan-700',
   APROVADA:  'bg-blue-100 text-blue-700',  SEPARADA: 'bg-amber-100 text-amber-700',
   ENTREGUE:  'bg-emerald-100 text-emerald-700', CANCELADA: 'bg-red-100 text-red-700',
+};
+
+const NFE_STATUS_BADGE: Record<string, string> = {
+  RASCUNHO:     'bg-slate-100 text-slate-600 border-slate-200',
+  VALIDADA:     'bg-sky-100 text-sky-700 border-sky-200',
+  ASSINADA:     'bg-violet-100 text-violet-700 border-violet-200',
+  TRANSMITIDA:  'bg-amber-100 text-amber-700 border-amber-200',
+  AUTORIZADA:   'bg-emerald-100 text-emerald-700 border-emerald-200',
+  CANCELADA:    'bg-red-100 text-red-700 border-red-200',
+  DENEGADA:     'bg-red-100 text-red-700 border-red-200',
+};
+
+const NFE_STATUS_LABELS: Record<string, string> = {
+  RASCUNHO:     'Rascunho',
+  VALIDADA:     'Validada',
+  ASSINADA:     'Assinada',
+  TRANSMITIDA:  'Transmitida',
+  AUTORIZADA:   'Autorizada',
+  CANCELADA:    'Cancelada',
+  DENEGADA:     'Denegada',
 };
 
 // ── Small helpers ─────────────────────────────────────────────────────────────
@@ -1156,6 +1188,80 @@ export default function OrdemServicoDetailPage() {
         </div>
       )}
 
+      {/* ── NF-e Automática ────────────────────────────────────────────────── */}
+      {order.status === 'FATURADA' && order.tipoPagador !== 'PROPRIA' && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Receipt className="w-4 h-4 text-emerald-500" />
+            <h2 className="text-sm font-semibold text-slate-700">Nota Fiscal Eletrônica</h2>
+            {order.nfeDocuments && order.nfeDocuments.length > 0 && (
+              <span className="text-xs text-slate-400">({order.nfeDocuments.length} NF-e)</span>
+            )}
+          </div>
+
+          {(!order.nfeDocuments || order.nfeDocuments.length === 0) ? (
+            <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-amber-800">NF-e em processamento</p>
+                <p className="text-xs text-amber-600 mt-0.5">
+                  A NF-e está sendo gerada automaticamente pelo FiscalBrain. Atualize a página em alguns instantes.
+                </p>
+                <button
+                  onClick={refresh}
+                  className="mt-2 inline-flex items-center gap-1.5 text-xs text-amber-700 hover:text-amber-900 font-medium"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  Atualizar agora
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {order.nfeDocuments.map((nfe) => (
+                <div key={nfe.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center shrink-0">
+                      <FileText className="w-4 h-4 text-emerald-600" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-slate-800 font-mono">
+                          {nfe.numero ? `NF-e ${String(nfe.numero).padStart(9, '0')}` : 'NF-e (sem número)'}
+                        </span>
+                        <Badge className={NFE_STATUS_BADGE[nfe.status] ?? 'bg-slate-100 text-slate-600 border-slate-200'}>
+                          {NFE_STATUS_LABELS[nfe.status] ?? nfe.status}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-3 mt-0.5">
+                        {nfe.dataEmissao && (
+                          <span className="text-xs text-slate-400">{fmtDate(nfe.dataEmissao)}</span>
+                        )}
+                        {nfe.valorTotal && Number(nfe.valorTotal) > 0 && (
+                          <span className="text-xs font-medium text-slate-600">{fmtCurrency(Number(nfe.valorTotal))}</span>
+                        )}
+                        {nfe.chaveAcesso && (
+                          <span className="text-[10px] font-mono text-slate-400 hidden md:block">
+                            {nfe.chaveAcesso.slice(0, 22)}…
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <Link
+                    href={`/fiscal/nfe/${nfe.id}`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-200"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    Abrir
+                  </Link>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Observations ────────────────────────────────────────────────────── */}
       {order.observations && (
         <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
@@ -1411,6 +1517,19 @@ export default function OrdemServicoDetailPage() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            )}
+
+            {/* Aviso NF-e automática */}
+            {order.tipoPagador !== 'PROPRIA' && (
+              <div className="flex items-start gap-2.5 bg-emerald-50 border border-emerald-200 rounded-xl p-3 mb-4">
+                <Receipt className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-xs font-semibold text-emerald-800">NF-e gerada automaticamente</p>
+                  <p className="text-xs text-emerald-600 mt-0.5">
+                    O FiscalBrain irá classificar os itens (CFOP, CST, NCM, alíquotas) e gerar a NF-e como rascunho para revisão.
+                  </p>
                 </div>
               </div>
             )}
