@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, type ReactNode } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ChevronLeft,
   Save,
@@ -51,8 +51,13 @@ interface EquipamentoOption {
   marca: string;
   modelo: string;
   placa?: string;
+  chassi?: string;
   serialNumber?: string;
   anoModelo?: number;
+  kmAtual?: number | null;
+  proprietarioId?: string | null;
+  proprietarioNome?: string | null;
+  osCount?: number;
 }
 
 interface TarefaCatalogo {
@@ -243,10 +248,139 @@ function PersonCombobox({
   );
 }
 
+// ── EquipamentoCombobox ───────────────────────────────────────────────────────
+
+function EquipamentoCombobox({
+  equipamentos, value, onChange, loading,
+}: {
+  equipamentos: EquipamentoOption[];
+  value: string;
+  onChange: (id: string, equip: EquipamentoOption | null) => void;
+  loading: boolean;
+}) {
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const selected = equipamentos.find((e) => e.id === value);
+
+  const filtered = query.trim()
+    ? equipamentos.filter((e) => {
+        const q = query.toLowerCase();
+        return (
+          e.placa?.toLowerCase().includes(q) ||
+          e.chassi?.toLowerCase().includes(q) ||
+          e.serialNumber?.toLowerCase().includes(q) ||
+          e.marca?.toLowerCase().includes(q) ||
+          e.modelo?.toLowerCase().includes(q) ||
+          e.proprietarioNome?.toLowerCase().includes(q)
+        );
+      }).slice(0, 30)
+    : equipamentos.slice(0, 30);
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <div
+        onClick={() => { if (!loading) setOpen((o) => !o); }}
+        className={`flex items-center gap-2 w-full px-3 py-2.5 border rounded-lg text-sm cursor-pointer transition-colors ${
+          open ? 'border-rose-400 ring-2 ring-rose-100' : 'border-slate-300 hover:border-slate-400'
+        } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+      >
+        <Truck className="w-4 h-4 text-slate-400 shrink-0" />
+        {selected ? (
+          <span className="flex-1 min-w-0">
+            <span className="font-medium text-slate-900">
+              {selected.placa ?? selected.serialNumber ?? selected.chassi?.slice(0, 10) ?? '—'}
+            </span>
+            <span className="text-slate-400 text-xs ml-2">
+              {[selected.marca, selected.modelo, selected.anoModelo].filter(Boolean).join(' ')}
+            </span>
+          </span>
+        ) : (
+          <span className="flex-1 text-slate-400">{loading ? 'Carregando...' : '— Nenhum equipamento —'}</span>
+        )}
+        {selected && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onChange('', null); setQuery(''); }}
+            className="p-0.5 text-slate-300 hover:text-red-400 transition-colors shrink-0"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+        <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </div>
+
+      {open && !loading && (
+        <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
+          <div className="p-2 border-b border-slate-100">
+            <div className="flex items-center gap-2 px-2 py-1.5 bg-slate-50 rounded-lg">
+              <Search className="w-3.5 h-3.5 text-slate-400" />
+              <input
+                autoFocus
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Buscar por placa, chassi, marca..."
+                className="flex-1 bg-transparent text-sm outline-none text-slate-900 placeholder:text-slate-400"
+              />
+            </div>
+          </div>
+          <div className="max-h-64 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <div className="px-4 py-3 text-sm text-slate-400 text-center">Nenhum resultado</div>
+            ) : (
+              filtered.map((e) => (
+                <button
+                  key={e.id}
+                  onClick={() => { onChange(e.id, e); setOpen(false); setQuery(''); }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-rose-50 transition-colors ${
+                    e.id === value ? 'bg-rose-50' : ''
+                  }`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-slate-900 font-mono">
+                        {e.placa ?? e.serialNumber ?? e.chassi?.slice(0, 10) ?? '—'}
+                      </span>
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 uppercase font-medium">
+                        {e.tipo}
+                      </span>
+                      {e.osCount != null && e.osCount > 0 && (
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">
+                          {e.osCount} OS
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-0.5">
+                      {[e.marca, e.modelo, e.anoModelo].filter(Boolean).join(' ')}
+                      {e.proprietarioNome && <span className="ml-2 text-slate-400">· {e.proprietarioNome}</span>}
+                      {e.kmAtual != null && <span className="ml-2 text-slate-400">· {e.kmAtual.toLocaleString('pt-BR')} km</span>}
+                    </div>
+                  </div>
+                  {e.id === value && <CheckCircle2 className="w-4 h-4 text-rose-600 shrink-0" />}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function NovaOrdemServicoPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [saving, setSaving] = useState(false);
   const [persons, setPersons] = useState<PersonOption[]>([]);
   const [products, setProducts] = useState<ProductOption[]>([]);
@@ -330,8 +464,13 @@ export default function NovaOrdemServicoPage() {
             marca: e.marca ?? '',
             modelo: e.modelo ?? '',
             placa: e.placa,
+            chassi: e.chassi,
             serialNumber: e.serialNumber,
             anoModelo: e.anoModelo,
+            kmAtual: e.kmAtual ?? null,
+            proprietarioId: e.proprietario?.id ?? null,
+            proprietarioNome: e.proprietario?.razaoSocial ?? null,
+            osCount: e._count?.ordensServico ?? null,
           }));
           setEquipamentos(all.filter((e) => e.tipo !== 'CARROCERIA'));
           setCarrocerias(all.filter((e) => e.tipo === 'CARROCERIA'));
@@ -349,6 +488,21 @@ export default function NovaOrdemServicoPage() {
     }
     loadData();
   }, []);
+
+  // Pre-fill equipamento a partir de ?equipamentoId=xxx (vindo da página de frota)
+  useEffect(() => {
+    const eqId = searchParams?.get('equipamentoId');
+    if (!eqId || equipamentos.length === 0) return;
+    const equip = equipamentos.find((e) => e.id === eqId);
+    if (!equip) return;
+    setForm((prev) => ({
+      ...prev,
+      equipamentoId: eqId,
+      kmEntrada: equip.kmAtual != null ? String(equip.kmAtual) : prev.kmEntrada,
+      // Preenche proprietário só se ainda não foi selecionado cliente
+      personId: prev.personId || equip.proprietarioId || prev.personId,
+    }));
+  }, [searchParams, equipamentos]);
 
   const updateForm = <K extends keyof OSForm>(field: K, value: OSForm[K]) =>
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -380,6 +534,16 @@ export default function NovaOrdemServicoPage() {
         return updated;
       })
     );
+  };
+
+  // Seleção de equipamento com auto-fill de KM e proprietário
+  const handleEquipamentoChange = (id: string, equip: EquipamentoOption | null) => {
+    setForm((prev) => ({
+      ...prev,
+      equipamentoId: id,
+      kmEntrada: equip?.kmAtual != null ? String(equip.kmAtual) : prev.kmEntrada,
+      personId: prev.personId || equip?.proprietarioId || prev.personId,
+    }));
   };
 
   const getItemTotal = (item: OSItem) =>
@@ -626,18 +790,13 @@ export default function NovaOrdemServicoPage() {
       >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Equipamento cadastrado</label>
-            <select
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Equipamento / Veículo</label>
+            <EquipamentoCombobox
+              equipamentos={equipamentos}
               value={form.equipamentoId}
-              onChange={(e) => updateForm('equipamentoId', e.target.value)}
-              disabled={loadingData}
-              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent disabled:opacity-50"
-            >
-              <option value="">{loadingData ? 'Carregando...' : '— Nenhum —'}</option>
-              {equipamentos.map((e) => (
-                <option key={e.id} value={e.id}>{e.label}</option>
-              ))}
-            </select>
+              onChange={handleEquipamentoChange}
+              loading={loadingData}
+            />
           </div>
 
           <div>
@@ -654,28 +813,35 @@ export default function NovaOrdemServicoPage() {
 
         {/* Equipamento preview card */}
         {selectedEquip ? (
-          <div className="mt-4 flex items-center gap-3 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl">
-            <Truck className="w-5 h-5 text-slate-400 shrink-0" />
+          <div className="mt-4 flex items-start gap-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl">
+            <Truck className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-slate-900">
-                {selectedEquip.marca} {selectedEquip.modelo}
-                {selectedEquip.anoModelo ? ` · ${selectedEquip.anoModelo}` : ''}
+              <div className="text-sm font-semibold text-slate-900">
+                {selectedEquip.placa ?? selectedEquip.serialNumber ?? '—'}
+                <span className="text-slate-500 font-normal ml-2">
+                  {[selectedEquip.marca, selectedEquip.modelo, selectedEquip.anoModelo].filter(Boolean).join(' ')}
+                </span>
               </div>
-              <div className="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
+              <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1 text-xs text-slate-500">
                 <span className="px-1.5 py-0.5 bg-slate-200 rounded text-slate-600 uppercase text-[10px] font-medium">
                   {selectedEquip.tipo}
                 </span>
-                {selectedEquip.placa && <span>Placa: <strong>{selectedEquip.placa}</strong></span>}
-                {selectedEquip.serialNumber && <span>Serial: <strong>{selectedEquip.serialNumber}</strong></span>}
+                {selectedEquip.chassi && <span>Chassi: <strong className="font-mono">{selectedEquip.chassi.slice(0,10)}…</strong></span>}
+                {selectedEquip.kmAtual != null && <span>KM atual: <strong>{selectedEquip.kmAtual.toLocaleString('pt-BR')}</strong></span>}
+                {selectedEquip.proprietarioNome && (
+                  <span className="flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                    Proprietário auto-preenchido: <strong>{selectedEquip.proprietarioNome}</strong>
+                  </span>
+                )}
+                {selectedEquip.osCount != null && selectedEquip.osCount > 0 && (
+                  <span className="flex items-center gap-1 text-amber-600">
+                    <Wrench className="w-3 h-3" />
+                    {selectedEquip.osCount} OS anterior{selectedEquip.osCount > 1 ? 'es' : ''}
+                  </span>
+                )}
               </div>
             </div>
-            <button
-              onClick={() => updateForm('equipamentoId', '')}
-              className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-              title="Remover equipamento"
-            >
-              <X className="w-4 h-4" />
-            </button>
           </div>
         ) : (
           <p className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">

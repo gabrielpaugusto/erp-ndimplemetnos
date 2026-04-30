@@ -4,10 +4,52 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Car, Truck, Plus, Search, X, RefreshCw, CheckCircle2,
   AlertTriangle, Calendar, Shield, ShieldOff, ExternalLink,
-  ChevronDown, ChevronUp, Wrench, FileText,
+  ChevronDown, ChevronUp, Wrench, FileText, ClipboardList,
 } from 'lucide-react';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
+
+// ── Tipos OS ────────────────────────────────────────────────────────────────
+
+interface OsResumo {
+  id: string;
+  numero: string;
+  status: string;
+  type: string;
+  defeitoRelatado: string;
+  dataEntrada: string;
+  dataEntrega?: string | null;
+  valorTotal?: string | number | null;
+}
+
+const OS_STATUS_BADGE: Record<string, string> = {
+  ORCAMENTO:        'bg-slate-100 text-slate-600',
+  AGUARD_APROVACAO: 'bg-sky-100 text-sky-700',
+  APROVADA:         'bg-violet-100 text-violet-700',
+  EM_EXECUCAO:      'bg-rose-100 text-rose-700',
+  AGUARD_PECAS:     'bg-amber-100 text-amber-700',
+  CONCLUIDA:        'bg-emerald-100 text-emerald-700',
+  FATURADA:         'bg-blue-100 text-blue-700',
+  CANCELADA:        'bg-red-100 text-red-600',
+  VENDA_PERDIDA:    'bg-gray-100 text-gray-500',
+};
+
+const OS_STATUS_LABELS: Record<string, string> = {
+  ORCAMENTO:        'Orçamento',
+  AGUARD_APROVACAO: 'Ag. Aprovação',
+  APROVADA:         'Aprovada',
+  EM_EXECUCAO:      'Em Execução',
+  AGUARD_PECAS:     'Ag. Peças',
+  CONCLUIDA:        'Concluída',
+  FATURADA:         'Faturada',
+  CANCELADA:        'Cancelada',
+  VENDA_PERDIDA:    'Venda Perdida',
+};
+
+const OS_TYPE_ICON: Record<string, string> = {
+  MECANICA: '🔧', CALDERARIA: '⚙️', PINTURA: '🎨',
+  MISTA: '🔀', GARANTIA: '🛡️', INSTALACAO: '🏗️', INTERNA: '🏭',
+};
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -123,6 +165,10 @@ export default function FrotaPage() {
   const [editId, setEditId]             = useState<string | null>(null);
   const [expandedId, setExpandedId]     = useState<string | null>(null);
 
+  // Histórico de OS por equipamento
+  const [osHistory, setOsHistory]       = useState<Record<string, OsResumo[]>>({});
+  const [loadingOs, setLoadingOs]       = useState<Record<string, boolean>>({});
+
   const load = useCallback(async () => {
     setLoading(true);
     const companyId = getCompanyId();
@@ -209,6 +255,20 @@ export default function FrotaPage() {
   };
 
   const setField = (k: keyof FrotaForm, v: any) => setForm(p => ({ ...p, [k]: v }));
+
+  // Expande card e carrega histórico de OS (lazy)
+  const handleExpand = (id: string) => {
+    const next = expandedId === id ? null : id;
+    setExpandedId(next);
+    if (next && !osHistory[next]) {
+      setLoadingOs(p => ({ ...p, [next]: true }));
+      apiFetch(`/api/service-orders?equipamentoId=${next}&limit=6`)
+        .then(r => r.ok ? r.json() : { data: [] })
+        .then(d => setOsHistory(p => ({ ...p, [next]: d.data ?? [] })))
+        .catch(() => setOsHistory(p => ({ ...p, [next]: [] })))
+        .finally(() => setLoadingOs(p => ({ ...p, [next]: false })));
+    }
+  };
 
   // ── KPI Cards ───────────────────────────────────────────────────────────────
   const totalAtivos   = equipamentos.filter(e => e.ativo).length;
@@ -376,7 +436,7 @@ export default function FrotaPage() {
                       Editar
                     </button>
                     <button
-                      onClick={() => setExpandedId(expanded ? null : eq.id)}
+                      onClick={() => handleExpand(eq.id)}
                       className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
                     >
                       {expanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
@@ -386,44 +446,115 @@ export default function FrotaPage() {
 
                 {/* Detalhes expandidos */}
                 {expanded && (
-                  <div className="border-t border-slate-100 px-4 py-4 grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50">
-                    <div>
-                      <p className="text-xs text-slate-400 font-medium">RENAVAM</p>
-                      <p className="text-sm font-semibold text-slate-800">{eq.renavam ?? '—'}</p>
+                  <div className="border-t border-slate-100 bg-slate-50">
+                    {/* Dados técnicos */}
+                    <div className="px-4 py-4 grid grid-cols-2 md:grid-cols-4 gap-4 border-b border-slate-100">
+                      <div>
+                        <p className="text-xs text-slate-400 font-medium">RENAVAM</p>
+                        <p className="text-sm font-semibold text-slate-800">{eq.renavam ?? '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-400 font-medium">Chassi</p>
+                        <p className="text-sm font-mono text-slate-800 break-all">{eq.chassi ?? '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-400 font-medium">Seguradora</p>
+                        <p className="text-sm text-slate-800">{eq.seguradoraNome ?? '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-400 font-medium">Vigência Seguro</p>
+                        <p className={`text-sm font-semibold ${seguroVencido ? 'text-red-600' : seguroVencendo ? 'text-amber-600' : 'text-slate-800'}`}>
+                          {fmtDate(eq.vigenciaSeguro)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-400 font-medium">Próx. Revisão</p>
+                        <p className={`text-sm font-semibold ${revisaoAtrasada ? 'text-red-600' : revisaoProxima ? 'text-amber-600' : 'text-slate-800'}`}>
+                          {fmtDate(eq.dataProximaRevisao)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-400 font-medium">Proprietário</p>
+                        <p className="text-sm text-slate-800">{eq.proprietario?.razaoSocial ?? '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-400 font-medium">Cor</p>
+                        <p className="text-sm text-slate-800">{eq.cor ?? '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-400 font-medium">KM Atual</p>
+                        <p className="text-sm text-slate-800">{eq.kmAtual != null ? eq.kmAtual.toLocaleString('pt-BR') + ' km' : '—'}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs text-slate-400 font-medium">Chassi</p>
-                      <p className="text-sm font-mono text-slate-800">{eq.chassi ?? '—'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400 font-medium">Seguradora</p>
-                      <p className="text-sm text-slate-800">{eq.seguradoraNome ?? '—'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400 font-medium">Vigência Seguro</p>
-                      <p className={`text-sm font-semibold ${seguroVencido ? 'text-red-600' : seguroVencendo ? 'text-amber-600' : 'text-slate-800'}`}>
-                        {fmtDate(eq.vigenciaSeguro)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400 font-medium">Próx. Revisão</p>
-                      <p className={`text-sm font-semibold ${revisaoAtrasada ? 'text-red-600' : revisaoProxima ? 'text-amber-600' : 'text-slate-800'}`}>
-                        {fmtDate(eq.dataProximaRevisao)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400 font-medium">Proprietário</p>
-                      <p className="text-sm text-slate-800">{eq.proprietario?.razaoSocial ?? '—'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400 font-medium">Cor</p>
-                      <p className="text-sm text-slate-800">{eq.cor ?? '—'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400 font-medium">Histórico OS</p>
-                      <Link href={`/oficina/ordens-servico?equipamentoId=${eq.id}`} className="text-sm text-blue-600 flex items-center gap-1 hover:underline">
-                        <Wrench className="w-3.5 h-3.5" /> Ver OS <ExternalLink className="w-3 h-3" />
-                      </Link>
+
+                    {/* Histórico de manutenções */}
+                    <div className="px-4 py-3">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <ClipboardList className="w-4 h-4 text-slate-500" />
+                          <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Histórico de Manutenções</span>
+                        </div>
+                        <Link
+                          href={`/oficina/ordens-servico/nova?equipamentoId=${eq.id}`}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-semibold hover:bg-rose-700 transition-colors"
+                        >
+                          <Plus className="w-3 h-3" />
+                          Nova OS
+                        </Link>
+                      </div>
+
+                      {loadingOs[eq.id] ? (
+                        <div className="flex items-center gap-2 py-4 text-sm text-slate-400">
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          Carregando histórico...
+                        </div>
+                      ) : (osHistory[eq.id] ?? []).length === 0 ? (
+                        <div className="flex items-center gap-3 py-3 text-sm text-slate-400">
+                          <FileText className="w-4 h-4" />
+                          Nenhuma OS registrada para este equipamento.
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {(osHistory[eq.id] ?? []).map((os) => (
+                            <div key={os.id} className="flex items-center gap-3 p-2.5 bg-white rounded-lg border border-slate-200">
+                              <span className="text-base shrink-0">{OS_TYPE_ICON[os.type] ?? '🔧'}</span>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Link
+                                    href={`/oficina/ordens-servico/${os.id}`}
+                                    className="text-sm font-bold text-rose-600 hover:underline font-mono"
+                                  >
+                                    {os.numero}
+                                  </Link>
+                                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${OS_STATUS_BADGE[os.status] ?? 'bg-slate-100 text-slate-600'}`}>
+                                    {OS_STATUS_LABELS[os.status] ?? os.status}
+                                  </span>
+                                  <span className="text-xs text-slate-400">
+                                    {new Date(os.dataEntrada).toLocaleDateString('pt-BR')}
+                                    {os.dataEntrega && ` → ${new Date(os.dataEntrega).toLocaleDateString('pt-BR')}`}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-slate-500 mt-0.5 truncate">{os.defeitoRelatado}</p>
+                              </div>
+                              <Link
+                                href={`/oficina/ordens-servico/${os.id}`}
+                                className="shrink-0 p-1 text-slate-400 hover:text-rose-500 transition-colors"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </Link>
+                            </div>
+                          ))}
+                          {(osHistory[eq.id]?.length ?? 0) >= 6 && (
+                            <Link
+                              href={`/oficina/ordens-servico?equipamentoId=${eq.id}`}
+                              className="flex items-center gap-1.5 text-xs text-blue-600 hover:underline py-1"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              Ver todas as OS deste equipamento
+                            </Link>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
