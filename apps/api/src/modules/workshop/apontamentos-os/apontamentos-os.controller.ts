@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Query, UseGuards, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, UseGuards, NotFoundException } from '@nestjs/common';
 import { JwtAuthGuard } from '@/modules/core/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '@/modules/core/auth/decorators/current-user.decorator';
 import { ApontamentosOsService } from './apontamentos-os.service';
@@ -74,6 +74,44 @@ export class ApontamentosOsController {
     const apt = await this.service.getApontamentoAtivo(id);
     if (!apt) return null;
     return apt;
+  }
+
+  // ── Subtarefas Pendentes (combobox de lote) ──────────────────────────────
+
+  @Get('subtarefas-pendentes')
+  getSubtarefasPendentes(@CurrentUser() user: any) {
+    return this.service.getSubtarefasPendentes(user.companyId);
+  }
+
+  // ── Apontamentos em Aberto (alerta de turno) ─────────────────────────────
+
+  @Get('abertos')
+  getAbertos(@CurrentUser() user: any) {
+    return this.service.getAbertos(user.employeeId ?? user.id, user.companyId);
+  }
+
+  // ── Apontamentos em Lote ──────────────────────────────────────────────────
+
+  @Post('lote')
+  registrarLote(
+    @CurrentUser() user: any,
+    @Body() body: {
+      dataReferencia: string;
+      itens: {
+        osSubtarefaId: string;
+        horaInicio: string;
+        horaFim: string;
+        concluir: boolean;
+        observacao?: string;
+      }[];
+    },
+  ) {
+    return this.service.registrarLote(
+      user.employeeId ?? user.id,
+      user.companyId,
+      body.dataReferencia,
+      body.itens,
+    );
   }
 
   // ── Relatórios ────────────────────────────────────────────────────────────

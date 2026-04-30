@@ -70,6 +70,7 @@ export const ERP_MODULES = {
       EQUIPAMENTOS:     { label: 'Equipamentos',         path: '/oficina/equipamentos',        icon: 'Truck'         },
       TAREFAS_CATALOGO: { label: 'Catálogo de Tarefas',  path: '/oficina/tarefas-catalogo',    icon: 'ClipboardList' },
       FROTA:            { label: 'Gestão de Frota',      path: '/oficina/frota',               icon: 'Car'           },
+      APONTAMENTOS_LOTE:{ label: 'Apontamentos em Lote', path: '/oficina/apontamentos/lote',   icon: 'ListChecks'    },
       EFICIENCIA:       { label: 'Eficiência Mecânicos', path: '/oficina/relatorios/eficiencia-mecanicos', icon: 'TrendingUp' },
       CALDERARIA:       { label: 'Calderaria',           path: '/calderaria',                  icon: 'Flame'         },
       REQUISITION:      { label: 'Requisições',          path: '/requisicoes',                 icon: 'ArrowRightLeft'},

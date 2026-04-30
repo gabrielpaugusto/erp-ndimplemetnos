@@ -512,6 +512,188 @@ export class ApontamentosOsService {
     return apt; // null se nenhum ativo
   }
 
+  // ── Subtarefas Pendentes (para Lote) ─────────────────────────────────────
+  // Retorna todas as OsSubtarefas em aberto/ativas da empresa,
+  // com contexto de OS e tarefa, para preencher o combobox de lote.
+
+  async getSubtarefasPendentes(companyId: string) {
+    const subtarefas = await this.prisma.osSubtarefa.findMany({
+      where: {
+        status: { notIn: ['CONCLUIDA', 'CANCELADA'] },
+        osTarefa: {
+          serviceOrder: {
+            companyId,
+            status: { notIn: ['CANCELADA', 'FATURADA'] },
+          },
+        },
+      },
+      select: {
+        id: true,
+        nome: true,
+        status: true,
+        tempoPadraoH: true,
+        horasApontadas: true,
+        osTarefa: {
+          select: {
+            titulo: true,
+            serviceOrder: {
+              select: {
+                id: true,
+                numero: true,
+                equipamento: {
+                  select: { placa: true, chassi: true, serialNumber: true, marca: true, modelo: true },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: [
+        { osTarefa: { serviceOrder: { numero: 'asc' } } },
+        { nome: 'asc' },
+      ],
+    });
+
+    return subtarefas.map((s) => ({
+      id: s.id,
+      nome: s.nome,
+      status: s.status,
+      tempoPadraoH: s.tempoPadraoH,
+      horasApontadas: Number(s.horasApontadas ?? 0),
+      tarefaTitulo: s.osTarefa?.titulo ?? null,
+      osId: s.osTarefa?.serviceOrder?.id ?? null,
+      osNumero: s.osTarefa?.serviceOrder?.numero ?? null,
+      equipamento: s.osTarefa?.serviceOrder?.equipamento ?? null,
+    }));
+  }
+
+  // ── Apontamentos em Aberto (alerta de fim de turno) ──────────────────────
+
+  async getAbertos(employeeId: string, companyId: string) {
+    const abertos = await this.prisma.apontamento.findMany({
+      where: { employeeId, companyId, fim: null },
+      include: {
+        osSubtarefa: {
+          select: {
+            nome: true,
+            osTarefa: {
+              select: {
+                titulo: true,
+                serviceOrder: { select: { id: true, numero: true } },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { inicio: 'asc' },
+    });
+    return abertos.map((a) => ({
+      apontamentoId: a.id,
+      pausado: a.pausado,
+      inicio: a.inicio,
+      subtarefaNome: a.osSubtarefa?.nome ?? null,
+      tarefaTitulo: a.osSubtarefa?.osTarefa?.titulo ?? null,
+      osNumero: a.osSubtarefa?.osTarefa?.serviceOrder?.numero ?? null,
+      osId: a.osSubtarefa?.osTarefa?.serviceOrder?.id ?? null,
+    }));
+  }
+
+  // ── Apontamentos em Lote ──────────────────────────────────────────────────
+  // Permite registrar múltiplas subtarefas de uma vez, informando horas
+  // manualmente (modo "preencher ao fim do turno", sem timer ao vivo).
+
+  async registrarLote(
+    employeeId: string,
+    companyId: string,
+    dataReferencia: string, // YYYY-MM-DD
+    itens: {
+      osSubtarefaId: string;
+      horaInicio: string;  // HH:MM
+      horaFim: string;     // HH:MM
+      concluir: boolean;
+      observacao?: string;
+    }[],
+  ) {
+    const resultados: { osSubtarefaId: string; ok: boolean; erro?: string; totalHoras?: number }[] = [];
+
+    for (const item of itens) {
+      try {
+        const subtarefa = await this.prisma.osSubtarefa.findUnique({
+          where: { id: item.osSubtarefaId },
+          include: { osTarefa: { select: { serviceOrderId: true } } },
+        });
+        if (!subtarefa) {
+          resultados.push({ osSubtarefaId: item.osSubtarefaId, ok: false, erro: 'Subtarefa não encontrada' });
+          continue;
+        }
+
+        // Monta datas de início e fim
+        const [hIni, mIni] = item.horaInicio.split(':').map(Number);
+        const [hFim, mFim] = item.horaFim.split(':').map(Number);
+        const inicio = new Date(`${dataReferencia}T${String(hIni).padStart(2,'0')}:${String(mIni).padStart(2,'0')}:00`);
+        const fim    = new Date(`${dataReferencia}T${String(hFim).padStart(2,'0')}:${String(mFim).padStart(2,'0')}:00`);
+
+        // Permite virar meia-noite (fim < início → adiciona 1 dia)
+        if (fim <= inicio) fim.setDate(fim.getDate() + 1);
+
+        const totalHoras = (fim.getTime() - inicio.getTime()) / 3_600_000;
+        if (totalHoras <= 0) {
+          resultados.push({ osSubtarefaId: item.osSubtarefaId, ok: false, erro: 'Intervalo de horas inválido' });
+          continue;
+        }
+
+        // Fecha qualquer apontamento em aberto desta subtarefa/funcionário
+        const aberto = await this.prisma.apontamento.findFirst({
+          where: { osSubtarefaId: item.osSubtarefaId, employeeId, fim: null },
+        });
+        if (aberto) {
+          await this.fecharSegmentoAtivo(aberto.id);
+          await this.prisma.apontamento.update({
+            where: { id: aberto.id },
+            data: { fim, totalHoras, pausado: false, status: 'CONCLUIDO' },
+          });
+        } else {
+          // Cria apontamento retroativo (já com início + fim)
+          const apontamento = await this.prisma.apontamento.create({
+            data: {
+              companyId,
+              employeeId,
+              osSubtarefaId: item.osSubtarefaId,
+              serviceOrderId: subtarefa.osTarefa.serviceOrderId,
+              inicio,
+              fim,
+              pausado: false,
+              totalHoras,
+              status: 'CONCLUIDO',
+            },
+          });
+          // Cria segmento único fechado
+          await this.prisma.apontamentoSegmento.create({
+            data: { apontamentoId: apontamento.id, inicio, fim, horas: totalHoras },
+          });
+        }
+
+        // Acumula horas na subtarefa
+        const totalAcumulado = await this.calcularHorasAcumuladas(item.osSubtarefaId);
+        const novoStatus = item.concluir ? 'CONCLUIDA' : subtarefa.status;
+        await this.prisma.osSubtarefa.update({
+          where: { id: item.osSubtarefaId },
+          data: { horasApontadas: totalAcumulado, status: novoStatus as any },
+        });
+
+        resultados.push({ osSubtarefaId: item.osSubtarefaId, ok: true, totalHoras });
+      } catch (err: unknown) {
+        resultados.push({
+          osSubtarefaId: item.osSubtarefaId,
+          ok: false,
+          erro: err instanceof Error ? err.message : 'Erro desconhecido',
+        });
+      }
+    }
+
+    return resultados;
+  }
+
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   private async fecharSegmentoAtivo(apontamentoId: string) {
