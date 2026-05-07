@@ -3,6 +3,7 @@ import { PrismaService } from '@/modules/core/database/prisma.service';
 import { FiscalBrainService } from '@/modules/corporate/fiscal/fiscal-brain/fiscal-brain.service';
 import { ContextoOperacao } from '@/modules/corporate/fiscal/fiscal-brain/classificador.service';
 import { STDetectorService, STDetectorResult } from '@/modules/corporate/fiscal/st-detector.service';
+import { DeclaracaoArt264Service } from '@/modules/corporate/fiscal/declaracao-art264.service';
 
 function mapTaxRegime(regime: string | null | undefined): 'SN' | 'LP' | 'LR' {
   if (regime === 'SIMPLES_NACIONAL') return 'SN';
@@ -87,6 +88,7 @@ export class NfeIaPipelineSaidaService {
     private readonly prisma: PrismaService,
     private readonly brain: FiscalBrainService,
     private readonly stDetector: STDetectorService,
+    private readonly declaracaoService: DeclaracaoArt264Service,
   ) {}
 
   /**
@@ -353,6 +355,25 @@ export class NfeIaPipelineSaidaService {
     const excecoes          = results.filter(r => !r.autoAplicado && !r.erro).length;
     const erros             = results.filter(r => !!r.erro).length;
     const prontoParaEmitir  = results.every(r => r.autoAplicado);
+
+    // ── 6-D: Auto-geração da Declaração Art. 264 I ───────────────────────────
+    // Se qualquer item exigiu declaração do comprador (finalidade INDUSTRIALIZACAO
+    // sem ST → Art. 264 I afasta ST), cria/atualiza a DeclaracaoArt264 PENDENTE.
+    // Idempotente: se já existe, retorna sem duplicar.
+    const algumItemExigeDeclaracao = results.some(r => r.st?.exigeDeclaracaoComprador);
+    if (algumItemExigeDeclaracao) {
+      try {
+        await this.declaracaoService.gerarDeclaracao(nfeId, companyId, true);
+        this.logger.log(
+          `[Pipeline Saída] Declaração Art. 264 I gerada/verificada para NF-e ${nfeId}`,
+        );
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.warn(
+          `[Pipeline Saída] Falha ao gerar Declaração Art. 264 I para NF-e ${nfeId}: ${msg}`,
+        );
+      }
+    }
 
     this.logger.log(
       `[Pipeline Saída] NF-e ${nfeId} — ${autoClassificados}/${totalItems} auto | ` +

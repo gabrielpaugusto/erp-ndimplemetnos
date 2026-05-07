@@ -870,6 +870,7 @@ model Company {
   nfeDocuments          NFeDocument[]
   fiscalEntries         FiscalEntry[]
   fiscalApuracoes       FiscalApuracao[]
+  declaracoesArt264     DeclaracaoArt264[]
 
   // Contabilidade / Financeiro / RH (Sprint 8)
   chartOfAccounts       ChartOfAccount[]
@@ -1351,6 +1352,7 @@ model Person {
   serviceOrders           ServiceOrder[]
   serviceOrdersFabricante ServiceOrder[] @relation("ServiceOrderFabricante")
   serviceOrdersSeguradora ServiceOrder[] @relation("ServiceOrderSeguradora")
+  declaracoesArt264       DeclaracaoArt264[] @relation("DeclaracaoArt264Comprador")
 
   // Fiscal (Sprint 7)
   nfeDocuments            NFeDocument[]
@@ -2821,6 +2823,13 @@ enum FiscalBookType {
   APURACAO_COFINS
 }
 
+enum DeclaracaoArt264Status {
+  PENDENTE     // aguardando declaração assinada do comprador
+  RECEBIDA     // declaração física/digital recebida pelo emitente
+  ARQUIVADA    // arquivada com comprovação — prazo 5 anos (Art. 202 RICMS-SP)
+  CANCELADA    // operação cancelada ou declaração não mais exigida
+}
+
 // ============================================================================
 // NF-e — NOTA FISCAL ELETRÔNICA
 // ============================================================================
@@ -2921,6 +2930,9 @@ model NFeDocument {
 
   // Fluxo de Compras Integrado
   nfeInbox                NFeInbox[]
+
+  // Declarações Art. 264 I RICMS-SP (não-retenção ST por industrialização)
+  declaracoesArt264       DeclaracaoArt264[]
 
   @@index([companyId, status])
   @@index([personId])
@@ -3100,6 +3112,58 @@ model FiscalApuracao {
   @@map("fiscal_apuracoes")
 }
 
+// ============================================================================
+// DECLARAÇÃO ART. 264 I RICMS-SP — NÃO RETENÇÃO DO ICMS-ST
+// Emitida quando o comprador declara que usará a mercadoria em industrialização.
+// Fundamentado no Art. 264, inciso I, RICMS-SP (Decreto 45.490/2000).
+// Conservação obrigatória por 5 anos — Art. 202 RICMS-SP.
+// ============================================================================
+
+model DeclaracaoArt264 {
+  id                    String                  @id @default(cuid())
+  companyId             String
+  company               Company                 @relation(fields: [companyId], references: [id])
+
+  // NF-e de saída que gerou a necessidade da declaração
+  nfeId                 String
+  nfe                   NFeDocument             @relation(fields: [nfeId], references: [id])
+
+  // Comprador (desnormalizado para histórico fiscal — dados da época da emissão)
+  personId              String?
+  person                Person?                 @relation("DeclaracaoArt264Comprador", fields: [personId], references: [id])
+  compradorRazaoSocial  String
+  compradorCnpj         String                  @db.VarChar(14)
+  compradorIe           String?                 @db.VarChar(30)
+  compradorEndereco     String?                 @db.VarChar(300)
+
+  // Status do controle (ciclo de vida da declaração)
+  status                DeclaracaoArt264Status  @default(PENDENTE)
+
+  // Conteúdo gerado pelo sistema
+  conteudo              String                  @db.Text    // texto completo da declaração para impressão/assinatura
+  itensJson             Json                               // [{ncm, descricao, cfop, quantidade, unit, valorItem}]
+  infCplSugerido        String                  @db.Text    // texto pronto para o campo <infCpl> da NF-e
+
+  // Datas de controle
+  dataGeracao           DateTime                @default(now())
+  dataRecebimento       DateTime?               // quando a declaração assinada foi recebida
+  dataArquivamento      DateTime?               // quando foi arquivada (prazo 5 anos)
+
+  // Arquivo digitalizado (PDF assinado)
+  anexoUrl              String?                 // URL do PDF escaneado/assinado
+
+  // Observações e auditoria
+  observacoes           String?                 @db.Text
+  geradoPorPipeline     Boolean                 @default(false) // true = gerado automaticamente pelo Pipeline Saída
+
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+
+  @@index([companyId, status])
+  @@index([nfeId])
+  @@index([companyId, createdAt])
+  @@map("declaracoes_art264")
+}
 
 // ============================================================================
 // MOTOR DE REGRAS FISCAIS (TES — Tipo de Entrada e Saída)
