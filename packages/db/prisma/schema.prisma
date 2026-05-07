@@ -3019,9 +3019,13 @@ model FiscalEntry {
   companyId               String
   company                 Company         @relation(fields: [companyId], references: [id])
 
-  // Vínculo com NF-e
+  // Vínculo com NF-e (saída própria)
   nfeId                   String?
   nfe                     NFeDocument?    @relation(fields: [nfeId], references: [id])
+
+  // Vínculo com NF-e entrada (NFeInbox) — para ajustes Art. 272 RICMS-SP e outros
+  nfeInboxId              String?
+  nfeInbox                NFeInbox?       @relation(fields: [nfeInboxId], references: [id])
 
   // Classificação
   type                    FiscalEntryType
@@ -3044,6 +3048,12 @@ model FiscalEntry {
   // Tipo de imposto
   taxType                 String          @db.VarChar(10) // ICMS, IPI, PIS, COFINS, IBS, CBS, IS
 
+  // SPED — código do ajuste (Tabela 5.3 EFD ICMS/IPI)
+  // Usado para gerar registros C197 (item) e E111 (período)
+  // Ex.: "SP20020100" = crédito Art. 272 RICMS-SP (op. própria substituto)
+  codigoAjusteSped        String?         @db.VarChar(20)
+  fundamentoLegal         String?         @db.VarChar(200)
+
   // Observações
   observations            String?         @db.Text
 
@@ -3052,6 +3062,7 @@ model FiscalEntry {
 
   @@index([companyId, periodoReferencia])
   @@index([nfeId])
+  @@index([nfeInboxId])
   @@map("fiscal_entries")
 }
 
@@ -4232,6 +4243,7 @@ model NFeInbox {
   cteDocuments            CteDocument[]
   stockMovements          StockMovement[]   @relation("StockMovementNfeInbox")
   ncmAuditorias           NcmAuditoria[]
+  fiscalEntries           FiscalEntry[]     // ajustes gerados (ex.: Art. 272 RICMS-SP)
 
   @@unique([companyId, chaveAcesso])
   @@index([companyId, status])
@@ -4256,6 +4268,13 @@ model NFeInboxItem {
   valorIpi                  Decimal          @default(0) @db.Decimal(15, 2)
   valorPis                  Decimal          @default(0) @db.Decimal(15, 2)
   valorCofins               Decimal          @default(0) @db.Decimal(15, 2)
+
+  // CST ICMS e dados da operação própria do substituto (para Art. 272 RICMS-SP)
+  cstIcms                   String?          @db.VarChar(3)   // ex.: "60" (ST já recolhida)
+  bcIcmsOp                  Decimal?         @db.Decimal(15, 2) // BC da op. própria do substituto
+  aliqIcmsOp                Decimal?         @db.Decimal(10, 4) // alíquota op. própria (%)
+  valorIcmsOp               Decimal?         @db.Decimal(15, 2) // ICMS op. própria — base do crédito Art. 272
+  cest                      String?          @db.VarChar(7)   // CEST (Convênio 142/2018)
 
   // Retenções na fonte por item (para REINF R-4020 — IR retido sobre serviços PJ)
   valorIrRetido             Decimal          @default(0) @db.Decimal(15, 2)

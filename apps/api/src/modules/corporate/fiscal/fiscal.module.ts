@@ -24,6 +24,7 @@ import { FiscalBrainModule } from './fiscal-brain/fiscal-brain.module';
 import { StProtocoloController } from './st-protocolo.controller';
 import { StProtocoloService } from './st-protocolo.service';
 import { STDetectorService } from './st-detector.service';
+import { StEntradaCst60Service } from './st-entrada-cst60.service';
 import { CbenefController } from './cbenef.controller';
 import { CbenefService } from './cbenef.service';
 
@@ -54,8 +55,9 @@ import { CbenefService } from './cbenef.service';
     OperacoesFiscaisService,
     StProtocoloService,
     STDetectorService,
+    StEntradaCst60Service,
     CbenefService,
   ],
-  exports: [NcmService, TaxEngineService, NfeService, FiscalEngineAutomationService, OperacoesFiscaisService, GovernmentTransmissionModule, NfseModule, FiscalBrainModule, StProtocoloService, STDetectorService, CbenefService],
+  exports: [NcmService, TaxEngineService, NfeService, FiscalEngineAutomationService, OperacoesFiscaisService, GovernmentTransmissionModule, NfseModule, FiscalBrainModule, StProtocoloService, STDetectorService, StEntradaCst60Service, CbenefService],
 })
 export class FiscalModule {}
