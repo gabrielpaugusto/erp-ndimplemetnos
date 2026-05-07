@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@/modules/core/database/prisma.service';
 import { FiscalBrainService } from '@/modules/corporate/fiscal/fiscal-brain/fiscal-brain.service';
 import { ContextoOperacao } from '@/modules/corporate/fiscal/fiscal-brain/classificador.service';
+import { STDetectorService, STDetectorResult } from '@/modules/corporate/fiscal/st-detector.service';
 
 function mapTaxRegime(regime: string | null | undefined): 'SN' | 'LP' | 'LR' {
   if (regime === 'SIMPLES_NACIONAL') return 'SN';
@@ -50,6 +51,20 @@ export interface PipelineSaidaItemResult {
   autoAplicado:    boolean;
   excecaoId:       string | null;
   decisionId:      string | null;
+  // ── ST (Substituição Tributária) ─────────────────────────────────────────
+  st?: {
+    bcST:                    number;
+    aliqST:                  number;
+    valorST:                 number;
+    cest:                    string | undefined;
+    protocolo:               string | undefined;
+    mvaAplicado:             number | undefined;
+    exigeGnre:               boolean;
+    exigeDeclaracaoComprador: boolean;
+    cfopOverride:            string;
+    cstOverride:             string;
+    motivoSemST?:            string;
+  };
   erro?:           string;
 }
 
@@ -71,6 +86,7 @@ export class NfeIaPipelineSaidaService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly brain: FiscalBrainService,
+    private readonly stDetector: STDetectorService,
   ) {}
 
   /**
@@ -80,17 +96,22 @@ export class NfeIaPipelineSaidaService {
    * Itens < 92% → excecaoId set (requer revisão manual antes da emissão).
    */
   async classificarNfe(nfeId: string, companyId: string): Promise<PipelineSaidaResult | null> {
-    // Busca NF-e base
+    // Busca NF-e base (inclui serviceOrderId para resolver finalidadeCompra)
     const nfe = await this.prisma.nFeDocument.findFirst({
       where: { id: nfeId, companyId },
+      select: {
+        id: true, companyId: true, numero: true, personId: true,
+        operation: true, status: true,
+        serviceOrderId: true,
+      },
     });
     if (!nfe) {
       this.logger.warn(`[Pipeline Saída] NFeDocument ${nfeId} não encontrada`);
       return null;
     }
 
-    // Busca itens, empresa e pessoa separadamente para evitar conflito de tipos Prisma
-    const [items, company, person] = await Promise.all([
+    // Busca itens, empresa, pessoa e finalidade da OS em paralelo
+    const [items, company, person, serviceOrder] = await Promise.all([
       this.prisma.nFeItem.findMany({
         where: { nfeId },
         orderBy: { itemNumber: 'asc' },
@@ -103,7 +124,17 @@ export class NfeIaPipelineSaidaService {
         where: { id: nfe.personId },
         select: { rgIe: true, type: true, optanteSimples: true },
       }) : Promise.resolve(null),
+      nfe.serviceOrderId ? this.prisma.serviceOrder.findUnique({
+        where: { id: nfe.serviceOrderId },
+        select: { finalidadeCompra: true },
+      }) : Promise.resolve(null),
     ]);
+
+    // Finalidade do documento origem (OS > padrão REVENDA)
+    // NFeDocument ligada a OS de cliente → finalidadeCompra do documento
+    // Sem OS (ex.: venda direta de implemento) → REVENDA por padrão
+    const finalidadeDoc = (serviceOrder?.finalidadeCompra ?? 'REVENDA') as
+      'REVENDA' | 'INDUSTRIALIZACAO' | 'USO_CONSUMO' | 'ATIVO_IMOBILIZADO';
 
     if (items.length === 0) {
       this.logger.warn(`[Pipeline Saída] NF-e ${nfeId} sem itens`);
@@ -136,18 +167,39 @@ export class NfeIaPipelineSaidaService {
     for (const item of items) {
       try {
         const valorItem = Number(item.unitPrice) * Number(item.quantity);
+        const ipiItem   = Number(item.valorIpi  ?? 0);
 
+        // ── ETAPA 4-A: STDetector (antes do FiscalBrain) ────────────────────
+        // Avalia se a operação está sujeita ao ICMS-ST e calcula BC-ST / ICMS-ST.
+        const stResult: STDetectorResult = await this.stDetector.detectar({
+          ncm:              item.ncmCode || '',
+          descricaoProduto: item.description,
+          ufOrigem:         ufEmitente,
+          ufDestino:        ufDestinatario,
+          dataEmissao:      new Date(),
+          isContribuinte,
+          isPessoaFisica:   person?.type === 'PF',
+          finalidade:       finalidadeDoc,
+          valorItem,
+          ipi:              ipiItem,
+          isIndustrial:     true,   // ND é fabricante
+          fidelidade:       false,
+        });
+
+        // ── ETAPA 4-B: FiscalBrain com contexto de ST ───────────────────────
         const contexto: ContextoOperacao = {
-          tipoOperacao:      'SAIDA',
-          naturezaOperacao:  natureza,
+          tipoOperacao:              'SAIDA',
+          naturezaOperacao:          natureza,
           cnaeEmitente,
           regimeTributario,
           ufEmitente,
           ufDestinatario,
-          isIndustrial:      true,
+          isIndustrial:              true,
           isContribuinte,
           isConsumidorFinal,
           cnaeDestinatario,
+          temProtocoloST:            stResult.temST,
+          finalidadeDestinatario:    finalidadeDoc,
           produtos: [{
             ncm:        item.ncmCode   || '',
             descricao:  item.description,
@@ -166,17 +218,21 @@ export class NfeIaPipelineSaidaService {
 
         const cls = resultado.classificacao;
 
-        // Aplica automaticamente se autoAplicado
+        // ── ETAPA 4-C: Aplicar no NFeItem (autoAplicado) ────────────────────
         if (resultado.autoAplicado) {
           const bcIcms = cls.baseCalculoIcmsPct < 100
             ? valorItem * cls.baseCalculoIcmsPct / 100
             : valorItem;
 
+          // CFOP e CST: STDetector tem prioridade absoluta sobre FiscalBrain
+          const cfopFinal = stResult.temST ? stResult.cfopSugerido : (cls.cfop || item.cfopCode);
+          const cstFinal  = stResult.temST ? stResult.cstSugerido  : cls.cstIcms;
+
           await this.prisma.nFeItem.update({
             where: { id: item.id },
             data: {
-              cfopCode:    cls.cfop || item.cfopCode,
-              cstIcms:     cls.cstIcms,
+              cfopCode:    cfopFinal,
+              cstIcms:     cstFinal,
               aliqIcms:    cls.aliquotaIcms,
               bcIcms,
               valorIcms:   bcIcms * cls.aliquotaIcms / 100,
@@ -194,39 +250,86 @@ export class NfeIaPipelineSaidaService {
                 bcIpi:    valorItem,
                 valorIpi: valorItem * cls.aliquotaIpi / 100,
               }),
+              // ── ST override ──────────────────────────────────────────────
+              ...(stResult.temST && stResult.bcST !== undefined && {
+                cest:        stResult.cest                    ?? undefined,
+                bcIcmsSt:    stResult.bcST,
+                aliqIcmsSt:  stResult.aliquotaInternaDestino  ?? 18,
+                valorIcmsSt: stResult.icmsST                  ?? 0,
+              }),
             },
           });
         }
+
+        // ── ETAPA 4-D: Mesclar alertas ST + FiscalBrain ─────────────────────
+        const alertasMerged = [
+          ...cls.alertas,
+          ...stResult.alertas,
+          ...(stResult.exigeDeclaracaoComprador
+            ? ['⚠ Art. 264, I, RICMS-SP: exigir declaração escrita do comprador (finalidade industrialização) e incluir no campo <infCpl> da NF-e o texto de não-retenção da ST.']
+            : []),
+        ];
+
+        // ── ETAPA 4-E: Montar bloco ST no resultado ──────────────────────────
+        const stBlock: PipelineSaidaItemResult['st'] = stResult.temST
+          ? {
+              bcST:                    stResult.bcST              ?? 0,
+              aliqST:                  stResult.aliquotaInternaDestino ?? 0,
+              valorST:                 stResult.icmsST            ?? 0,
+              cest:                    stResult.cest,
+              protocolo:               stResult.protocolo,
+              mvaAplicado:             stResult.mvaAplicado,
+              exigeGnre:               stResult.exigeGnre         ?? false,
+              exigeDeclaracaoComprador: stResult.exigeDeclaracaoComprador,
+              cfopOverride:            stResult.cfopSugerido,
+              cstOverride:             stResult.cstSugerido,
+            }
+          : {
+              bcST:                    0,
+              aliqST:                  0,
+              valorST:                 0,
+              cest:                    undefined,
+              protocolo:               undefined,
+              mvaAplicado:             undefined,
+              exigeGnre:               false,
+              exigeDeclaracaoComprador: stResult.exigeDeclaracaoComprador,
+              cfopOverride:            stResult.cfopSugerido,
+              cstOverride:             stResult.cstSugerido,
+              motivoSemST:             stResult.motivoSemST,
+            };
 
         results.push({
           itemId:          item.id,
           ncm:             item.ncmCode || '',
           descricao:       item.description,
           cfopAtual:       item.cfopCode || '',
-          cfopSugerido:    cls.cfop,
-          cstIcms:         cls.cstIcms,
+          cfopSugerido:    stResult.temST ? stResult.cfopSugerido : cls.cfop,
+          cstIcms:         stResult.temST ? stResult.cstSugerido  : cls.cstIcms,
           cstPis:          cls.cstPis,
           cstCofins:       cls.cstCofins,
           aliquotaIcms:    cls.aliquotaIcms,
           aliquotaPis:     cls.aliquotaPis,
           aliquotaCofins:  cls.aliquotaCofins,
           bcIcmsPct:       cls.baseCalculoIcmsPct,
-          temSt:           cls.temIcmsSt,
+          temSt:           stResult.temST,
           temIpi:          cls.temIpi,
           aliquotaIpi:     cls.aliquotaIpi,
           beneficioFiscal: cls.beneficioFiscal,
           fundamentoLegal: cls.fundamentoLegal,
-          alertas:         cls.alertas,
+          alertas:         alertasMerged,
           raciocinio:      cls.raciocinio,
           confianca:       cls.confianca,
           autoAplicado:    resultado.autoAplicado,
           excecaoId:       resultado.excecaoId,
           decisionId:      resultado.decisionId,
+          st:              stBlock,
         });
 
         this.logger.log(
           `[Pipeline Saída] "${item.description}" NCM ${item.ncmCode} | ` +
-          `CFOP: ${item.cfopCode}→${cls.cfop} | conf.${cls.confianca}% | ` +
+          `CFOP: ${item.cfopCode}→${stResult.temST ? stResult.cfopSugerido : cls.cfop} | ` +
+          `ST: ${stResult.temST ? `✓ ICMS-ST R$${stResult.icmsST?.toFixed(2)} (${stResult.protocolo})` : `✗ ${stResult.motivoSemST?.substring(0, 60)}`} | ` +
+          `conf.${cls.confianca}% | ` +
           (resultado.autoAplicado ? '✓ auto' : `⚠ exceção ${resultado.excecaoId}`),
         );
       } catch (err: unknown) {
