@@ -33,6 +33,16 @@ export class StProtocoloController {
     return this.service.findOne(id);
   }
 
+  // ── Seed FiscalBrain ──────────────────────────────────────────────────────
+  // POST /fiscal/st-protocolo/seed-brain
+  // Popula a tabela com os protocolos base (Protocolo 41/2008 + ST interna SP).
+  // Idempotente — pode ser chamado múltiplas vezes sem duplicar registros.
+
+  @Post('seed-brain')
+  seedProtocolosBase() {
+    return this.service.seedProtocolosBase();
+  }
+
   @Post()
   create(@Body() body: any) {
     return this.service.create(body);

@@ -1349,6 +1349,8 @@ model Person {
 
   // Oficina
   serviceOrders           ServiceOrder[]
+  serviceOrdersFabricante ServiceOrder[] @relation("ServiceOrderFabricante")
+  serviceOrdersSeguradora ServiceOrder[] @relation("ServiceOrderSeguradora")
 
   // Fiscal (Sprint 7)
   nfeDocuments            NFeDocument[]
@@ -2416,6 +2418,9 @@ model ProductionOrder {
   bomSnapshot         Json?                 // Snapshot completo da BOM no momento da liberação
   bomVersion          Int?                  // Versão da BOM utilizada
   motivoAlteracao     String?               @db.Text  // Motivo de alterações pós-criação
+  // Finalidade dos insumos comprados para esta OP (define ST nas entradas)
+  // Default: INDUSTRIALIZACAO — insumos incorporados ao produto final (Art. 264 I afasta ST)
+  finalidadeCompra    FinalidadeOperacao    @default(INDUSTRIALIZACAO)
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
 
@@ -2501,6 +2506,12 @@ model ServiceOrder {
 
   // Quem paga (define fluxo fiscal e de cobrança)
   tipoPagador       TipoPagadorOS        @default(CLIENTE)
+
+  // Finalidade da compra (define incidência de ICMS-ST — RICMS-SP Art. 264)
+  // Para OS de oficina, o padrão é USO_CONSUMO (peças consumidas na manutenção).
+  // Alterar para REVENDA quando o cliente comprar peças para revenda própria.
+  // Reutiliza o enum FinalidadeOperacao já existente no schema.
+  finalidadeCompra  FinalidadeOperacao   @default(USO_CONSUMO)
 
   // Equipamento que entrou na OS (substitui campos texto livres)
   equipamentoId     String?
