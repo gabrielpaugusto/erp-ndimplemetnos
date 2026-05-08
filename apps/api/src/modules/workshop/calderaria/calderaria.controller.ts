@@ -81,4 +81,14 @@ export class CalderariaController {
   cancel(@Param('id') id: string) {
     return this.calderariaService.cancel(id);
   }
+
+  @Post(':id/aguardar-material')
+  aguardarMaterial(@Param('id') id: string) {
+    return this.calderariaService.aguardarMaterial(id);
+  }
+
+  @Post(':id/retomar')
+  retomar(@Param('id') id: string) {
+    return this.calderariaService.retomar(id);
+  }
 }

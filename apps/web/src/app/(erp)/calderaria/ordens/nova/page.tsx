@@ -128,7 +128,10 @@ export default function NovaOrdemCalderariaPage() {
 
   const handleSave = async () => {
     if (!form.description.trim()) { toast.error('Descrição do serviço é obrigatória'); return; }
-    if (!form.estimatedTime)      { toast.error('Tempo estimado é obrigatório'); return; }
+    const parsedTime = parseFloat(form.estimatedTime);
+    if (!form.estimatedTime || isNaN(parsedTime) || parsedTime <= 0) {
+      toast.error('Informe o tempo estimado em horas (ex: 4)'); return;
+    }
 
     if (form.modo === 'FABRICACAO_AVULSA') {
       if (!form.resultadoNome.trim()) { toast.error('Nome do resultado é obrigatório para Fabricação Avulsa'); return; }
@@ -149,7 +152,7 @@ export default function NovaOrdemCalderariaPage() {
         modo:                   form.modo,
         description:            form.description,
         materialDescription:    form.materialDescription || undefined,
-        tempoEstimado:          parseFloat(form.estimatedTime),
+        tempoEstimado:          parsedTime,
         especificacoesTecnicas: form.technicalSpecs || undefined,
         observations:           form.observations   || undefined,
       };

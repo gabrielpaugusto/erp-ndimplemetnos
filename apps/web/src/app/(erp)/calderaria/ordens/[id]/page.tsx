@@ -31,23 +31,23 @@ const ExcalidrawWrapper = dynamic(() => import('./ExcalidrawWrapper'), { ssr: fa
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-type CldStatus = 'ABERTA' | 'PENDENTE' | 'EM_EXECUCAO' | 'CONCLUIDA' | 'CANCELADA';
+type CldStatus = 'ABERTA' | 'EM_EXECUCAO' | 'AGUARDANDO_MATERIAL' | 'CONCLUIDA' | 'CANCELADA';
 type CldModo   = 'SERVICO_INTERNO' | 'INSTALACAO' | 'FABRICACAO_AVULSA';
 
 const statusLabels: Record<string, string> = {
-  ABERTA: 'Aberta',
-  PENDENTE: 'Pendente',
-  EM_EXECUCAO: 'Em Execução',
-  CONCLUIDA: 'Concluída',
-  CANCELADA: 'Cancelada',
+  ABERTA:              'Aberta',
+  EM_EXECUCAO:         'Em Execução',
+  AGUARDANDO_MATERIAL: 'Ag. Material',
+  CONCLUIDA:           'Concluída',
+  CANCELADA:           'Cancelada',
 };
 
 const statusColors: Record<string, string> = {
-  ABERTA: 'bg-blue-100 text-blue-700',
-  PENDENTE: 'bg-slate-100 text-slate-600',
-  EM_EXECUCAO: 'bg-amber-100 text-amber-700',
-  CONCLUIDA: 'bg-emerald-100 text-emerald-700',
-  CANCELADA: 'bg-red-100 text-red-700',
+  ABERTA:              'bg-blue-100 text-blue-700',
+  EM_EXECUCAO:         'bg-amber-100 text-amber-700',
+  AGUARDANDO_MATERIAL: 'bg-orange-100 text-orange-700',
+  CONCLUIDA:           'bg-emerald-100 text-emerald-700',
+  CANCELADA:           'bg-red-100 text-red-700',
 };
 
 const modoConfig: Record<CldModo, { label: string; color: string; icon: React.ReactNode }> = {
@@ -264,7 +264,7 @@ export default function CalderariaOrdemDetailPage() {
     win.document.close();
   };
 
-  const doAction = async (action: 'start' | 'complete' | 'cancel') => {
+  const doAction = async (action: 'start' | 'complete' | 'cancel' | 'aguardar-material' | 'retomar') => {
     if (!id) return;
     setActionLoading(true);
     try {
@@ -275,9 +275,11 @@ export default function CalderariaOrdemDetailPage() {
       }
       const json = await res.json();
       setOrder(mapOrder(json));
-      if (action === 'complete') toast.success('Ordem concluída com sucesso!');
-      if (action === 'start') toast.success('Ordem iniciada!');
-      if (action === 'cancel') toast.success('Ordem cancelada.');
+      if (action === 'complete')         toast.success('Ordem concluída com sucesso!');
+      if (action === 'start')            toast.success('Ordem iniciada!');
+      if (action === 'cancel')           toast.success('Ordem cancelada.');
+      if (action === 'aguardar-material') toast.success('Aguardando material.');
+      if (action === 'retomar')          toast.success('Execução retomada!');
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Erro ao executar acao');
     } finally {
@@ -315,7 +317,7 @@ export default function CalderariaOrdemDetailPage() {
 
   const statusSteps = ['ABERTA', 'EM_EXECUCAO', 'CONCLUIDA'];
   const statusOrder: Record<string, number> = {
-    ABERTA: 0, PENDENTE: 0, EM_EXECUCAO: 1, CONCLUIDA: 2, CANCELADA: -1,
+    ABERTA: 0, AGUARDANDO_MATERIAL: 0, EM_EXECUCAO: 1, CONCLUIDA: 2, CANCELADA: -1,
   };
   const currentOrder = statusOrder[order.status] ?? 0;
 
@@ -367,7 +369,7 @@ export default function CalderariaOrdemDetailPage() {
 
           {/* Action buttons */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            {(order.status === 'ABERTA' || order.status === 'PENDENTE') && (
+            {order.status === 'ABERTA' && (
               <button
                 onClick={() => doAction('start')}
                 disabled={actionLoading}
@@ -377,12 +379,30 @@ export default function CalderariaOrdemDetailPage() {
               </button>
             )}
             {order.status === 'EM_EXECUCAO' && (
+              <>
+                <button
+                  onClick={() => doAction('aguardar-material')}
+                  disabled={actionLoading}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  Ag. Material
+                </button>
+                <button
+                  onClick={() => doAction('complete')}
+                  disabled={actionLoading}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  <CheckCircle className="w-4 h-4" /> Concluir
+                </button>
+              </>
+            )}
+            {order.status === 'AGUARDANDO_MATERIAL' && (
               <button
-                onClick={() => doAction('complete')}
+                onClick={() => doAction('retomar')}
                 disabled={actionLoading}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-700 text-white rounded-lg hover:bg-zinc-800 text-sm font-medium transition-colors disabled:opacity-50"
               >
-                <CheckCircle className="w-4 h-4" /> Concluir
+                <Play className="w-4 h-4" /> Retomar
               </button>
             )}
             {order.status !== 'CONCLUIDA' && order.status !== 'CANCELADA' && (

@@ -9,8 +9,8 @@
  * Tablet-optimised: touch events pass through, Portuguese locale set.
  */
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { Excalidraw } = require('@excalidraw/excalidraw');
+import '@excalidraw/excalidraw/index.css';
+import { Excalidraw } from '@excalidraw/excalidraw';
 
 interface Props {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

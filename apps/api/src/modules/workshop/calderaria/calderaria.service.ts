@@ -200,6 +200,34 @@ export class CalderariaService {
     return updated;
   }
 
+  // ── Aguardar Material: EM_EXECUCAO → AGUARDANDO_MATERIAL ─────────────────
+
+  async aguardarMaterial(id: string) {
+    const order = await this.getOrFail(id);
+    if (order.status !== 'EM_EXECUCAO') {
+      throw new BadRequestException(`Somente ordens EM_EXECUCAO podem aguardar material. Status atual: ${order.status}`);
+    }
+    return this.prisma.calderariaOrder.update({
+      where: { id },
+      data: { status: 'AGUARDANDO_MATERIAL' as any },
+      include: WITH_RELATIONS,
+    });
+  }
+
+  // ── Retomar: AGUARDANDO_MATERIAL → EM_EXECUCAO ───────────────────────────
+
+  async retomar(id: string) {
+    const order = await this.getOrFail(id);
+    if (order.status !== 'AGUARDANDO_MATERIAL') {
+      throw new BadRequestException(`Somente ordens AGUARDANDO_MATERIAL podem ser retomadas. Status atual: ${order.status}`);
+    }
+    return this.prisma.calderariaOrder.update({
+      where: { id },
+      data: { status: 'EM_EXECUCAO' as any },
+      include: WITH_RELATIONS,
+    });
+  }
+
   // ── Cancelar ─────────────────────────────────────────────────────────────
 
   async cancel(id: string) {
