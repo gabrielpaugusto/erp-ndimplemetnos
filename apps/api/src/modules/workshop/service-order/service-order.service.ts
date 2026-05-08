@@ -334,12 +334,12 @@ export class ServiceOrderService {
         items: {
           where: { faturavel: true },
           include: {
-            product: { select: { id: true, ncmCode: true, unit: true } },
+            product: { select: { id: true, unit: true, ncm: { select: { code: true } } } },
           },
         },
         seguradora: { select: { id: true } },
       },
-    });
+    }) as any;
 
     if (!order) {
       this.logger.warn(`[F1] OS ${serviceOrderId} não encontrada para NF-e`);
@@ -392,7 +392,7 @@ export class ServiceOrderService {
       const tipo: string = item.tipo ?? 'SERVICO';
       const produto = item.product;
 
-      const ncmCode  = produto?.ncmCode  ?? (tipo === 'PECA' ? NCM_PECA_DEFAULT : NCM_SERVICO_DEFAULT);
+      const ncmCode  = produto?.ncm?.code ?? (tipo === 'PECA' ? NCM_PECA_DEFAULT : NCM_SERVICO_DEFAULT);
       const cfopCode = cfopPorTipo[tipo]  ?? '5933';
       const unit     = produto?.unit      ?? 'UN';
 
