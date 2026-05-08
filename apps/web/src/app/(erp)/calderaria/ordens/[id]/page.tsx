@@ -220,15 +220,38 @@ export default function CalderariaOrdemDetailPage() {
     desenhoChangedRef.current = true;
   }, []);
 
-  // Save drawing to API
+  // Save drawing to API — generates PNG thumbnail via exportToBlob
   const saveDesenho = useCallback(async () => {
     if (!id || !localDesenhoData) return;
     setSavingDesenho(true);
     try {
+      // Gera PNG para o thumbnail usando exportToBlob do Excalidraw
+      let desenhoPng: string | null = null;
+      try {
+        const { exportToBlob } = await import('@excalidraw/excalidraw');
+        const elements = (localDesenhoData.elements ?? []).filter((el: any) => !el.isDeleted);
+        if (elements.length > 0) {
+          const blob = await exportToBlob({
+            elements,
+            appState: { ...(localDesenhoData.appState ?? {}), exportBackground: true },
+            files: null,
+            mimeType: 'image/png',
+            quality: 0.85,
+          });
+          desenhoPng = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          });
+        }
+      } catch {
+        // Falha no export de PNG não impede salvar o JSON
+      }
+
       const res = await apiFetch(`/api/calderaria/${id}/desenho`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ desenhoData: localDesenhoData }),
+        body: JSON.stringify({ desenhoData: localDesenhoData, desenhoPng }),
       });
       if (!res.ok) throw new Error('Erro ao salvar desenho');
       const saved = await res.json();
