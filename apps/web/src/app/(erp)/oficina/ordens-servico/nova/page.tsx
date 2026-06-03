@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { fmtCurrency } from '@/lib/format';
+import { cn } from '@/lib/utils';
+import { useUiStore } from '@/stores/ui-store';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -381,6 +383,7 @@ function EquipamentoCombobox({
 export default function NovaOrdemServicoPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const sidebarOpen = useUiStore((s) => s.sidebarOpen);
   const [saving, setSaving] = useState(false);
   const [persons, setPersons] = useState<PersonOption[]>([]);
   const [products, setProducts] = useState<ProductOption[]>([]);
@@ -1167,7 +1170,10 @@ export default function NovaOrdemServicoPage() {
       </Section>
 
       {/* ── Sticky action bar ─────────────────────────────────────────────── */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-sm border-t border-slate-200 px-6 py-3 flex items-center justify-between gap-4">
+      <div className={cn(
+        'fixed bottom-0 right-0 z-40 bg-white/95 backdrop-blur-sm border-t border-slate-200 px-6 py-3 flex items-center justify-between gap-4 transition-all duration-300',
+        sidebarOpen ? 'left-64' : 'left-16'
+      )}>
         {/* Summary pill */}
         <div className="hidden sm:flex items-center gap-3 text-sm">
           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${selectedType.activeClass}`}>

@@ -8,6 +8,8 @@ import {
   User, Wrench, X, Info,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import { cn } from '@/lib/utils';
+import { useUiStore } from '@/stores/ui-store';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -165,6 +167,7 @@ function SubtarefaCombobox({
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 export default function ApontamentosLotePage() {
+  const sidebarOpen = useUiStore((s) => s.sidebarOpen);
   const [employees, setEmployees]           = useState<Employee[]>([]);
   const [subtarefas, setSubtarefas]         = useState<Subtarefa[]>([]);
   const [loadingData, setLoadingData]       = useState(true);
@@ -582,7 +585,10 @@ export default function ApontamentosLotePage() {
 
       {/* Botão salvar */}
       {itens.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-sm border-t border-slate-200 px-6 py-3">
+        <div className={cn(
+          'fixed bottom-0 right-0 z-40 bg-white/95 backdrop-blur-sm border-t border-slate-200 px-6 py-3 transition-all duration-300',
+          sidebarOpen ? 'left-64' : 'left-16'
+        )}>
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
             <div className="text-sm text-slate-600">
               <span className="font-semibold">{itens.filter(i => i.osSubtarefaId).length}</span> subtarefa{itens.filter(i => i.osSubtarefaId).length !== 1 ? 's' : ''} prontas ·{' '}

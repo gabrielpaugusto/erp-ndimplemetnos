@@ -35,6 +35,8 @@ import {
 import { apiFetch } from '@/lib/api';
 import { fmtCurrency, fmtQty } from '@/lib/format';
 import { QRCodeSVG } from 'qrcode.react';
+import { cn } from '@/lib/utils';
+import { useUiStore } from '@/stores/ui-store';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -443,6 +445,7 @@ function SubtarefaRow({
 export default function OrdemServicoDetailPage() {
   const params = useParams();
   const id = params?.id as string;
+  const sidebarOpen = useUiStore((s) => s.sidebarOpen);
 
   const [order,      setOrder]      = useState<OrderData | null>(null);
   const [loading,    setLoading]    = useState(true);
@@ -1272,7 +1275,10 @@ export default function OrdemServicoDetailPage() {
 
       {/* ── Sticky action bar ──────────────────────────────────────────────── */}
       {!isTerminal && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-sm border-t border-slate-200 px-6 py-3">
+        <div className={cn(
+          'fixed bottom-0 right-0 z-40 bg-white/95 backdrop-blur-sm border-t border-slate-200 px-6 py-3 transition-all duration-300',
+          sidebarOpen ? 'left-64' : 'left-16'
+        )}>
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
             {/* Left: secondary actions */}
             <div className="flex items-center gap-2">
