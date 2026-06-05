@@ -364,80 +364,71 @@ export default function CalderariaOrdemDetailPage() {
       <div className="space-y-6">
 
         {/* ── Header ──────────────────────────────────────────────────────── */}
-        <div className="flex items-start gap-4">
-          <Link
-            href="/calderaria/ordens"
-            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors mt-0.5"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </Link>
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-bold text-slate-900">{order.number}</h1>
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[order.status] || 'bg-slate-100 text-slate-600'}`}>
-                {statusLabels[order.status] || order.status}
-              </span>
-              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${modo.color}`}>
-                {modo.icon}
-                {modo.label}
-              </span>
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium ${serviceTypeColors[order.serviceType] || 'bg-slate-100 text-slate-600'}`}>
-                {order.serviceType}
-              </span>
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+          <div className="flex items-start gap-4">
+            <Link
+              href="/calderaria/ordens"
+              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors mt-0.5"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </Link>
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-2xl font-bold text-slate-900">{order.number}</h1>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[order.status] || 'bg-slate-100 text-slate-600'}`}>
+                  {statusLabels[order.status] || order.status}
+                </span>
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${modo.color}`}>
+                  {modo.icon}
+                  {modo.label}
+                </span>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium ${serviceTypeColors[order.serviceType] || 'bg-slate-100 text-slate-600'}`}>
+                  {order.serviceType}
+                </span>
+              </div>
+              <p className="text-slate-500 mt-0.5 text-sm">
+                Criada em: {new Date(order.createdAt).toLocaleDateString('pt-BR')}
+              </p>
             </div>
-            <p className="text-slate-500 mt-0.5 text-sm">
-              Criada em: {new Date(order.createdAt).toLocaleDateString('pt-BR')}
-            </p>
           </div>
 
-          {/* Action buttons */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {order.status === 'ABERTA' && (
-              <button
-                onClick={() => doAction('start')}
-                disabled={actionLoading}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-700 text-white rounded-lg hover:bg-zinc-800 text-sm font-medium transition-colors disabled:opacity-50"
-              >
-                <Play className="w-4 h-4" /> Iniciar
-              </button>
-            )}
-            {order.status === 'EM_EXECUCAO' && (
-              <>
-                <button
-                  onClick={() => doAction('aguardar-material')}
-                  disabled={actionLoading}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 text-sm font-medium transition-colors disabled:opacity-50"
-                >
-                  Ag. Material
-                </button>
-                <button
-                  onClick={() => doAction('complete')}
-                  disabled={actionLoading}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition-colors disabled:opacity-50"
-                >
-                  <CheckCircle className="w-4 h-4" /> Concluir
-                </button>
-              </>
-            )}
-            {order.status === 'AGUARDANDO_MATERIAL' && (
-              <button
-                onClick={() => doAction('retomar')}
-                disabled={actionLoading}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-700 text-white rounded-lg hover:bg-zinc-800 text-sm font-medium transition-colors disabled:opacity-50"
-              >
-                <Play className="w-4 h-4" /> Retomar
-              </button>
-            )}
-            {order.status !== 'CONCLUIDA' && order.status !== 'CANCELADA' && (
-              <button
-                onClick={() => doAction('cancel')}
-                disabled={actionLoading}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-red-600 border border-red-300 rounded-lg hover:bg-red-50 text-sm font-medium transition-colors disabled:opacity-50"
-              >
+          {/* Botões de ação — segunda linha, sempre visíveis */}
+          {(order.status !== 'CONCLUIDA' && order.status !== 'CANCELADA') && (
+            <div className="flex flex-wrap items-center justify-between gap-2 mt-4 pt-4 border-t border-slate-100">
+              {/* Ação principal conforme status */}
+              <div className="flex flex-wrap items-center gap-2">
+                {order.status === 'ABERTA' && (
+                  <button onClick={() => doAction('start')} disabled={actionLoading}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-700 text-white rounded-lg hover:bg-zinc-800 text-sm font-medium transition-colors disabled:opacity-50">
+                    <Play className="w-4 h-4" /> Iniciar
+                  </button>
+                )}
+                {order.status === 'EM_EXECUCAO' && (
+                  <>
+                    <button onClick={() => doAction('aguardar-material')} disabled={actionLoading}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 text-sm font-medium transition-colors disabled:opacity-50">
+                      Ag. Material
+                    </button>
+                    <button onClick={() => doAction('complete')} disabled={actionLoading}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition-colors disabled:opacity-50">
+                      <CheckCircle className="w-4 h-4" /> Concluir
+                    </button>
+                  </>
+                )}
+                {order.status === 'AGUARDANDO_MATERIAL' && (
+                  <button onClick={() => doAction('retomar')} disabled={actionLoading}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-700 text-white rounded-lg hover:bg-zinc-800 text-sm font-medium transition-colors disabled:opacity-50">
+                    <Play className="w-4 h-4" /> Retomar
+                  </button>
+                )}
+              </div>
+              {/* Cancelar sempre à direita */}
+              <button onClick={() => doAction('cancel')} disabled={actionLoading}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-red-600 border border-red-300 rounded-lg hover:bg-red-50 text-sm font-medium transition-colors disabled:opacity-50">
                 <XCircle className="w-4 h-4" /> Cancelar
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* ── Item gerado na OS (Fabricação Avulsa) ───────────────────────── */}
