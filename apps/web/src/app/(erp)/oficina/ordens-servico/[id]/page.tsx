@@ -634,51 +634,132 @@ export default function OrdemServicoDetailPage() {
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-5 pb-24">
+    <div className="space-y-5 pb-6">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-start gap-3">
-        <Link
-          href="/oficina/ordens-servico"
-          className="mt-1 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors shrink-0"
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </Link>
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+        <div className="flex items-start gap-3">
+          <Link
+            href="/oficina/ordens-servico"
+            className="mt-1 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors shrink-0"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </Link>
 
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-bold text-slate-900 font-mono">{order.numero}</h1>
-            <Badge className={STATUS_BADGE[order.status] ?? 'bg-slate-100 text-slate-600 border-slate-200'}>
-              {STATUS_LABELS[order.status] ?? order.status}
-            </Badge>
-            <span className="text-sm text-slate-500">{TYPE_LABELS[order.type] ?? order.type}</span>
-            <Badge className={PRIORITY_BADGE[order.priority] ?? 'bg-slate-100 text-slate-600 border-slate-200'}>
-              {order.priority}
-            </Badge>
-            {hasRunningApontamento && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-700 border border-rose-200">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500" />
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-bold text-slate-900 font-mono">{order.numero}</h1>
+              <Badge className={STATUS_BADGE[order.status] ?? 'bg-slate-100 text-slate-600 border-slate-200'}>
+                {STATUS_LABELS[order.status] ?? order.status}
+              </Badge>
+              <span className="text-sm text-slate-500">{TYPE_LABELS[order.type] ?? order.type}</span>
+              <Badge className={PRIORITY_BADGE[order.priority] ?? 'bg-slate-100 text-slate-600 border-slate-200'}>
+                {order.priority}
+              </Badge>
+              {hasRunningApontamento && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-700 border border-rose-200">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500" />
+                  </span>
+                  Mecânico trabalhando
                 </span>
-                Mecânico trabalhando
-              </span>
-            )}
+              )}
+            </div>
+            <p className="text-slate-500 mt-1 text-sm">
+              {clientName}
+              {order.dataEntrada && ` · Entrada: ${fmtDateTime(order.dataEntrada)}`}
+              {order.dataPrevisao && ` · Previsão: ${fmtDate(order.dataPrevisao)}`}
+            </p>
           </div>
-          <p className="text-slate-500 mt-1 text-sm">
-            {clientName}
-            {order.dataEntrada && ` · Entrada: ${fmtDateTime(order.dataEntrada)}`}
-            {order.dataPrevisao && ` · Previsão: ${fmtDate(order.dataPrevisao)}`}
-          </p>
+
+          <button
+            onClick={refresh}
+            title="Atualizar"
+            className="mt-1 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors shrink-0"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
         </div>
 
-        <button
-          onClick={refresh}
-          title="Atualizar"
-          className="mt-1 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors shrink-0"
-        >
-          <RefreshCw className="w-4 h-4" />
-        </button>
+        {/* ── Botões de ação — dentro do card do cabeçalho ─────────────────── */}
+        {!isTerminal && (
+          <div className="flex flex-wrap items-center justify-between gap-2 mt-4 pt-4 border-t border-slate-100">
+            {/* Esquerda: ações secundárias */}
+            <div className="flex flex-wrap items-center gap-2">
+              {(order.status === 'ORCAMENTO' || order.status === 'AGUARD_APROVACAO') && (
+                <button
+                  onClick={() => setModal('venda-perdida')}
+                  disabled={actionBusy}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-white text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  <XCircle className="w-4 h-4" />
+                  Venda Perdida
+                </button>
+              )}
+              <button
+                onClick={() => setModal('cancelar')}
+                disabled={actionBusy}
+                className="inline-flex items-center gap-1.5 px-3 py-2 bg-white text-red-600 border border-red-200 rounded-lg hover:bg-red-50 text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                <XCircle className="w-4 h-4" />
+                Cancelar OS
+              </button>
+            </div>
+
+            {/* Direita: ação principal */}
+            <div className="flex flex-wrap items-center gap-2">
+              {actionBusy && (
+                <span className="text-xs text-slate-400 flex items-center gap-1">
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                  Processando...
+                </span>
+              )}
+              {order.status === 'ORCAMENTO' && (
+                <button onClick={() => doStatus('enviar-aprovacao')} disabled={actionBusy}
+                  className="inline-flex items-center gap-2 px-5 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 text-sm font-semibold transition-colors disabled:opacity-50 shadow-sm">
+                  <Send className="w-4 h-4" /> Enviar p/ Aprovação
+                </button>
+              )}
+              {order.status === 'AGUARD_APROVACAO' && (
+                <button onClick={() => doStatus('aprovar')} disabled={actionBusy}
+                  className="inline-flex items-center gap-2 px-5 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 text-sm font-semibold transition-colors disabled:opacity-50 shadow-sm">
+                  <CheckCircle className="w-4 h-4" /> Aprovar OS
+                </button>
+              )}
+              {order.status === 'APROVADA' && (
+                <button onClick={() => doStatus('iniciar')} disabled={actionBusy}
+                  className="inline-flex items-center gap-2 px-5 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 text-sm font-semibold transition-colors disabled:opacity-50 shadow-sm">
+                  <Play className="w-4 h-4" /> Iniciar Execução
+                </button>
+              )}
+              {order.status === 'EM_EXECUCAO' && (
+                <>
+                  <button onClick={() => doStatus('aguardar-pecas')} disabled={actionBusy}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 text-sm font-semibold transition-colors disabled:opacity-50">
+                    <Pause className="w-4 h-4" /> Aguardar Peças
+                  </button>
+                  <button onClick={() => { setDiagnostico(''); setSolucao(''); setModal('concluir'); }} disabled={actionBusy}
+                    className="inline-flex items-center gap-2 px-5 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-semibold transition-colors disabled:opacity-50 shadow-sm">
+                    <CheckCircle className="w-4 h-4" /> Concluir OS
+                  </button>
+                </>
+              )}
+              {order.status === 'AGUARD_PECAS' && (
+                <button onClick={() => doStatus('retornar-execucao')} disabled={actionBusy}
+                  className="inline-flex items-center gap-2 px-5 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 text-sm font-semibold transition-colors disabled:opacity-50 shadow-sm">
+                  <Play className="w-4 h-4" /> Retomar Execução
+                </button>
+              )}
+              {order.status === 'CONCLUIDA' && (
+                <button onClick={() => { setFatNumParcelas(1); setFatIntervaloDias(30); setFatDataVenc1(new Date().toISOString().slice(0,10)); setFatFormaPgto('PIX'); setModal('faturar'); }} disabled={actionBusy}
+                  className="inline-flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold transition-colors disabled:opacity-50 shadow-sm">
+                  <DollarSign className="w-4 h-4" /> Faturar / Entregar
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Error banners ──────────────────────────────────────────────────── */}
@@ -1273,124 +1354,6 @@ export default function OrdemServicoDetailPage() {
         </div>
       )}
 
-      {/* ── Sticky action bar ──────────────────────────────────────────────── */}
-      {!isTerminal && (
-        <div className={cn(
-          'fixed bottom-0 right-0 z-40 bg-white/95 backdrop-blur-sm border-t border-slate-200 px-6 py-3 transition-all duration-300',
-          sidebarOpen ? 'left-64' : 'left-16'
-        )}>
-          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
-            {/* Left: secondary actions */}
-            <div className="flex items-center gap-2">
-              {(order.status === 'ORCAMENTO' || order.status === 'AGUARD_APROVACAO') && (
-                <button
-                  onClick={() => setModal('venda-perdida')}
-                  disabled={actionBusy}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 bg-white text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors disabled:opacity-50"
-                >
-                  <XCircle className="w-4 h-4" />
-                  Venda Perdida
-                </button>
-              )}
-              <button
-                onClick={() => setModal('cancelar')}
-                disabled={actionBusy}
-                className="inline-flex items-center gap-1.5 px-3 py-2 bg-white text-red-600 border border-red-200 rounded-lg hover:bg-red-50 text-sm font-medium transition-colors disabled:opacity-50"
-              >
-                <XCircle className="w-4 h-4" />
-                Cancelar OS
-              </button>
-            </div>
-
-            {/* Right: primary action */}
-            <div className="flex items-center gap-2">
-              {actionBusy && (
-                <span className="text-xs text-slate-400 flex items-center gap-1">
-                  <RefreshCw className="w-3 h-3 animate-spin" />
-                  Processando...
-                </span>
-              )}
-
-              {order.status === 'ORCAMENTO' && (
-                <button
-                  onClick={() => doStatus('enviar-aprovacao')}
-                  disabled={actionBusy}
-                  className="inline-flex items-center gap-2 px-5 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 text-sm font-semibold transition-colors disabled:opacity-50 shadow-sm"
-                >
-                  <Send className="w-4 h-4" />
-                  Enviar p/ Aprovação
-                </button>
-              )}
-              {order.status === 'AGUARD_APROVACAO' && (
-                <button
-                  onClick={() => doStatus('aprovar')}
-                  disabled={actionBusy}
-                  className="inline-flex items-center gap-2 px-5 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 text-sm font-semibold transition-colors disabled:opacity-50 shadow-sm"
-                >
-                  <CheckCircle className="w-4 h-4" />
-                  Aprovar OS
-                </button>
-              )}
-              {order.status === 'APROVADA' && (
-                <button
-                  onClick={() => doStatus('iniciar')}
-                  disabled={actionBusy}
-                  className="inline-flex items-center gap-2 px-5 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 text-sm font-semibold transition-colors disabled:opacity-50 shadow-sm"
-                >
-                  <Play className="w-4 h-4" />
-                  Iniciar Execução
-                </button>
-              )}
-              {order.status === 'EM_EXECUCAO' && (
-                <>
-                  <button
-                    onClick={() => doStatus('aguardar-pecas')}
-                    disabled={actionBusy}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 text-sm font-semibold transition-colors disabled:opacity-50"
-                  >
-                    <Pause className="w-4 h-4" />
-                    Aguardar Peças
-                  </button>
-                  <button
-                    onClick={() => { setDiagnostico(''); setSolucao(''); setModal('concluir'); }}
-                    disabled={actionBusy}
-                    className="inline-flex items-center gap-2 px-5 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-semibold transition-colors disabled:opacity-50 shadow-sm"
-                  >
-                    <CheckCircle className="w-4 h-4" />
-                    Concluir OS
-                  </button>
-                </>
-              )}
-              {order.status === 'AGUARD_PECAS' && (
-                <button
-                  onClick={() => doStatus('retornar-execucao')}
-                  disabled={actionBusy}
-                  className="inline-flex items-center gap-2 px-5 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 text-sm font-semibold transition-colors disabled:opacity-50 shadow-sm"
-                >
-                  <Play className="w-4 h-4" />
-                  Retomar Execução
-                </button>
-              )}
-              {order.status === 'CONCLUIDA' && (
-                <button
-                  onClick={() => {
-                    setFatNumParcelas(1);
-                    setFatIntervaloDias(30);
-                    setFatDataVenc1(new Date().toISOString().slice(0, 10));
-                    setFatFormaPgto('PIX');
-                    setModal('faturar');
-                  }}
-                  disabled={actionBusy}
-                  className="inline-flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold transition-colors disabled:opacity-50 shadow-sm"
-                >
-                  <DollarSign className="w-4 h-4" />
-                  Faturar / Entregar
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ── Modal: Faturar ─────────────────────────────────────────────────── */}
       {modal === 'faturar' && order && (() => {
