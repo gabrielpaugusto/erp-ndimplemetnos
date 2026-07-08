@@ -751,7 +751,7 @@ export default function NovaOrdemServicoPage() {
                     className="w-full px-3 py-2.5 border border-sky-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
                   >
                     <option value="">— Selecione —</option>
-                    {persons.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                    {persons.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
                 </div>
                 <div>
