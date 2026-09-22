@@ -290,6 +290,7 @@ export class NfeXmlBuilderService {
             <qTrib>${this.fmt(qty,4)}</qTrib>
             <vUnTrib>${this.fmt(unitPrice,10)}</vUnTrib>
             <indTot>1</indTot>
+            ${item.beneficioFiscal ? `<pBenef>${item.beneficioFiscal}</pBenef>` : ''}
           </prod>
           <imposto>
             <ICMS>${icmsTag}</ICMS>
