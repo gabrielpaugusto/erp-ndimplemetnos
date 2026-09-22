@@ -3012,6 +3012,9 @@ model NFeItem {
   // Destinação fiscal (A2/A4 — permite override por item na NF-e emitida)
   destinacaoFiscal        ItemDestinacao?  // se null, herda de product.destinacaoFiscal
 
+  // Benefício Fiscal (tag <pBenef> da NF-e)
+  beneficioFiscal         String?      @db.VarChar(20)
+
   // Informações adicionais
   informacoesAdicionais   String?      @db.Text
 
