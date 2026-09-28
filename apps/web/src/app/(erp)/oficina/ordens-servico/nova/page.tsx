@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, type ReactNode } from 'react';
+import { useState, useEffect, useRef, type ReactNode, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -380,7 +380,7 @@ function EquipamentoCombobox({
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-export default function NovaOrdemServicoPage() {
+function NovaOrdemServicoPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sidebarOpen = useUiStore((s) => s.sidebarOpen);
@@ -902,7 +902,7 @@ export default function NovaOrdemServicoPage() {
                   className="w-full px-3 py-2.5 border border-orange-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 >
                   <option value="">— Selecione (opcional) —</option>
-                  {persons.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                  {persons.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
                 <p className="text-xs text-orange-500 mt-1">Título de reembolso será gerado contra este cadastro</p>
               </div>
@@ -1211,5 +1211,13 @@ export default function NovaOrdemServicoPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function NovaOrdemServicoPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" /></div>}>
+      <NovaOrdemServicoPageContent />
+    </Suspense>
   );
 }
