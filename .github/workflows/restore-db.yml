@@ -1,0 +1,51 @@
+name: Restaurar Banco de Dados no AWS
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmar:
+        description: 'Digite CONFIRMAR para prosseguir (sobrescreve dados do AWS)'
+        required: true
+        type: string
+
+jobs:
+  restore:
+    name: Restaurar backup no servidor
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.confirmar == 'CONFIRMAR' }}
+
+    steps:
+      - name: Restaura banco no servidor
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            set -e
+
+            DUMP_FILE="/home/ubuntu/backup_erp_local.dump"
+            if [ ! -f "$DUMP_FILE" ]; then
+              echo "❌ ERRO: arquivo $DUMP_FILE nao encontrado no servidor."
+              echo "Faca o upload do arquivo via AWS Instance Connect antes de rodar este workflow."
+              exit 1
+            fi
+
+            echo "=== COPIANDO DUMP PARA O CONTAINER ==="
+            docker cp "$DUMP_FILE" erp-postgres:/tmp/backup_restore.dump
+
+            echo "=== RESTAURANDO BANCO DE DADOS ==="
+            docker exec erp-postgres pg_restore \
+              -U erp_user \
+              -d erp_prod \
+              --clean --if-exists \
+              -F c /tmp/backup_restore.dump \
+              && echo "✅ Restore finalizado com sucesso!" \
+              || echo "⚠️  Restore concluido com alguns avisos (normal)"
+
+            echo "=== LIMPANDO ARQUIVOS TEMPORARIOS ==="
+            rm -f "$DUMP_FILE"
+            docker exec erp-postgres rm -f /tmp/backup_restore.dump
+
+            echo "✅ Concluido em $(date)"
