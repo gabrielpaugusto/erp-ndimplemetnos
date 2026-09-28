@@ -16,9 +16,6 @@ export default function LoginPage() {
       <div className="relative w-full max-w-md px-4">
         <LoginForm />
 
-        <p className="text-center text-slate-400 text-xs mt-6">
-          v0.4.0 — ND Implementos
-        </p>
       </div>
     </div>
   );
