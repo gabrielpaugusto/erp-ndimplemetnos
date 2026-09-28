@@ -78,6 +78,7 @@ import { ERP_MODULES } from '@erp/shared';
 import { useUiStore } from '@/stores/ui-store';
 import { useTabStore } from '@/stores/tab-store';
 import { cn } from '@/lib/utils';
+import { APP_VERSION } from '@/lib/version';
 
 // Map icon names from the shared module to actual lucide components
 const iconMap: Record<string, LucideIcon> = {
@@ -353,6 +354,13 @@ export function Sidebar() {
           )}
         </div>
       </nav>
+
+      {/* Versão do sistema */}
+      {sidebarOpen && (
+        <div className="px-4 pb-2 pt-1">
+          <span className="text-[10px] text-sidebar-foreground/30 select-none">v{APP_VERSION}</span>
+        </div>
+      )}
 
       {/* Usuário + logout */}
       <div className="border-t border-sidebar-border shrink-0 relative" ref={userMenuRef}>
