@@ -8,27 +8,29 @@ import {
 import { apiFetch } from '@/lib/api';
 import { fmtPercent } from '@/lib/format';
 
-type OrderStatus = 'PENDENTE' | 'EM_EXECUCAO' | 'Concluída' | 'Cancelada';
+type OrderStatus = 'ABERTA' | 'EM_EXECUCAO' | 'AGUARDANDO_MATERIAL' | 'CONCLUIDA' | 'CANCELADA';
 type ServiceType = 'SOLDA' | 'CORTE' | 'DOBRA' | 'MONTAGEM_ESTRUTURAL' | 'USINAGEM' | 'JATEAMENTO' | 'TRATAMENTO_TERMICO' | string;
 
 interface CalderariaOrder {
   id: string;
-  number?: string;
+  numero?: string;
   serviceType: ServiceType;
   description?: string;
   status: OrderStatus;
-  estimatedHours?: number;
-  actualHours?: number;
+  tempoEstimado?: number;
+  tempoReal?: number;
   progressPercent?: number;
-  serviceOrder?: { number: string } | null;
-  productionOrder?: { number: string } | null;
+  serviceOrder?: { id: string; numero: string } | null;
+  productionOrder?: { id: string; numero: string } | null;
 }
 
 const statusLabels: Record<string, string> = {
-  PENDENTE: 'Pendente', EM_EXECUCAO: 'Em Execução', CONCLUIDA: 'Concluída', CANCELADA: 'Cancelada',
+  ABERTA: 'Aberta', EM_EXECUCAO: 'Em Execução', AGUARDANDO_MATERIAL: 'Ag. Material',
+  CONCLUIDA: 'Concluída', CANCELADA: 'Cancelada',
 };
 const statusColors: Record<string, string> = {
-  PENDENTE: 'bg-slate-100 text-slate-600', EM_EXECUCAO: 'bg-zinc-100 text-zinc-700',
+  ABERTA: 'bg-blue-100 text-blue-700', EM_EXECUCAO: 'bg-zinc-100 text-zinc-700',
+  AGUARDANDO_MATERIAL: 'bg-amber-100 text-amber-700',
   CONCLUIDA: 'bg-emerald-100 text-emerald-700', CANCELADA: 'bg-red-100 text-red-700',
 };
 const serviceTypeColors: Record<string, string> = {
@@ -50,7 +52,7 @@ export default function CalderariaDashboardPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await apiFetch('/api/workshop/calderaria/orders?limit=10&orderBy=createdAt&order=desc');
+    const res = await apiFetch('/api/calderaria?limit=10');
     if (res.ok) {
       const data = await res.json();
       const list: CalderariaOrder[] = data.data ?? data;
@@ -63,7 +65,7 @@ export default function CalderariaDashboardPage() {
   useEffect(() => { load(); }, [load]);
 
   const activeOrders = orders.filter((o) => o.status === 'EM_EXECUCAO').length;
-  const pendingOrders = orders.filter((o) => o.status === 'PENDENTE').length;
+  const pendingOrders = orders.filter((o) => o.status === 'ABERTA' || o.status === 'AGUARDANDO_MATERIAL').length;
 
   // Service type distribution from loaded orders
   const typeCounts: Record<string, number> = {};
@@ -194,12 +196,12 @@ export default function CalderariaDashboardPage() {
               ) : orders.length === 0 ? (
                 <tr><td colSpan={7} className="px-4 py-12 text-center text-sm text-slate-500">Nenhuma ordem de calderaria encontrada.</td></tr>
               ) : orders.map((order) => {
-                const linkedRef = order.serviceOrder?.number ?? order.productionOrder?.number;
+                const linkedRef = order.serviceOrder?.numero ?? order.productionOrder?.numero;
                 const linkedType = order.serviceOrder ? 'OS' : order.productionOrder ? 'OP' : null;
                 const progress = order.progressPercent ?? 0;
                 return (
                   <tr key={order.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3 text-sm font-medium text-slate-900">{order.number ?? order.id.slice(0, 8)}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-slate-900">{order.numero ?? order.id.slice(0, 8)}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${serviceTypeColors[order.serviceType] ?? 'bg-slate-100 text-slate-600'}`}>
                         {order.serviceType}

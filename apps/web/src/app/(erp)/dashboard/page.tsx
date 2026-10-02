@@ -7,6 +7,8 @@ import {
   Sparkles, AlertTriangle, AlertCircle, Info, X, ArrowRight,
   RefreshCw, Package, Users, TrendingUp, AlertOctagon,
   ShoppingCart, ClipboardList, Zap, GitBranch, CheckCircle2, XCircle,
+  Activity, Clock, PlayCircle, PauseCircle, StopCircle,
+  TrendingDown, BarChart3, Wallet, Calendar,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 
@@ -56,6 +58,33 @@ interface ApprovalRequestItem {
   policy: { levels: { ordem: number; roleId: string; role: { id: string; name: string } }[] };
 }
 
+// ── Tipos Operacionais ────────────────────────────────────────────────────────
+
+interface OsStats {
+  byStatus: { status: string; count: number }[];
+}
+
+interface OpResumo {
+  total: number;
+  emProducao: number;
+  atrasadas: number;
+  planejadas: number;
+  liberadas: number;
+}
+
+interface SinaleiraTotais {
+  trabalhando: number;
+  pausados: number;
+  parados: number;
+}
+
+interface FinanceiroDash {
+  dreMes: { receitas: number; despesas: number; resultado: number };
+  inadimplencia: { valor: number; qtd: number; pct: number };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 const APPROVAL_MODULE_LABELS: Record<string, string> = {
   COMPRAS:    'Compras',
   VENDAS:     'Vendas',
@@ -104,6 +133,14 @@ function getCompanyId() {
   try { return JSON.parse(localStorage.getItem('user') ?? '{}')?.company?.id ?? ''; } catch { return ''; }
 }
 
+function fmtBRL(v: number) {
+  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+}
+
+function osStatusCount(stats: OsStats | null, status: string): number {
+  return stats?.byStatus.find(s => s.status === status)?.count ?? 0;
+}
+
 export default function DashboardPage() {
   const [insights, setInsights]         = useState<AiInsight[]>([]);
   const [kpis, setKpis]                 = useState<KPIs>({ totalProdutos: 0, totalPessoas: 0, ordensProducao: 0, titulosVencidos: 0 });
@@ -116,6 +153,13 @@ export default function DashboardPage() {
   const [loadingApprovals, setLoadingApprovals] = useState(true);
   const [approvingId, setApprovingId]   = useState<string | null>(null);
   const [rejectingId, setRejectingId]   = useState<string | null>(null);
+
+  // ── Operacional ────────────────────────────────────────────────────────────
+  const [osStats, setOsStats]           = useState<OsStats | null>(null);
+  const [opResumo, setOpResumo]         = useState<OpResumo | null>(null);
+  const [sinaleira, setSinaleira]       = useState<SinaleiraTotais | null>(null);
+  const [financeiroDash, setFinanceiroDash] = useState<FinanceiroDash | null>(null);
+  const [loadingOps, setLoadingOps]     = useState(true);
 
   // ── carrega insights reais ──────────────────────────────────────────────────
   const loadInsights = useCallback(async () => {
@@ -140,6 +184,35 @@ export default function DashboardPage() {
     setInsights((prev) => prev.filter((i) => i.id !== id));
     await apiFetch(`/api/ai/insights/${id}/dismiss`, { method: 'PATCH' }).catch(() => {});
   };
+
+  // ── Dados Operacionais em Tempo Real ───────────────────────────────────────
+  const loadOpsData = useCallback(async () => {
+    setLoadingOps(true);
+    const companyId = getCompanyId();
+    try {
+      const [rOs, rOp, rSinal, rFin] = await Promise.allSettled([
+        apiFetch('/api/service-orders/stats'),
+        apiFetch(`/api/dashboard/chao-fabrica?companyId=${companyId}`),
+        apiFetch('/api/workshop/apontamentos/sinaleira'),
+        apiFetch(`/api/dashboard/financeiro?companyId=${companyId}`),
+      ]);
+
+      if (rOs.status === 'fulfilled' && rOs.value.ok) {
+        setOsStats(await rOs.value.json());
+      }
+      if (rOp.status === 'fulfilled' && rOp.value.ok) {
+        const data = await rOp.value.json();
+        setOpResumo(data.resumo ?? null);
+      }
+      if (rSinal.status === 'fulfilled' && rSinal.value.ok) {
+        const data = await rSinal.value.json();
+        setSinaleira(data.totais ?? null);
+      }
+      if (rFin.status === 'fulfilled' && rFin.value.ok) {
+        setFinanceiroDash(await rFin.value.json());
+      }
+    } catch { /* ignore */ } finally { setLoadingOps(false); }
+  }, []);
 
   // ── Pendências por módulo ───────────────────────────────────────────────────
   const loadPendings = useCallback(async () => {
@@ -284,7 +357,8 @@ export default function DashboardPage() {
     loadInsights();
     loadPendings();
     loadApprovals();
-  }, [loadInsights, loadPendings, loadApprovals]);
+    loadOpsData();
+  }, [loadInsights, loadPendings, loadApprovals, loadOpsData]);
 
   useEffect(() => { loadKpis(); }, [loadKpis]);
 
@@ -294,6 +368,14 @@ export default function DashboardPage() {
     { label: 'Ordens de Produção',   value: kpis.ordensProducao,icon: TrendingUp,    color: 'text-amber-600',  bg: 'bg-amber-50'  },
     { label: 'Alertas Ativos',       value: insights.length,    icon: AlertOctagon,  color: 'text-rose-600',   bg: 'bg-rose-50'   },
   ];
+
+  // ── Computed Operacional ───────────────────────────────────────────────────
+  const osEmExecucao  = osStatusCount(osStats, 'EM_EXECUCAO');
+  const osAguardando  = osStatusCount(osStats, 'AGUARDANDO_PECAS');
+  const osAbertas     = ['ABERTA', 'APROVADA', 'EM_EXECUCAO', 'AGUARDANDO_PECAS'].reduce(
+    (s, st) => s + osStatusCount(osStats, st), 0,
+  );
+  const resultadoMes  = financeiroDash?.dreMes.resultado ?? 0;
 
   return (
     <div className="space-y-6">
@@ -333,6 +415,162 @@ export default function DashboardPage() {
             </div>
           );
         })}
+      </div>
+
+      {/* ── Operações em Tempo Real ──────────────────────────────────────────── */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Activity className="w-5 h-5 text-blue-600" />
+          <h2 className="text-lg font-semibold text-slate-900">Operações em Tempo Real</h2>
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title="Ao vivo" />
+        </div>
+
+        {loadingOps ? (
+          <div className="text-sm text-slate-400 py-3 text-center">Carregando dados operacionais...</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+
+            {/* OS — Oficina */}
+            <Link href="/oficina/os" className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-md transition-shadow">
+              <div className="bg-orange-500 px-4 py-2.5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Wrench className="w-4 h-4 text-white" />
+                  <span className="text-sm font-semibold text-white">Ordens de Serviço</span>
+                </div>
+                <span className="text-xs bg-white/20 text-white px-2 py-0.5 rounded-full font-medium">
+                  {osAbertas} abertas
+                </span>
+              </div>
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <PlayCircle className="w-4 h-4 text-emerald-500" />
+                    <span className="text-sm text-slate-600">Em execução</span>
+                  </div>
+                  <span className="text-lg font-bold text-emerald-600">{osEmExecucao}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-amber-500" />
+                    <span className="text-sm text-slate-600">Aguard. peças</span>
+                  </div>
+                  <span className="text-lg font-bold text-amber-600">{osAguardando}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-slate-400" />
+                    <span className="text-sm text-slate-600">Total abertas</span>
+                  </div>
+                  <span className="text-lg font-bold text-slate-700">{osAbertas}</span>
+                </div>
+              </div>
+            </Link>
+
+            {/* OP — Produção */}
+            <Link href="/producao/ordens" className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-md transition-shadow">
+              <div className="bg-blue-500 px-4 py-2.5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Factory className="w-4 h-4 text-white" />
+                  <span className="text-sm font-semibold text-white">Ordens de Produção</span>
+                </div>
+                <span className="text-xs bg-white/20 text-white px-2 py-0.5 rounded-full font-medium">
+                  {opResumo?.total ?? 0} ativas
+                </span>
+              </div>
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-blue-500" />
+                    <span className="text-sm text-slate-600">Em produção</span>
+                  </div>
+                  <span className="text-lg font-bold text-blue-600">{opResumo?.emProducao ?? 0}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-red-500" />
+                    <span className="text-sm text-slate-600">Atrasadas</span>
+                  </div>
+                  <span className={`text-lg font-bold ${(opResumo?.atrasadas ?? 0) > 0 ? 'text-red-600' : 'text-slate-400'}`}>
+                    {opResumo?.atrasadas ?? 0}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ClipboardList className="w-4 h-4 text-slate-400" />
+                    <span className="text-sm text-slate-600">Planejadas</span>
+                  </div>
+                  <span className="text-lg font-bold text-slate-700">{opResumo?.planejadas ?? 0}</span>
+                </div>
+              </div>
+            </Link>
+
+            {/* Sinaleira — Mecânicos */}
+            <Link href="/oficina/relatorios/eficiencia-mecanicos" className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-md transition-shadow">
+              <div className="bg-violet-500 px-4 py-2.5 flex items-center gap-2">
+                <Users className="w-4 h-4 text-white" />
+                <span className="text-sm font-semibold text-white">Mecânicos</span>
+              </div>
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-emerald-400 shrink-0" />
+                    <span className="text-sm text-slate-600">Trabalhando</span>
+                  </div>
+                  <span className="text-lg font-bold text-emerald-600">{sinaleira?.trabalhando ?? 0}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-amber-400 shrink-0" />
+                    <span className="text-sm text-slate-600">Pausados</span>
+                  </div>
+                  <span className="text-lg font-bold text-amber-600">{sinaleira?.pausados ?? 0}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-slate-300 shrink-0" />
+                    <span className="text-sm text-slate-600">Sem apontamento</span>
+                  </div>
+                  <span className="text-lg font-bold text-slate-500">{sinaleira?.parados ?? 0}</span>
+                </div>
+              </div>
+            </Link>
+
+            {/* DRE Mês */}
+            <Link href="/financeiro" className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-md transition-shadow">
+              <div className="bg-emerald-500 px-4 py-2.5 flex items-center gap-2">
+                <Wallet className="w-4 h-4 text-white" />
+                <span className="text-sm font-semibold text-white">DRE do Mês</span>
+              </div>
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-emerald-500" />
+                    <span className="text-sm text-slate-600">Receitas</span>
+                  </div>
+                  <span className="text-sm font-bold text-emerald-600 tabular-nums">
+                    {fmtBRL(financeiroDash?.dreMes.receitas ?? 0)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <TrendingDown className="w-4 h-4 text-red-500" />
+                    <span className="text-sm text-slate-600">Despesas</span>
+                  </div>
+                  <span className="text-sm font-bold text-red-600 tabular-nums">
+                    {fmtBRL(financeiroDash?.dreMes.despesas ?? 0)}
+                  </span>
+                </div>
+                <div className="pt-1 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-500">Resultado</span>
+                  <span className={`text-sm font-bold tabular-nums ${resultadoMes >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {fmtBRL(resultadoMes)}
+                  </span>
+                </div>
+              </div>
+            </Link>
+
+          </div>
+        )}
       </div>
 
       {/* Pendências por Módulo */}

@@ -3,13 +3,11 @@ import { IsOptional, IsEnum, IsString, IsNumber, IsDateString, Min } from 'class
 import { CreateCalderariaOrderDto } from './create-calderaria-order.dto';
 
 export enum CalderariaOrderStatus {
-  ABERTA = 'ABERTA',
-  AGUARDANDO_PECAS = 'AGUARDANDO_PECAS',
-  EM_EXECUCAO = 'EM_EXECUCAO',
-  AGUARDANDO_APROVACAO = 'AGUARDANDO_APROVACAO',
-  CONCLUIDA = 'CONCLUIDA',
-  ENTREGUE = 'ENTREGUE',
-  CANCELADA = 'CANCELADA',
+  ABERTA              = 'ABERTA',
+  EM_EXECUCAO         = 'EM_EXECUCAO',
+  AGUARDANDO_MATERIAL = 'AGUARDANDO_MATERIAL',
+  CONCLUIDA           = 'CONCLUIDA',
+  CANCELADA           = 'CANCELADA',
 }
 
 export class UpdateCalderariaOrderDto extends PartialType(CreateCalderariaOrderDto) {
@@ -29,6 +27,11 @@ export class UpdateCalderariaOrderDto extends PartialType(CreateCalderariaOrderD
   @IsNumber()
   @Min(0)
   tempoReal?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  valorCustoReal?: number;
 
   @IsOptional()
   @IsString()

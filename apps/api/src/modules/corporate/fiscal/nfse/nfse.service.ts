@@ -112,9 +112,10 @@ export class NfseService {
         })
       : null;
 
-    // REGRA PRINCIPAL: Simples Nacional e MEI = sem retenção alguma
-    const prestadorSimplesOuMei = empresa?.taxRegime === 'SIMPLES_NACIONAL' || empresa?.taxRegime === 'MEI';
-    const tomadorSimplesOuMei = tomador?.optanteSimples || tomador?.taxRegime === 'SIMPLES_NACIONAL' || tomador?.taxRegime === 'MEI';
+    // REGRA PRINCIPAL: Simples Nacional = sem retenção alguma
+    // (MEI foi removido de TaxRegime — é Natureza Jurídica com regime SIMPLES_NACIONAL)
+    const prestadorSimplesOuMei = empresa?.taxRegime === 'SIMPLES_NACIONAL';
+    const tomadorSimplesOuMei = tomador?.optanteSimples || tomador?.taxRegime === 'SIMPLES_NACIONAL';
     const aplicarRetencoes = !prestadorSimplesOuMei && !tomadorSimplesOuMei && tomador?.type === 'PJ';
 
     const valorServico = Number(dto.valorServico);
@@ -349,7 +350,7 @@ export class NfseService {
     const minimoFederal = retentionConfig?.minimoRetencaoPisCofinsCsll ?? 215.05;
     const minimoIrrf    = retentionConfig?.minimoRetencaoIrrf ?? 10.00;
     const minimoIss     = retentionConfig?.minimoRetencaoIss ?? 0.00;
-    const empresaNaoSimples = empresa?.taxRegime !== 'SIMPLES_NACIONAL' && empresa?.taxRegime !== 'MEI';
+    const empresaNaoSimples = empresa?.taxRegime !== 'SIMPLES_NACIONAL';
 
     let importadas = 0;
     let continuar  = true;
@@ -399,7 +400,7 @@ export class NfseService {
               : null;
 
             const prestadorRegime = prestadorCadastrado?.taxRegime ?? null;
-            const prestadorNaoSimples = prestadorRegime !== 'SIMPLES_NACIONAL' && prestadorRegime !== 'MEI';
+            const prestadorNaoSimples = prestadorRegime !== 'SIMPLES_NACIONAL';
             const deveReter = empresaNaoSimples && prestadorNaoSimples;
 
             // Calcular retenções federais
@@ -569,17 +570,17 @@ export class NfseService {
     const taxRegimeEmpresa = (company as any)?.taxRegime ?? 'LUCRO_REAL';
     const ufEmpresa        = (company as any)?.uf ?? '';
 
-    // Determina tipo do prestador (por regime)
-    const regimePrestador  = nfse.prestadorRegime ?? '';
-    const tipoFornecedor   = regimePrestador === 'SIMPLES_NACIONAL' ? 'SIMPLES_NACIONAL'
-                           : regimePrestador === 'MEI' ? 'MEI' : undefined;
+    // Determina regime do prestador para o motor fiscal
+    // MEI foi removido de TaxRegime — prestadores MEI têm regime SIMPLES_NACIONAL
+    const regimePrestador     = nfse.prestadorRegime ?? '';
+    const taxRegimeFornecedor = regimePrestador || undefined;
 
     // Consulta motor para SERVICO_TOMADO
     const regra = await this.operacoesFiscais.determinar(companyId, {
-      tipo:          'ENTRADA',
-      destinacao:    'SERVICO_TOMADO',
-      tipoFornecedor,
-      ufFornecedor:  nfse.prestadorUf ?? ufEmpresa,
+      tipo:              'ENTRADA',
+      destinacao:        'SERVICO_TOMADO',
+      taxRegimeFornecedor,
+      ufFornecedor:      nfse.prestadorUf ?? ufEmpresa,
       ufEmpresa,
       taxRegimeEmpresa,
     });
@@ -730,7 +731,7 @@ export class NfseService {
     const dataEmissao = nfse.dataEmissao ?? new Date();
     const periodoRef  = `${dataEmissao.getFullYear()}-${String(dataEmissao.getMonth()+1).padStart(2,'0')}`;
 
-    const debitaPisCofins = regra?.debitaPisCofins ?? (taxRegimeEmpresa !== 'SIMPLES_NACIONAL' && taxRegimeEmpresa !== 'MEI');
+    const debitaPisCofins = regra?.debitaPisCofins ?? (taxRegimeEmpresa !== 'SIMPLES_NACIONAL');
     const cfop = regra?.cfop ?? (ufCliente === ufEmpresa ? '5933' : '6933');
 
     return this.prisma.$transaction(async (tx) => {

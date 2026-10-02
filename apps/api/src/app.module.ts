@@ -27,6 +27,9 @@ import { FiModule } from './modules/commercial/fi/fi.module';
 import { ServiceOrderModule } from './modules/workshop/service-order/service-order.module';
 import { CalderariaModule } from './modules/workshop/calderaria/calderaria.module';
 import { RequisitionModule } from './modules/workshop/requisition/requisition.module';
+import { EquipamentosModule } from './modules/workshop/equipamentos/equipamentos.module';
+import { TarefasCatalogoModule } from './modules/workshop/tarefas-catalogo/tarefas-catalogo.module';
+import { ApontamentosOsModule } from './modules/workshop/apontamentos-os/apontamentos-os.module';
 
 // Corporate
 import { FiscalModule } from './modules/corporate/fiscal/fiscal.module';
@@ -87,6 +90,9 @@ import { WorkflowModule } from './modules/core/workflow/workflow.module';
     ServiceOrderModule,
     CalderariaModule,
     RequisitionModule,
+    EquipamentosModule,
+    TarefasCatalogoModule,
+    ApontamentosOsModule,
 
     // Corporate
     FiscalModule,

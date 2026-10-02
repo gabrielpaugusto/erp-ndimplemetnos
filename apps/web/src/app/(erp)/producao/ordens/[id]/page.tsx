@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
@@ -18,6 +18,11 @@ import {
   FlaskConical,
   Plus,
   Trash2,
+  Factory,
+  Zap,
+  StopCircle,
+  Hammer,
+  X,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { fmtPercent } from '@/lib/format';
@@ -58,6 +63,8 @@ interface Pointing {
   type: string;
   quantityProduced: number | null;
   quantityRejected: number | null;
+  observations: string | null;
+  motivoParada: string | null;
   user: { name: string } | null;
 }
 
@@ -105,6 +112,13 @@ interface ApontamentoConsumoLine {
   quantityConsumed: number;
 }
 
+interface WorkCenter {
+  id: string;
+  code: string;
+  name: string;
+  type: string;
+}
+
 interface ProductionOrder {
   id: string;
   numero: string;
@@ -142,6 +156,13 @@ const typeColors: Record<string, string> = {
   PARADA: 'bg-red-100 text-red-700',
 };
 
+const typeIcons: Record<string, React.ReactNode> = {
+  MAO_DE_OBRA: <Hammer className="w-3.5 h-3.5" />,
+  MATERIAL: <Package className="w-3.5 h-3.5" />,
+  SETUP: <Zap className="w-3.5 h-3.5" />,
+  PARADA: <StopCircle className="w-3.5 h-3.5" />,
+};
+
 function formatDuration(start: string, end: string | null): string {
   if (!end) return '-';
   const diffMs = new Date(end).getTime() - new Date(start).getTime();
@@ -150,6 +171,33 @@ function formatDuration(start: string, end: string | null): string {
   const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
   return `${hours}h ${minutes.toString().padStart(2, '0')}min`;
 }
+
+function toDatetimeLocal(date: Date): string {
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+interface ApontamentoForm {
+  workCenterId: string;
+  type: string;
+  dataInicio: string;
+  dataFim: string;
+  quantityProduced: string;
+  quantityRejected: string;
+  motivoParada: string;
+  observations: string;
+}
+
+const defaultApontamentoForm = (): ApontamentoForm => ({
+  workCenterId: '',
+  type: 'MAO_DE_OBRA',
+  dataInicio: toDatetimeLocal(new Date()),
+  dataFim: '',
+  quantityProduced: '',
+  quantityRejected: '',
+  motivoParada: '',
+  observations: '',
+});
 
 export default function OrdemProducaoDetailPage() {
   const toast = useToast();
@@ -165,10 +213,17 @@ export default function OrdemProducaoDetailPage() {
   const [consumoLoading, setConsumoLoading] = useState(false);
   const [showConsumoModal, setShowConsumoModal] = useState(false);
   const [consumoLines, setConsumoLines] = useState<ApontamentoConsumoLine[]>([{ productId: '', quantityConsumed: 0 }]);
-  const [quantityProduced, setQuantityProduced] = useState<number | ''>('');
+  const [quantityProducedConsumo, setQuantityProducedConsumo] = useState<number | ''>('');
   const [consumoSubmitting, setConsumoSubmitting] = useState(false);
 
-  const fetchOrder = async () => {
+  // Apontamento modal state
+  const [showApontamentoModal, setShowApontamentoModal] = useState(false);
+  const [workCenters, setWorkCenters] = useState<WorkCenter[]>([]);
+  const [workCentersLoading, setWorkCentersLoading] = useState(false);
+  const [apontamentoForm, setApontamentoForm] = useState<ApontamentoForm>(defaultApontamentoForm());
+  const [apontamentoSubmitting, setApontamentoSubmitting] = useState(false);
+
+  const fetchOrder = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     try {
@@ -182,9 +237,9 @@ export default function OrdemProducaoDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  const fetchConsumo = async () => {
+  const fetchConsumo = useCallback(async () => {
     if (!id) return;
     setConsumoLoading(true);
     try {
@@ -197,6 +252,104 @@ export default function OrdemProducaoDetailPage() {
       console.error('Erro ao carregar consumo:', err);
     } finally {
       setConsumoLoading(false);
+    }
+  }, [id]);
+
+  const fetchNecessidades = useCallback(async () => {
+    if (!id) return;
+    setNecessidadesLoading(true);
+    try {
+      const res = await apiFetch(`/api/production/orders/${id}/necessidades`);
+      if (res.ok) {
+        const data = await res.json();
+        setNecessidades(data);
+      }
+    } catch (err) {
+      console.error('Erro ao carregar necessidades:', err);
+    } finally {
+      setNecessidadesLoading(false);
+    }
+  }, [id]);
+
+  const fetchWorkCenters = async () => {
+    setWorkCentersLoading(true);
+    try {
+      const res = await apiFetch('/api/pcp/work-centers?limit=100');
+      if (res.ok) {
+        const data = await res.json();
+        setWorkCenters(data.data ?? data);
+      }
+    } catch (err) {
+      console.error('Erro ao carregar centros de trabalho:', err);
+    } finally {
+      setWorkCentersLoading(false);
+    }
+  };
+
+  const openApontamentoModal = () => {
+    setApontamentoForm(defaultApontamentoForm());
+    setShowApontamentoModal(true);
+    if (workCenters.length === 0) fetchWorkCenters();
+  };
+
+  const handleApontamento = async () => {
+    if (!order) return;
+    if (!apontamentoForm.workCenterId) {
+      toast.error('Selecione o Centro de Trabalho');
+      return;
+    }
+    if (!apontamentoForm.dataInicio) {
+      toast.error('Informe a data/hora de início');
+      return;
+    }
+    if (apontamentoForm.type === 'PARADA' && !apontamentoForm.motivoParada.trim()) {
+      toast.error('Informe o motivo da parada');
+      return;
+    }
+
+    setApontamentoSubmitting(true);
+    try {
+      const payload: Record<string, unknown> = {
+        productionOrderId: order.id,
+        workCenterId: apontamentoForm.workCenterId,
+        type: apontamentoForm.type,
+        dataInicio: new Date(apontamentoForm.dataInicio).toISOString(),
+      };
+      if (apontamentoForm.dataFim) {
+        payload.dataFim = new Date(apontamentoForm.dataFim).toISOString();
+      }
+      if (apontamentoForm.quantityProduced !== '') {
+        payload.quantityProduced = Number(apontamentoForm.quantityProduced);
+      }
+      if (apontamentoForm.quantityRejected !== '') {
+        payload.quantityRejected = Number(apontamentoForm.quantityRejected);
+      }
+      if (apontamentoForm.motivoParada.trim()) {
+        payload.motivoParada = apontamentoForm.motivoParada.trim();
+      }
+      if (apontamentoForm.observations.trim()) {
+        payload.observations = apontamentoForm.observations.trim();
+      }
+
+      const res = await apiFetch('/api/production/pointing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        toast.success('Apontamento registrado com sucesso');
+        setShowApontamentoModal(false);
+        await fetchOrder();
+      } else {
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        toast.error(err.message || 'Erro ao registrar apontamento');
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao registrar apontamento';
+      toast.error(message);
+    } finally {
+      setApontamentoSubmitting(false);
     }
   };
 
@@ -213,7 +366,7 @@ export default function OrdemProducaoDetailPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          quantityProduced: quantityProduced !== '' ? Number(quantityProduced) : undefined,
+          quantityProduced: quantityProducedConsumo !== '' ? Number(quantityProducedConsumo) : undefined,
           items: validLines.map(l => ({ productId: l.productId, quantityConsumed: l.quantityConsumed })),
         }),
       });
@@ -221,7 +374,7 @@ export default function OrdemProducaoDetailPage() {
         toast.success('Consumo apontado com sucesso');
         setShowConsumoModal(false);
         setConsumoLines([{ productId: '', quantityConsumed: 0 }]);
-        setQuantityProduced('');
+        setQuantityProducedConsumo('');
         await fetchConsumo();
         await fetchOrder();
       } else {
@@ -236,25 +389,9 @@ export default function OrdemProducaoDetailPage() {
     }
   };
 
-  const fetchNecessidades = async () => {
-    if (!id) return;
-    setNecessidadesLoading(true);
-    try {
-      const res = await apiFetch(`/api/production/orders/${id}/necessidades`);
-      if (res.ok) {
-        const data = await res.json();
-        setNecessidades(data);
-      }
-    } catch (err) {
-      console.error('Erro ao carregar necessidades:', err);
-    } finally {
-      setNecessidadesLoading(false);
-    }
-  };
-
   useEffect(() => {
     fetchOrder();
-  }, [id]);
+  }, [fetchOrder]);
 
   useEffect(() => {
     if (order && (order.status === 'LIBERADA' || order.status === 'EM_PRODUCAO')) {
@@ -318,6 +455,16 @@ export default function OrdemProducaoDetailPage() {
     emProducao: order.dataInicioReal,
     concluida: order.dataFimReal,
   };
+
+  const canApontar = order.status === 'EM_PRODUCAO' || order.status === 'LIBERADA';
+
+  // Totals for pointing summary
+  const totalHorasApontadas = order.pointings.reduce((acc, pt) => {
+    if (!pt.dataFim) return acc;
+    return acc + (new Date(pt.dataFim).getTime() - new Date(pt.dataInicio).getTime()) / (1000 * 60 * 60);
+  }, 0);
+  const totalProduzidoApontado = order.pointings.reduce((acc, pt) => acc + (pt.quantityProduced || 0), 0);
+  const totalRejeitadoApontado = order.pointings.reduce((acc, pt) => acc + (pt.quantityRejected || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -740,7 +887,142 @@ export default function OrdemProducaoDetailPage() {
         )}
       </div>
 
-      {/* Modal — Apontar Consumo */}
+      {/* Pointings Section */}
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Factory className="w-5 h-5 text-blue-600" />
+            <h2 className="text-lg font-semibold text-slate-900">Apontamentos de Produção</h2>
+            {order.pointings.length > 0 && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                {order.pointings.length}
+              </span>
+            )}
+          </div>
+          {canApontar && (
+            <button
+              onClick={openApontamentoModal}
+              className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Novo Apontamento
+            </button>
+          )}
+        </div>
+
+        {/* Summary KPIs */}
+        {order.pointings.length > 0 && (
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="bg-blue-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-slate-500 mb-1">Total Horas</p>
+              <p className="text-xl font-bold text-blue-700">{totalHorasApontadas.toFixed(1)}h</p>
+            </div>
+            <div className="bg-emerald-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-slate-500 mb-1">Qtd Produzida</p>
+              <p className="text-xl font-bold text-emerald-700">{totalProduzidoApontado}</p>
+            </div>
+            <div className="bg-red-50 rounded-lg p-3 text-center">
+              <p className="text-xs text-slate-500 mb-1">Qtd Rejeitada</p>
+              <p className="text-xl font-bold text-red-600">{totalRejeitadoApontado}</p>
+            </div>
+          </div>
+        )}
+
+        {order.pointings.length === 0 ? (
+          <div className="text-center py-8 text-slate-400">
+            <Factory className="w-10 h-10 mx-auto mb-3 opacity-30" />
+            <p className="text-sm">Nenhum apontamento registrado para esta ordem.</p>
+            {canApontar && (
+              <button
+                onClick={openApontamentoModal}
+                className="mt-3 inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 font-medium"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Registrar primeiro apontamento
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200">
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Data/Hora Início</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Centro Trabalho</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Tipo</th>
+                  <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Duração</th>
+                  <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Produzido</th>
+                  <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Rejeitado</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Operador</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {order.pointings.map((pt) => (
+                  <tr key={pt.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-3 text-sm text-slate-700">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                        {new Date(pt.dataInicio).toLocaleString('pt-BR')}
+                      </div>
+                      {pt.dataFim && (
+                        <div className="text-xs text-slate-400 mt-0.5 ml-5">
+                          até {new Date(pt.dataFim).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-900">
+                      {pt.workCenter ? (
+                        <div>
+                          <span className="font-mono text-xs text-slate-500">{pt.workCenter.code}</span>
+                          <span className="text-slate-400 mx-1">·</span>
+                          <span className="font-medium">{pt.workCenter.name}</span>
+                        </div>
+                      ) : '-'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${typeColors[pt.type] || 'bg-slate-100 text-slate-600'}`}>
+                        {typeIcons[pt.type]}
+                        {typeLabels[pt.type] || pt.type}
+                      </span>
+                      {pt.motivoParada && (
+                        <p className="text-xs text-slate-400 mt-1 italic">{pt.motivoParada}</p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm font-medium text-slate-900 text-center">
+                      {formatDuration(pt.dataInicio, pt.dataFim)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-center">
+                      {pt.quantityProduced && pt.quantityProduced > 0 ? (
+                        <span className="font-semibold text-emerald-700">{pt.quantityProduced}</span>
+                      ) : (
+                        <span className="text-slate-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-center">
+                      {pt.quantityRejected && pt.quantityRejected > 0 ? (
+                        <span className="font-semibold text-red-600">{pt.quantityRejected}</span>
+                      ) : (
+                        <span className="text-slate-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-700">{pt.user?.name || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Observations */}
+      {order.observations && (
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+          <h2 className="text-lg font-semibold text-slate-900 mb-3">Observações</h2>
+          <p className="text-sm text-slate-700 leading-relaxed">{order.observations}</p>
+        </div>
+      )}
+
+      {/* ── Modal: Apontar Consumo ── */}
       {showConsumoModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
@@ -750,21 +1032,21 @@ export default function OrdemProducaoDetailPage() {
                 <h3 className="text-lg font-semibold text-slate-900">Apontar Consumo Real</h3>
               </div>
               <button onClick={() => setShowConsumoModal(false)} className="text-slate-400 hover:text-slate-600">
-                <XCircle className="w-5 h-5" />
+                <X className="w-5 h-5" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               {/* Quantidade produzida (opcional) */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Quantidade Produzida (opcional — acumula no total)
+                  Quantidade Produzida <span className="text-slate-400 font-normal">(opcional — acumula no total)</span>
                 </label>
                 <input
                   type="number"
                   min={0}
                   step="any"
-                  value={quantityProduced}
-                  onChange={(e) => setQuantityProduced(e.target.value === '' ? '' : Number(e.target.value))}
+                  value={quantityProducedConsumo}
+                  onChange={(e) => setQuantityProducedConsumo(e.target.value === '' ? '' : Number(e.target.value))}
                   placeholder="0"
                   className="w-40 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
                 />
@@ -849,85 +1131,183 @@ export default function OrdemProducaoDetailPage() {
         </div>
       )}
 
-      {/* Pointings Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-blue-600" />
-            <h2 className="text-lg font-semibold text-slate-900">Apontamentos</h2>
-          </div>
-          <Link
-            href="/producao/apontamentos/novo"
-            className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium transition-colors"
-          >
-            <Clock className="w-3.5 h-3.5" />
-            Novo Apontamento
-          </Link>
-        </div>
-        {order.pointings.length === 0 ? (
-          <p className="text-sm text-slate-400">Nenhum apontamento registrado para esta ordem.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Data/Hora</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Centro Trabalho</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Tipo</th>
-                  <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Duração</th>
-                  <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Produzido</th>
-                  <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Rejeitado</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Operador</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {order.pointings.map((pt) => (
-                  <tr key={pt.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3 text-sm text-slate-700">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                        {new Date(pt.dataInicio).toLocaleString('pt-BR')}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-900">
-                      {pt.workCenter ? `${pt.workCenter.code} — ${pt.workCenter.name}` : '-'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${typeColors[pt.type] || 'bg-slate-100 text-slate-600'}`}>
-                        {typeLabels[pt.type] || pt.type}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm font-medium text-slate-900 text-center">
-                      {formatDuration(pt.dataInicio, pt.dataFim)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-center">
-                      {pt.quantityProduced && pt.quantityProduced > 0 ? (
-                        <span className="font-semibold text-emerald-700">{pt.quantityProduced}</span>
-                      ) : (
-                        <span className="text-slate-400">-</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-center">
-                      {pt.quantityRejected && pt.quantityRejected > 0 ? (
-                        <span className="font-semibold text-red-600">{pt.quantityRejected}</span>
-                      ) : (
-                        <span className="text-slate-400">-</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-700">{pt.user?.name || '-'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      {/* ── Modal: Novo Apontamento de Produção ── */}
+      {showApontamentoModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-5 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <Factory className="w-5 h-5 text-blue-600" />
+                <h3 className="text-lg font-semibold text-slate-900">Novo Apontamento</h3>
+                <span className="text-xs font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded">{order.numero}</span>
+              </div>
+              <button onClick={() => setShowApontamentoModal(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-      {/* Observations */}
-      {order.observations && (
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-3">Observações</h2>
-          <p className="text-sm text-slate-700 leading-relaxed">{order.observations}</p>
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {/* Tipo de apontamento */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Tipo de Apontamento</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['MAO_DE_OBRA', 'MATERIAL', 'SETUP', 'PARADA'] as const).map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setApontamentoForm(f => ({ ...f, type: t }))}
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
+                        apontamentoForm.type === t
+                          ? t === 'MAO_DE_OBRA' ? 'bg-blue-600 text-white border-blue-600'
+                          : t === 'MATERIAL' ? 'bg-emerald-600 text-white border-emerald-600'
+                          : t === 'SETUP' ? 'bg-amber-500 text-white border-amber-500'
+                          : 'bg-red-600 text-white border-red-600'
+                          : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      {typeIcons[t]}
+                      {typeLabels[t]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Centro de Trabalho */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Centro de Trabalho <span className="text-red-500">*</span>
+                </label>
+                {workCentersLoading ? (
+                  <p className="text-sm text-slate-400">Carregando centros de trabalho...</p>
+                ) : (
+                  <select
+                    value={apontamentoForm.workCenterId}
+                    onChange={(e) => setApontamentoForm(f => ({ ...f, workCenterId: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  >
+                    <option value="">Selecione...</option>
+                    {workCenters.map((wc) => (
+                      <option key={wc.id} value={wc.id}>
+                        {wc.code} — {wc.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {/* Datas */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Início <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={apontamentoForm.dataInicio}
+                    onChange={(e) => setApontamentoForm(f => ({ ...f, dataInicio: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Fim <span className="text-slate-400 font-normal">(opcional)</span>
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={apontamentoForm.dataFim}
+                    onChange={(e) => setApontamentoForm(f => ({ ...f, dataFim: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* Quantidades (apenas MAO_DE_OBRA) */}
+              {(apontamentoForm.type === 'MAO_DE_OBRA' || apontamentoForm.type === 'MATERIAL') && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Qtd Produzida</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step="any"
+                      value={apontamentoForm.quantityProduced}
+                      onChange={(e) => setApontamentoForm(f => ({ ...f, quantityProduced: e.target.value }))}
+                      placeholder="0"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Qtd Rejeitada</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step="any"
+                      value={apontamentoForm.quantityRejected}
+                      onChange={(e) => setApontamentoForm(f => ({ ...f, quantityRejected: e.target.value }))}
+                      placeholder="0"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Motivo Parada (apenas PARADA) */}
+              {apontamentoForm.type === 'PARADA' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Motivo da Parada <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={apontamentoForm.motivoParada}
+                    onChange={(e) => setApontamentoForm(f => ({ ...f, motivoParada: e.target.value }))}
+                    placeholder="Ex: Falta de matéria-prima, manutenção, ..."
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              )}
+
+              {/* Observações */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Observações <span className="text-slate-400 font-normal">(opcional)</span>
+                </label>
+                <textarea
+                  value={apontamentoForm.observations}
+                  onChange={(e) => setApontamentoForm(f => ({ ...f, observations: e.target.value }))}
+                  rows={2}
+                  placeholder="Observações adicionais..."
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 p-5 border-t border-slate-200">
+              <button
+                onClick={() => setShowApontamentoModal(false)}
+                className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleApontamento}
+                disabled={apontamentoSubmitting}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              >
+                {apontamentoSubmitting ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-3.5 h-3.5" />
+                    Registrar Apontamento
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -71,5 +71,5 @@ USER nestjs
 
 EXPOSE 3001
 
-# Sincroniza o schema com o banco antes de iniciar a API
-CMD ["sh", "-c", "prisma db push --schema packages/db/prisma/schema.prisma --skip-generate && node apps/api/dist/main.js"]
+# Inicia a API (prisma db push é executado como passo separado no CI/CD)
+CMD ["node", "apps/api/dist/main.js"]

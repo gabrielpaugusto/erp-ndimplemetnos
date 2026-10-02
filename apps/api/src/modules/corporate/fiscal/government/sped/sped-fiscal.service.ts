@@ -494,8 +494,11 @@ export class SpedFiscalService extends GovernmentTransmissionService {
 
       // C170 — NFeInboxItem
       for (const item of inboxItems) {
-        const codItem = (item as any).codigoProdutoFornecedor ?? '';
-        const descrItem = (item as any).descricaoProduto ?? '';
+        const codItem    = (item as any).codigoProdutoFornecedor ?? '';
+        const descrItem  = (item as any).descricaoProduto ?? '';
+        const cstIcmsItem = String((item as any).cstIcms ?? '000');
+        const bcIcmsOp   = Number((item as any).bcIcmsOp   ?? 0);
+        const aliqIcmsOp = Number((item as any).aliqIcmsOp ?? 0);
         lines.push(
           generateSpedLine(
             'C170',
@@ -507,11 +510,11 @@ export class SpedFiscalService extends GovernmentTransmissionService {
             formatSpedDecimal(Number((item as any).valorTotal ?? 0)),
             formatSpedDecimal(0),                      // vl_desc
             '0',                                       // ind_mov
-            '000',                                     // cst_icms (not stored in NFeInboxItem)
+            cstIcmsItem,                               // cst_icms — real value from schema
             String((item as any).cfop ?? ''),          // cfop
             '',                                        // cod_nat
-            formatSpedDecimal(0),                      // vl_bc_icms (not stored)
-            formatSpedDecimal(0),                      // aliq_icms
+            formatSpedDecimal(bcIcmsOp),               // vl_bc_icms — op. própria
+            formatSpedDecimal(aliqIcmsOp),             // aliq_icms  — op. própria
             formatSpedDecimal(Number((item as any).valorIcms ?? 0)),
             formatSpedDecimal(0),                      // vl_bc_icms_st
             formatSpedDecimal(0),                      // aliq_icms_st
@@ -536,6 +539,25 @@ export class SpedFiscalService extends GovernmentTransmissionService {
           ),
         );
         lineCount++;
+
+        // ── C197 — Ajuste por item: crédito Art. 272 RICMS-SP ──────────────
+        // Gerado quando cstIcms = "60" e existe FiscalEntry CREDITO Art. 272
+        // com referência a este item.
+        if (cstIcmsItem === '60' && Number((item as any).valorIcmsOp ?? 0) > 0) {
+          const valorIcmsOp = Number((item as any).valorIcmsOp);
+          lines.push(
+            generateSpedLine(
+              'C197',
+              'SP20020100',                             // cod_aj — Art. 272 crédito op. própria
+              'Crédito ICMS op. própria do substituto - Art. 272 RICMS-SP - CST 60 - Industrialização',
+              codItem,                                  // cod_item
+              formatSpedDecimal(bcIcmsOp),              // vl_bc_icms
+              formatSpedDecimal(aliqIcmsOp),            // aliq_icms
+              formatSpedDecimal(valorIcmsOp),           // vl_icms
+            ),
+          );
+          lineCount++;
+        }
       }
     }
 
@@ -561,6 +583,7 @@ export class SpedFiscalService extends GovernmentTransmissionService {
 
     // -------------------------------------------------------------------------
     // E110 — ICMS apuração (real: aggregate from FiscalEntry)
+    // Inclui ajustes Art. 272 RICMS-SP (crédito CST 60 + industrialização)
     // -------------------------------------------------------------------------
     const periodoRef = `${periodoInicio.getFullYear()}-${String(periodoInicio.getMonth() + 1).padStart(2, '0')}`;
 
@@ -577,31 +600,54 @@ export class SpedFiscalService extends GovernmentTransmissionService {
       .reduce((s, e) => s + Number((e as any).valorImposto ?? 0), 0);
 
     const creditosIcms = fiscalEntries
-      .filter((e) => (e as any).bookType === 'ENTRADA' && (e as any).type === 'CREDITO')
+      .filter((e) => (e as any).bookType === 'ENTRADA' && (e as any).type === 'CREDITO'
+                  && !(e as any).codigoAjusteSped) // créditos normais (sem código ajuste)
       .reduce((s, e) => s + Number((e as any).valorImposto ?? 0), 0);
 
-    const saldoApurado = debitosIcms - creditosIcms;
+    // Ajustes a crédito do período: créditos Art. 272 + outros com codigoAjusteSped
+    const ajustesCreditoArt272 = fiscalEntries
+      .filter((e) => (e as any).codigoAjusteSped === 'SP20020100')
+      .reduce((s, e) => s + Number((e as any).valorImposto ?? 0), 0);
+
+    const totalAjustesCredito = ajustesCreditoArt272; // somar outros ajustes futuros aqui
+
+    const saldoApurado = debitosIcms - creditosIcms - totalAjustesCredito;
     const icmsRecolher = Math.max(0, saldoApurado);
     const saldoCredorTransp = Math.max(0, -saldoApurado);
 
     lines.push(
       generateSpedLine(
         'E110',
-        formatSpedDecimal(debitosIcms),        // VL_TOT_DEBITOS
-        formatSpedDecimal(0),                  // VL_AJ_DEBITOS
-        formatSpedDecimal(debitosIcms),        // VL_TOT_AJ_DEBITOS
-        formatSpedDecimal(creditosIcms),       // VL_TOT_CREDITOS
-        formatSpedDecimal(0),                  // VL_AJ_CREDITOS
-        formatSpedDecimal(creditosIcms),       // VL_TOT_AJ_CREDITOS
-        formatSpedDecimal(0),                  // VL_SLD_CREDOR_ANT
-        formatSpedDecimal(saldoApurado),       // VL_SLD_APURADO
-        formatSpedDecimal(0),                  // VL_TOT_DED
-        formatSpedDecimal(icmsRecolher),       // VL_ICMS_RECOLHER
-        formatSpedDecimal(saldoCredorTransp),  // VL_SLD_CREDOR_TRANSP
-        formatSpedDecimal(0),                  // VL_DEB_ESP
+        formatSpedDecimal(debitosIcms),           // VL_TOT_DEBITOS
+        formatSpedDecimal(0),                     // VL_AJ_DEBITOS
+        formatSpedDecimal(debitosIcms),           // VL_TOT_AJ_DEBITOS
+        formatSpedDecimal(creditosIcms),          // VL_TOT_CREDITOS
+        formatSpedDecimal(totalAjustesCredito),   // VL_AJ_CREDITOS ← Art. 272 + outros
+        formatSpedDecimal(creditosIcms + totalAjustesCredito), // VL_TOT_AJ_CREDITOS
+        formatSpedDecimal(0),                     // VL_SLD_CREDOR_ANT
+        formatSpedDecimal(saldoApurado),          // VL_SLD_APURADO
+        formatSpedDecimal(0),                     // VL_TOT_DED
+        formatSpedDecimal(icmsRecolher),          // VL_ICMS_RECOLHER
+        formatSpedDecimal(saldoCredorTransp),     // VL_SLD_CREDOR_TRANSP
+        formatSpedDecimal(0),                     // VL_DEB_ESP
       ),
     );
     lineCount++;
+
+    // ── E111 — Ajustes de apuração por código (Art. 272 RICMS-SP) ─────────────
+    // Gerado para cada código de ajuste com valor no período.
+    // E111 é filho do E110.
+    if (ajustesCreditoArt272 > 0) {
+      lines.push(
+        generateSpedLine(
+          'E111',
+          'SP20020100',           // cod_aj_apur — código da tabela 5.1.1 SEFAZ-SP
+          'Crédito do ICMS relativo à operação própria do substituto — Art. 272 RICMS-SP — Mercadoria CST 60 destinada à industrialização',
+          formatSpedDecimal(ajustesCreditoArt272), // vl_aj_apur
+        ),
+      );
+      lineCount++;
+    }
 
     // Register E200 - ICMS ST period
     lines.push(

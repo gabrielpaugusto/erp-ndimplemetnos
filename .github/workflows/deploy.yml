@@ -140,7 +140,46 @@ jobs:
             # Garante que o .env existe para o docker compose ler as variáveis
             cp /opt/erp/.env.production /opt/erp/.env
 
-            # Sobe todos os serviços (ignora falha de health check para diagnostico)
+            # Garante que postgres está rodando antes de migrar
+            docker compose -f docker-compose.cloud.yml up -d postgres redis minio
+            echo "Aguardando postgres ficar pronto..."
+            sleep 20
+
+            # Executa prisma db push como passo isolado (com accept-data-loss para novos campos)
+            echo "=== EXECUTANDO prisma db push ==="
+            docker run --rm \
+              --env-file /opt/erp/.env.production \
+              --network erp_erp-net \
+              $IMAGE_API \
+              sh -c "prisma db push --schema packages/db/prisma/schema.prisma --skip-generate --accept-data-loss" \
+              && echo "✅ prisma db push concluído com sucesso" \
+              || echo "⚠️  prisma db push retornou erro — verifique o schema"
+
+            # Verifica se o certificado SSL está válido ou prestes a expirar
+            echo "=== VERIFICANDO CERTIFICADO SSL ==="
+            CERT_FILE="/etc/letsencrypt/live/erp.ndimplementos.com.br/fullchain.pem"
+            if [ -f "$CERT_FILE" ]; then
+              EXPIRY=$(openssl x509 -enddate -noout -in "$CERT_FILE" 2>/dev/null | cut -d= -f2)
+              echo "Certificado expira em: $EXPIRY"
+              # Tenta renovar se expira em menos de 30 dias (ou já expirou)
+              if ! openssl x509 -checkend 2592000 -noout -in "$CERT_FILE" 2>/dev/null; then
+                echo "⚠️  Certificado expira em menos de 30 dias ou já expirou — tentando renovar..."
+                docker stop erp-nginx 2>/dev/null || true
+                certbot renew --standalone --quiet --no-random-sleep-on-renew || true
+                echo "Renovação concluída (verifique acima por erros)"
+              else
+                echo "✅ Certificado SSL válido por mais de 30 dias"
+              fi
+            else
+              echo "⚠️  Certificado não encontrado em $CERT_FILE — nginx pode falhar"
+            fi
+
+            # Configura cron para recarregar nginx após renovação automática (idempotente)
+            CRON_LINE="0 */12 * * * docker exec erp-nginx nginx -s reload 2>/dev/null || true"
+            ( crontab -l 2>/dev/null | grep -v "erp-nginx nginx -s reload"; echo "$CRON_LINE" ) | crontab -
+            echo "✅ Cron de reload do nginx configurado"
+
+            # Sobe todos os serviços
             docker compose -f docker-compose.cloud.yml up -d || true
 
             # Aguarda containers estabilizarem

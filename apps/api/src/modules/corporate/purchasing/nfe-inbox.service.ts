@@ -1527,8 +1527,11 @@ export class NfeInboxService {
     });
     const taxRegimeEmpresa = (company as any)?.taxRegime ?? 'LUCRO_REAL';
     const ufEmpresa        = (company as any)?.uf ?? '';
-    const ufFornecedor     = (inbox.emitentePessoa as any)?.uf ?? (inbox as any).emitenteUf ?? '';
-    const tipoFornecedor   = (inbox.emitentePessoa as any)?.tipoFornecedor ?? undefined;
+    const ufFornecedor        = (inbox.emitentePessoa as any)?.uf ?? (inbox as any).emitenteUf ?? '';
+    // Resolve motor fiscal: prioriza novos campos (ramoAtividade + taxRegime), fallback legado
+    const ramoAtividade       = (inbox.emitentePessoa as any)?.ramoAtividade?.codigo ?? undefined;
+    const taxRegimeFornecedor = (inbox.emitentePessoa as any)?.taxRegime ?? undefined;
+    const tipoFornecedor      = (inbox.emitentePessoa as any)?.tipoFornecedor ?? undefined; // legado
 
     const today = new Date();
     const periodoReferencia = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
@@ -1569,7 +1572,9 @@ export class NfeInboxService {
       const regra = await this.operacoesFiscais.determinar(companyId, {
         tipo: 'ENTRADA',
         destinacao,
-        tipoFornecedor,
+        ramoAtividade,
+        taxRegimeFornecedor,
+        tipoFornecedor,   // legado — fallback automático no motor
         ufFornecedor,
         ufEmpresa,
         temST,

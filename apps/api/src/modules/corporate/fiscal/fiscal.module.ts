@@ -23,6 +23,10 @@ import { NfseModule } from './nfse/nfse.module';
 import { FiscalBrainModule } from './fiscal-brain/fiscal-brain.module';
 import { StProtocoloController } from './st-protocolo.controller';
 import { StProtocoloService } from './st-protocolo.service';
+import { STDetectorService } from './st-detector.service';
+import { StEntradaCst60Service } from './st-entrada-cst60.service';
+import { DeclaracaoArt264Service } from './declaracao-art264.service';
+import { DeclaracaoArt264Controller } from './declaracao-art264.controller';
 import { CbenefController } from './cbenef.controller';
 import { CbenefService } from './cbenef.service';
 
@@ -36,6 +40,7 @@ import { CbenefService } from './cbenef.service';
     FiscalEngineController,
     OperacoesFiscaisController,
     StProtocoloController,
+    DeclaracaoArt264Controller,
     CbenefController,
   ],
   providers: [
@@ -52,8 +57,11 @@ import { CbenefService } from './cbenef.service';
     FiscalEngineAutomationService,
     OperacoesFiscaisService,
     StProtocoloService,
+    STDetectorService,
+    StEntradaCst60Service,
+    DeclaracaoArt264Service,
     CbenefService,
   ],
-  exports: [NcmService, TaxEngineService, NfeService, FiscalEngineAutomationService, OperacoesFiscaisService, GovernmentTransmissionModule, NfseModule, FiscalBrainModule, StProtocoloService, CbenefService],
+  exports: [NcmService, TaxEngineService, NfeService, FiscalEngineAutomationService, OperacoesFiscaisService, GovernmentTransmissionModule, NfseModule, FiscalBrainModule, StProtocoloService, STDetectorService, StEntradaCst60Service, DeclaracaoArt264Service, CbenefService],
 })
 export class FiscalModule {}

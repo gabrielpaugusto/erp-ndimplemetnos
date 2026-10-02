@@ -9,6 +9,7 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed-carroceria": "tsx prisma/seed-carroceria.ts",
     "studio": "prisma studio",
     "clean": "rm -rf dist"
   },

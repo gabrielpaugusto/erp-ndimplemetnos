@@ -52,21 +52,27 @@ interface VehicleInShop {
 }
 
 const STATUS_COLOR_MAP: Record<string, string> = {
-  ABERTA: 'bg-slate-100 text-slate-600',
+  ORCAMENTO: 'bg-slate-100 text-slate-600',
+  AGUARD_APROVACAO: 'bg-sky-100 text-sky-700',
+  APROVADA: 'bg-violet-100 text-violet-700',
   EM_EXECUCAO: 'bg-rose-100 text-rose-700',
-  AGUARDANDO_PECAS: 'bg-amber-100 text-amber-700',
+  AGUARD_PECAS: 'bg-amber-100 text-amber-700',
   CONCLUIDA: 'bg-emerald-100 text-emerald-700',
-  ENTREGUE: 'bg-blue-100 text-blue-700',
+  FATURADA: 'bg-blue-100 text-blue-700',
   CANCELADA: 'bg-red-100 text-red-700',
+  VENDA_PERDIDA: 'bg-gray-100 text-gray-500',
 };
 
 const STATUS_LABEL_MAP: Record<string, string> = {
-  ABERTA: 'Aberta',
+  ORCAMENTO: 'Orçamento',
+  AGUARD_APROVACAO: 'Aguard. Aprovação',
+  APROVADA: 'Aprovada',
   EM_EXECUCAO: 'Em Execução',
-  AGUARDANDO_PECAS: 'Aguardando Peças',
+  AGUARD_PECAS: 'Aguard. Peças',
   CONCLUIDA: 'Concluída',
-  ENTREGUE: 'Entregue',
+  FATURADA: 'Faturada',
   CANCELADA: 'Cancelada',
+  VENDA_PERDIDA: 'Venda Perdida',
 };
 
 const PRIORITY_COLOR_MAP: Record<string, string> = {
@@ -77,14 +83,16 @@ const PRIORITY_COLOR_MAP: Record<string, string> = {
 };
 
 const TYPE_LABEL_MAP: Record<string, string> = {
-  MANUTENCAO: 'Manutenção',
-  REFORMA: 'Reforma',
-  INSTALACAO: 'Instalação',
+  MECANICA: 'Mecânica',
+  CALDERARIA: 'Calderaria',
+  PINTURA: 'Pintura',
+  MISTA: 'Mista',
   GARANTIA: 'Garantia',
-  ORCAMENTO: 'Orçamento',
+  INSTALACAO: 'Instalação',
+  INTERNA: 'Interna',
 };
 
-const ACTIVE_STATUSES = ['ABERTA', 'EM_EXECUCAO', 'AGUARDANDO_PECAS'];
+const ACTIVE_STATUSES = ['APROVADA', 'EM_EXECUCAO', 'AGUARD_PECAS'];
 
 export default function OficinaDashboardPage() {
   const [recentOS, setRecentOS] = useState<RecentOS[]>([]);
@@ -112,13 +120,15 @@ export default function OficinaDashboardPage() {
             items.map((os: any) => ({
               id: os.id,
               number: os.numero,
-              client: os.person?.razaoSocial ?? '—',
-              vehicle: os.veiculoDescricao ?? '—',
-              plate: os.veiculoPlaca ?? '—',
+              client: os.person?.razaoSocial ?? os.person?.nomeFantasia ?? '—',
+              vehicle: os.equipamento
+                ? [os.equipamento.marca, os.equipamento.modelo].filter(Boolean).join(' ') || os.equipamento.tipoCarroceria?.nome || '—'
+                : '—',
+              plate: os.equipamento?.placa ?? os.equipamento?.serialNumber ?? '—',
               type: TYPE_LABEL_MAP[os.type] ?? os.type,
               status: STATUS_LABEL_MAP[os.status] ?? os.status,
               statusColor: STATUS_COLOR_MAP[os.status] ?? 'bg-slate-100 text-slate-600',
-              priority: os.priority,
+              priority: os.priority ?? 'NORMAL',
               priorityColor: PRIORITY_COLOR_MAP[os.priority] ?? 'bg-blue-100 text-blue-700',
               entryDate: os.dataEntrada,
             }))
@@ -138,11 +148,15 @@ export default function OficinaDashboardPage() {
             sorted.slice(0, 3).map((os: any) => {
               const entryDate = os.dataEntrada ? new Date(os.dataEntrada) : new Date();
               const daysOpen = Math.floor((Date.now() - entryDate.getTime()) / (1000 * 60 * 60 * 24));
+              const equip = os.equipamento;
+              const equipLabel = equip
+                ? [equip.marca, equip.modelo].filter(Boolean).join(' ') + (equip.placa ? ` — ${equip.placa}` : '')
+                : '—';
               return {
                 id: os.id,
                 number: os.numero,
-                vehicle: `${os.veiculoDescricao ?? '—'}${os.veiculoPlaca ? ` — ${os.veiculoPlaca}` : ''}`,
-                priority: os.priority,
+                vehicle: equipLabel,
+                priority: os.priority ?? 'NORMAL',
                 priorityColor: PRIORITY_COLOR_MAP[os.priority] ?? 'bg-blue-100 text-blue-700',
                 description: os.defeitoRelatado ?? '—',
                 daysOpen,
@@ -153,8 +167,10 @@ export default function OficinaDashboardPage() {
           setVehicles(
             activeItems.map((os: any) => ({
               id: os.id,
-              plate: os.veiculoPlaca ?? '—',
-              description: os.veiculoDescricao ?? '—',
+              plate: os.equipamento?.placa ?? os.equipamento?.serialNumber ?? '—',
+              description: os.equipamento
+                ? [os.equipamento.marca, os.equipamento.modelo].filter(Boolean).join(' ') || os.equipamento.tipoCarroceria?.nome || '—'
+                : '—',
               osNumber: os.numero,
               entryDate: os.dataEntrada,
               status: STATUS_LABEL_MAP[os.status] ?? os.status,
@@ -167,9 +183,9 @@ export default function OficinaDashboardPage() {
           const statsData = await statsRes.json();
           const byStatus: { status: string; count: number }[] = statsData.byStatus || [];
           const getCount = (s: string) => byStatus.find((x) => x.status === s)?.count ?? 0;
-          setOsAbertas(getCount('ABERTA'));
+          setOsAbertas(getCount('ORCAMENTO') + getCount('AGUARD_APROVACAO') + getCount('APROVADA'));
           setOsEmExecucao(getCount('EM_EXECUCAO'));
-          setOsAguardandoPecas(getCount('AGUARDANDO_PECAS'));
+          setOsAguardandoPecas(getCount('AGUARD_PECAS'));
           setOsConcluidasHoje(getCount('CONCLUIDA'));
         }
       } catch (err) {
@@ -202,11 +218,11 @@ export default function OficinaDashboardPage() {
               <div className="w-10 h-10 bg-rose-100 rounded-lg flex items-center justify-center">
                 <ClipboardList className="w-5 h-5 text-rose-600" />
               </div>
-              <h3 className="text-sm font-semibold text-slate-700">OSs Abertas</h3>
+              <h3 className="text-sm font-semibold text-slate-700">OS Ativas</h3>
             </div>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-500">Total ativas</span>
+            <span className="text-xs text-slate-500">Orç + Aprovadas</span>
             <span className="text-2xl font-bold text-rose-700">{loading ? '—' : osAbertas}</span>
           </div>
         </div>

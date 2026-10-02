@@ -14,6 +14,9 @@ import {
   XCircle,
   AlertTriangle,
   Calendar,
+  Pencil,
+  Check,
+  X,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
@@ -47,6 +50,7 @@ interface Employee {
     email?: string | null;
     dataNascimento?: string | null;
   } | null;
+  valorHora?: number | null;
   costCenter?: { id: string; code: string; name: string } | null;
   benefits?: { id: string; type: string; description?: string | null; valorFuncionario: number }[];
 }
@@ -61,6 +65,11 @@ export default function FuncionarioDetailPage() {
   const [notFound, setNotFound] = useState(false);
   const [showDemitirModal, setShowDemitirModal] = useState(false);
   const [demitindo, setDemitindo] = useState(false);
+
+  // Edição inline do valorHora
+  const [editingValorHora, setEditingValorHora] = useState(false);
+  const [valorHoraInput, setValorHoraInput] = useState('');
+  const [savingValorHora, setSavingValorHora] = useState(false);
 
   useEffect(() => {
     async function fetchEmployee() {
@@ -77,6 +86,24 @@ export default function FuncionarioDetailPage() {
     }
     fetchEmployee();
   }, [id]);
+
+  const handleSaveValorHora = async () => {
+    if (!employee) return;
+    setSavingValorHora(true);
+    try {
+      const updated = await api<Employee>(`/hr/employees/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ valorHora: parseFloat(valorHoraInput) || 0 }),
+      });
+      setEmployee(updated);
+      setEditingValorHora(false);
+      toast.success('Valor/hora atualizado!');
+    } catch {
+      toast.error('Erro ao salvar valor/hora');
+    } finally {
+      setSavingValorHora(false);
+    }
+  };
 
   const handleDemitir = async () => {
     if (!employee) return;
@@ -183,6 +210,44 @@ export default function FuncionarioDetailPage() {
             <div className="flex justify-between"><span className="text-sm text-slate-500">Salario Base</span><span className="text-sm font-bold text-slate-900">{formatCurrency(Number(employee.salarioBase))}</span></div>
             <div className="flex justify-between"><span className="text-sm text-slate-500">CTPS</span><span className="text-sm font-medium text-slate-900">{employee.ctps ?? '—'}</span></div>
             <div className="flex justify-between"><span className="text-sm text-slate-500">PIS</span><span className="text-sm font-medium text-slate-900">{employee.pis ?? '—'}</span></div>
+
+            {/* Valor/Hora — editável inline */}
+            <div className="flex items-center justify-between pt-1 border-t border-slate-100 mt-1">
+              <span className="text-sm text-slate-500">Valor/Hora (MO)</span>
+              {editingValorHora ? (
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-slate-400">R$</span>
+                  <input
+                    type="number"
+                    value={valorHoraInput}
+                    onChange={(e) => setValorHoraInput(e.target.value)}
+                    step="0.01"
+                    min="0"
+                    autoFocus
+                    className="w-24 px-2 py-0.5 text-sm border border-sky-300 rounded focus:outline-none focus:ring-1 focus:ring-sky-500 text-right"
+                  />
+                  <button onClick={handleSaveValorHora} disabled={savingValorHora} className="p-1 text-emerald-600 hover:text-emerald-700 disabled:opacity-50">
+                    <Check className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={() => setEditingValorHora(false)} className="p-1 text-slate-400 hover:text-slate-600">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-bold text-sky-700">
+                    {employee.valorHora != null ? `${formatCurrency(Number(employee.valorHora))}/h` : '—'}
+                  </span>
+                  <button
+                    onClick={() => { setValorHoraInput(String(employee.valorHora ?? '')); setEditingValorHora(true); }}
+                    className="p-0.5 text-slate-300 hover:text-sky-500 transition-colors"
+                    title="Editar valor/hora"
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

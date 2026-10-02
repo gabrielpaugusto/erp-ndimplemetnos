@@ -25,10 +25,10 @@ export class ApontamentosService {
         orderBy: { numero: 'asc' },
       }),
       this.prisma.serviceOrder.findMany({
-        where: { companyId, status: { in: ['ABERTA', 'EM_EXECUCAO'] } },
+        where: { companyId, status: { in: ['APROVADA', 'EM_EXECUCAO'] } },
         select: {
           id: true, numero: true, status: true,
-          veiculoDescricao: true, veiculoPlaca: true,
+          equipamento: { select: { placa: true, chassi: true, serialNumber: true, tipo: true } },
           person: { select: { razaoSocial: true } },
         },
         orderBy: { numero: 'asc' },
@@ -93,7 +93,7 @@ export class ApontamentosService {
       include: {
         productionOrder: { select: { numero: true, product: { select: { description: true } } } },
         routingStep: { select: { description: true, stepNumber: true } },
-        serviceOrder: { select: { numero: true, veiculoDescricao: true, veiculoPlaca: true } },
+        serviceOrder: { select: { numero: true, equipamento: { select: { placa: true, tipo: true } } } },
         etapaOs: { select: { descricao: true, sequencia: true } },
         calderariaOrder: { select: { numero: true, description: true } },
         etapaCalderaria: { select: { descricao: true, sequencia: true } },
@@ -110,7 +110,7 @@ export class ApontamentosService {
         employee: { include: { person: { select: { razaoSocial: true } } } },
         productionOrder: { select: { numero: true } },
         routingStep: { select: { description: true } },
-        serviceOrder: { select: { numero: true, veiculoDescricao: true } },
+        serviceOrder: { select: { numero: true, equipamento: { select: { placa: true, tipo: true } } } },
         etapaOs: { select: { descricao: true } },
         calderariaOrder: { select: { numero: true, description: true } },
         etapaCalderaria: { select: { descricao: true } },

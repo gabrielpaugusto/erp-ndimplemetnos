@@ -19,6 +19,7 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(120)
   descriptionShort?: string;
 
   @IsOptional()
@@ -39,6 +40,7 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(7)
   cestCode?: string;
 
   @IsOptional()
@@ -81,6 +83,7 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(14)
   barcode?: string;
 
   @IsOptional()

@@ -127,6 +127,90 @@ const PAISES_DATA = [
   { code: '9999', iso2: 'EX', iso3: 'EXT', name: 'EXTERIOR', nameEn: 'EXTERIOR' },
 ];
 
+// ============================================================================
+// TIPOS DE CARROCERIA — DENATRAN / CONTRAN (Res. 642/2016)
+// codigoLegal = código oficial do tipo de carroceria no licenciamento
+// ============================================================================
+const TIPOS_CARROCERIA_DATA = [
+  { codigoLegal: 'BA',  nome: 'Baú',                  descricao: 'Carroceria fechada, paredes rígidas — carga seca geral',                         ordem: 1  },
+  { codigoLegal: 'BS',  nome: 'Basculante',            descricao: 'Carroceria com sistema hidráulico de tombamento — granéis sólidos e entulhos',   ordem: 2  },
+  { codigoLegal: 'GR',  nome: 'Graneleiro',            descricao: 'Carroceria aberta com laterais altas e escotilhas — grãos e granéis secos',      ordem: 3  },
+  { codigoLegal: 'TQ',  nome: 'Tanque',                descricao: 'Cisterna cilíndrica — líquidos, gases e produtos químicos',                      ordem: 4  },
+  { codigoLegal: 'FR',  nome: 'Frigorífico',           descricao: 'Baú isotérmico com refrigeração — cargas perecíveis e frios',                    ordem: 5  },
+  { codigoLegal: 'PL',  nome: 'Plataforma',            descricao: 'Carroceria plana sem laterais — máquinas, contêineres e cargas especiais',        ordem: 6  },
+  { codigoLegal: 'SD',  nome: 'Sider',                 descricao: 'Baú com lonas laterais corredias — agilidade na carga/descarga lateral',         ordem: 7  },
+  { codigoLegal: 'CG',  nome: 'Cegonheira',            descricao: 'Plataforma com pisos escamoteáveis — transporte de veículos automotores',         ordem: 8  },
+  { codigoLegal: 'PC',  nome: 'Porta-Contêiner',       descricao: 'Chassi com twistlocks — transporte de contêineres ISO 20/40 pés',               ordem: 9  },
+  { codigoLegal: 'FL',  nome: 'Florestal',             descricao: 'Estrutura com bolsões ou tombadores — transporte de toras e eucalipto',          ordem: 10 },
+  { codigoLegal: 'PR',  nome: 'Prancha',               descricao: 'Plataforma rebaixada extensível — equipamentos pesados e cargas especiais',       ordem: 11 },
+  { codigoLegal: 'BC',  nome: 'Boiadeiro',             descricao: 'Carroceria com gaiola ventilada — transporte de animais vivos',                  ordem: 12 },
+  { codigoLegal: 'MX',  nome: 'Misto/Aberto',          descricao: 'Carroceria aberta com grades — uso geral e agrícola',                            ordem: 13 },
+  { codigoLegal: 'LX',  nome: 'Lixeira/Compactador',   descricao: 'Carroceria com sistema de compactação — coleta de resíduos sólidos urbanos',     ordem: 14 },
+  { codigoLegal: 'CM',  nome: 'Cimento/Betoneira',     descricao: 'Tambor giratório — transporte e mistura de concreto',                            ordem: 15 },
+];
+
+// ============================================================================
+// MODELOS DE CARROCERIA — organizados por tipo
+// Inclui modelos próprios (ND) e de mercado como referência
+// ============================================================================
+const MODELOS_CARROCERIA_DATA: {
+  tipoCodigoLegal: string;
+  nome: string;
+  fabricante?: string;
+  descricao?: string;
+}[] = [
+  // ── Baú ──────────────────────────────────────────────────────────────────
+  { tipoCodigoLegal: 'BA', nome: 'Baú Standard 14,5m',        fabricante: 'ND Implementos', descricao: 'Baú seco padrão de mercado — 14,5m úteis' },
+  { tipoCodigoLegal: 'BA', nome: 'Baú Standard 13,6m',        fabricante: 'ND Implementos', descricao: 'Baú seco 13,6m — semi-reboque trucado' },
+  { tipoCodigoLegal: 'BA', nome: 'Baú Reforçado 14,5m',       fabricante: 'ND Implementos', descricao: 'Baú com reforço de assoalho — carga pesada' },
+  { tipoCodigoLegal: 'BA', nome: 'Baú Graneleiro Combinado',   fabricante: 'ND Implementos', descricao: 'Baú com escotilha superior — carga seca + granel' },
+
+  // ── Basculante ────────────────────────────────────────────────────────────
+  { tipoCodigoLegal: 'BS', nome: 'Basculante Traseiro 10m³',   fabricante: 'ND Implementos', descricao: 'Basculante traseiro — caminhão toco/truck' },
+  { tipoCodigoLegal: 'BS', nome: 'Basculante Traseiro 15m³',   fabricante: 'ND Implementos', descricao: 'Basculante traseiro — bitruck e rodotrem' },
+  { tipoCodigoLegal: 'BS', nome: 'Basculante Lateral',         fabricante: 'ND Implementos', descricao: 'Tombamento lateral hidráulico — granéis e mineração' },
+  { tipoCodigoLegal: 'BS', nome: 'Basculante Triângulo',       fabricante: 'ND Implementos', descricao: 'Estrutura em treliça triangular — alta resistência' },
+
+  // ── Graneleiro ───────────────────────────────────────────────────────────
+  { tipoCodigoLegal: 'GR', nome: 'Graneleiro 3 Eixos 92m³',   fabricante: 'ND Implementos', descricao: 'Semi-reboque graneleiro 3 eixos — soja, milho, trigo' },
+  { tipoCodigoLegal: 'GR', nome: 'Graneleiro 2 Eixos 72m³',   fabricante: 'ND Implementos', descricao: 'Semi-reboque graneleiro 2 eixos — grãos regionais' },
+  { tipoCodigoLegal: 'GR', nome: 'Graneleiro Duplo Eixo Direcional', fabricante: 'ND Implementos', descricao: 'Rodotrem graneleiro com eixo direcional' },
+
+  // ── Tanque ───────────────────────────────────────────────────────────────
+  { tipoCodigoLegal: 'TQ', nome: 'Tanque Combustível 30.000L', fabricante: 'ND Implementos', descricao: 'Cisterna para gasolina, diesel e etanol — aço carbono' },
+  { tipoCodigoLegal: 'TQ', nome: 'Tanque Alimentar 20.000L',   fabricante: 'ND Implementos', descricao: 'Cisterna inox AISI 304 — leite e líquidos alimentares' },
+  { tipoCodigoLegal: 'TQ', nome: 'Tanque Químico 25.000L',     fabricante: 'ND Implementos', descricao: 'Cisterna em aço inox ou PRFV — produtos químicos' },
+
+  // ── Frigorífico ───────────────────────────────────────────────────────────
+  { tipoCodigoLegal: 'FR', nome: 'Baú Frigorífico 14,5m',      fabricante: 'ND Implementos', descricao: 'Baú com unidade de refrigeração Carrier/Thermo King' },
+  { tipoCodigoLegal: 'FR', nome: 'Baú Frigorífico 13,6m',      fabricante: 'ND Implementos', descricao: 'Baú frigorífico trucado — carnes e laticínios' },
+  { tipoCodigoLegal: 'FR', nome: 'Baú Isotérmico (sem motor)',  fabricante: 'ND Implementos', descricao: 'Baú apenas com isolamento térmico — gelo seco/dry ice' },
+
+  // ── Plataforma ───────────────────────────────────────────────────────────
+  { tipoCodigoLegal: 'PL', nome: 'Plataforma 3 Eixos',         fabricante: 'ND Implementos', descricao: 'Plataforma fixa — contêineres, máquinas e bobinas' },
+  { tipoCodigoLegal: 'PL', nome: 'Plataforma Extensível',      fabricante: 'ND Implementos', descricao: 'Plataforma com extensão traseira — cargas longas' },
+
+  // ── Sider ────────────────────────────────────────────────────────────────
+  { tipoCodigoLegal: 'SD', nome: 'Sider 3 Eixos 14,5m',        fabricante: 'ND Implementos', descricao: 'Sider lona lateral corrediça — paletes e caixas' },
+  { tipoCodigoLegal: 'SD', nome: 'Sider 2 Eixos 13,6m',        fabricante: 'ND Implementos', descricao: 'Sider trucado — distribuição e logística urbana' },
+
+  // ── Cegonheira ───────────────────────────────────────────────────────────
+  { tipoCodigoLegal: 'CG', nome: 'Cegonheira 9 Carros',        fabricante: 'ND Implementos', descricao: 'Semi-reboque cegonheira 9 veículos — transporte de automóveis' },
+  { tipoCodigoLegal: 'CG', nome: 'Cegonheira 7 Carros',        fabricante: 'ND Implementos', descricao: 'Cegonheira 7 veículos com rampa rebaixada' },
+
+  // ── Porta-Contêiner ──────────────────────────────────────────────────────
+  { tipoCodigoLegal: 'PC', nome: 'Porta-Contêiner 20/40 pés',  fabricante: 'ND Implementos', descricao: 'Chassi com twistlocks — ISO 20 e 40 pés' },
+  { tipoCodigoLegal: 'PC', nome: 'Porta-Contêiner Tanque',     fabricante: 'ND Implementos', descricao: 'Chassi reforçado — contêiner tanque ISO' },
+
+  // ── Florestal ────────────────────────────────────────────────────────────
+  { tipoCodigoLegal: 'FL', nome: 'Florestal Tombador 3 Eixos', fabricante: 'ND Implementos', descricao: 'Semi-reboque florestal com tombamento lateral — eucalipto' },
+  { tipoCodigoLegal: 'FL', nome: 'Florestal Gaiola 3 Eixos',   fabricante: 'ND Implementos', descricao: 'Florestal com bolsões fixos — pinus e pinheiro' },
+
+  // ── Prancha ──────────────────────────────────────────────────────────────
+  { tipoCodigoLegal: 'PR', nome: 'Prancha Baixa 3+2 Eixos',    fabricante: 'ND Implementos', descricao: 'Plataforma rebaixada — escavadeiras e tratores' },
+  { tipoCodigoLegal: 'PR', nome: 'Prancha Extensível',         fabricante: 'ND Implementos', descricao: 'Prancha com extensão — vigas e cargas especiais' },
+];
+
 const prisma = new PrismaClient();
 
 async function main() {
@@ -563,6 +647,11 @@ async function main() {
   // ============================================================================
   await seedLc116();
 
+  // ============================================================================
+  // 11. TIPOS E MODELOS DE CARROCERIA
+  // ============================================================================
+  await seedCarroceria();
+
   console.log('\n🎉 Seed concluído com sucesso!');
 }
 
@@ -812,6 +901,107 @@ async function seedLc116() {
     });
   }
   console.log('✅ LC 116/2003 populada com sucesso!');
+
+  // ============================================================================
+  // NATUREZAS JURÍDICAS (tabela de domínio — gerenciável via ERP)
+  // Fonte: IBGE Concla + Receita Federal (IN RFB 2.119/2022)
+  // ============================================================================
+  const naturezasJuridicas = [
+    { sigla: 'MEI',           codigoIbge: '213-5', descricao: 'Microempreendedor Individual — adota Simples Nacional; sem destaque de ICMS na NF',                      ordem: 1  },
+    { sigla: 'EI',            codigoIbge: '213-5', descricao: 'Empresário Individual — pode ser SN, LP ou LR conforme faturamento',                                      ordem: 2  },
+    { sigla: 'SLU',           codigoIbge: '206-2', descricao: 'Sociedade Limitada Unipessoal — sócio único, pode ser SN, LP ou LR',                                      ordem: 3  },
+    { sigla: 'LTDA',          codigoIbge: '206-2', descricao: 'Sociedade Empresária Limitada — a mais comum; pode ser SN, LP ou LR',                                     ordem: 4  },
+    { sigla: 'SA_FECHADA',    codigoIbge: '205-4', descricao: 'Sociedade Anônima Fechada — ações não negociadas em bolsa; geralmente LP ou LR',                          ordem: 5  },
+    { sigla: 'SA_ABERTA',     codigoIbge: '204-6', descricao: 'Sociedade Anônima Aberta — ações negociadas em bolsa; obrigatoriamente LR',                               ordem: 6  },
+    { sigla: 'SS',            codigoIbge: '223-2', descricao: 'Sociedade Simples — profissionais liberais e prestadores de serviço (médicos, advogados, etc.)',           ordem: 7  },
+    { sigla: 'COOPERATIVA',   codigoIbge: '214-3', descricao: 'Cooperativa — regime tributário especial; imune a IRPJ sobre atos cooperativos',                          ordem: 8  },
+    { sigla: 'ASSOCIACAO',    codigoIbge: '399-9', descricao: 'Associação Privada — sem fins lucrativos; pode ter imunidade/isenção fiscal',                              ordem: 9  },
+    { sigla: 'FUNDACAO',      codigoIbge: '306-9', descricao: 'Fundação Privada — sem fins lucrativos; patrimônio afetado a fim específico',                             ordem: 10 },
+    { sigla: 'ORGAO_PUBLICO', codigoIbge: '1000',  descricao: 'Órgão Público / Autarquia / Fundação Pública — imune a impostos; sem crédito de ICMS na saída',          ordem: 11 },
+    { sigla: 'OUTROS',        codigoIbge: null,     descricao: 'Outros — consórcio, SPE, empresa estrangeira, EIRELI legada ou tipo não listado',                        ordem: 12 },
+  ];
+
+  for (const nj of naturezasJuridicas) {
+    await prisma.naturezaJuridica.upsert({
+      where: { sigla: nj.sigla },
+      update: { descricao: nj.descricao, codigoIbge: nj.codigoIbge, ordem: nj.ordem },
+      create: { ...nj, ativo: true },
+    });
+  }
+  console.log(`✅ ${naturezasJuridicas.length} Naturezas Jurídicas criadas`);
+
+  // ============================================================================
+  // RAMOS DE ATIVIDADE (tabela de domínio — gerenciável via ERP)
+  // Chave `codigo` usada pelo motor fiscal para determinar CFOP e créditos
+  // ============================================================================
+  const ramosAtividade = [
+    { codigo: 'INDUSTRIA',             descricao: 'Indústria — fabricante; crédito integral de ICMS na entrada (CFOP 1.101/2.101)',                                    ordem: 1 },
+    { codigo: 'ATACADISTA_EQUIPARADO', descricao: 'Atacadista Equiparado a Industrial — opera com crédito integral de ICMS igual à indústria',                        ordem: 2 },
+    { codigo: 'COMERCIO',              descricao: 'Comércio — varejista ou atacadista; crédito de ICMS conforme alíquota (CFOP 1.102/2.102)',                          ordem: 3 },
+    { codigo: 'PRESTADOR_SERVICO',     descricao: 'Prestador de Serviço — emite NFS-e; sem ICMS, incide ISS; sem crédito de ICMS na tomada',                          ordem: 4 },
+    { codigo: 'IMPORTADOR',            descricao: 'Importador — produto com >40% conteúdo importado; pode ter ICMS 4% (Res. Senado 13/2012)',                          ordem: 5 },
+    { codigo: 'PESSOA_FISICA',         descricao: 'Pessoa Física — autônomo ou profissional liberal; sem ICMS; pode haver retenção de IR/INSS',                        ordem: 6 },
+  ];
+
+  for (const ra of ramosAtividade) {
+    await prisma.ramoAtividade.upsert({
+      where: { codigo: ra.codigo },
+      update: { descricao: ra.descricao, ordem: ra.ordem },
+      create: { ...ra, ativo: true },
+    });
+  }
+  console.log(`✅ ${ramosAtividade.length} Ramos de Atividade criados`);
+}
+
+async function seedCarroceria() {
+  // ── Tipos de carroceria ────────────────────────────────────────────────
+  let tiposCount = 0;
+  const tipoMap: Record<string, string> = {}; // codigoLegal → id
+
+  for (const tipo of TIPOS_CARROCERIA_DATA) {
+    const record = await prisma.tipoCarroceria.upsert({
+      where: { codigoLegal: tipo.codigoLegal },
+      update: { nome: tipo.nome, descricao: tipo.descricao, ordem: tipo.ordem },
+      create: { ...tipo, ativo: true },
+    });
+    tipoMap[tipo.codigoLegal] = record.id;
+    tiposCount++;
+  }
+  console.log(`✅ ${tiposCount} tipos de carroceria inseridos`);
+
+  // ── Modelos de carroceria ──────────────────────────────────────────────
+  let modelosCount = 0;
+  for (const modelo of MODELOS_CARROCERIA_DATA) {
+    const tipoId = tipoMap[modelo.tipoCodigoLegal];
+    if (!tipoId) continue;
+
+    // Upsert por nome + tipoCarroceriaId (não há unique no schema, usamos findFirst)
+    const existing = await prisma.modeloCarroceria.findFirst({
+      where: { tipoCarroceriaId: tipoId, nome: modelo.nome },
+    });
+
+    if (existing) {
+      await prisma.modeloCarroceria.update({
+        where: { id: existing.id },
+        data: {
+          fabricante: modelo.fabricante,
+          descricao: modelo.descricao,
+        },
+      });
+    } else {
+      await prisma.modeloCarroceria.create({
+        data: {
+          tipoCarroceriaId: tipoId,
+          nome: modelo.nome,
+          fabricante: modelo.fabricante,
+          descricao: modelo.descricao,
+          ativo: true,
+        },
+      });
+    }
+    modelosCount++;
+  }
+  console.log(`✅ ${modelosCount} modelos de carroceria inseridos`);
 }
 
 main()

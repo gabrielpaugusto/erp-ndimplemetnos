@@ -40,12 +40,16 @@ interface PersonForm {
   notes: string;
   active: boolean;
   taxRegime: string;
-  tipoFornecedor: string;
+  naturezaJuridicaId: string;
+  ramoAtividadeId: string;
   retencaoIss: boolean;
   retencaoFederal: boolean;
   retencaoInss: boolean;
   municipioIbge: string;
 }
+
+interface NaturezaJuridica { id: string; sigla: string; descricao: string; codigoIbge?: string; }
+interface RamoAtividade { id: string; codigo: string; descricao: string; }
 
 const emptyAddress = (): PersonAddress => ({
   id: crypto.randomUUID(),
@@ -109,7 +113,8 @@ function NovaPessoaPageInner() {
     notes: '',
     active: true,
     taxRegime: '',
-    tipoFornecedor: '',
+    naturezaJuridicaId: '',
+    ramoAtividadeId: '',
     retencaoIss: false,
     retencaoFederal: false,
     retencaoInss: false,
@@ -119,6 +124,20 @@ function NovaPessoaPageInner() {
   const [addresses, setAddresses] = useState<PersonAddress[]>([emptyAddress()]);
   const [contacts, setContacts] = useState<Contact[]>([emptyContact()]);
   const [emailsNfe, setEmailsNfe] = useState<string[]>(['']);
+
+  // Tabelas de domínio — carregadas da API
+  const [naturezas, setNaturezas] = useState<NaturezaJuridica[]>([]);
+  const [ramos, setRamos] = useState<RamoAtividade[]>([]);
+
+  useEffect(() => {
+    Promise.all([
+      apiFetch('/api/ref-tables/naturezas-juridicas?ativo=true').then(r => r.ok ? r.json() : []),
+      apiFetch('/api/ref-tables/ramos-atividade?ativo=true').then(r => r.ok ? r.json() : []),
+    ]).then(([njs, ras]) => {
+      setNaturezas(Array.isArray(njs) ? njs : []);
+      setRamos(Array.isArray(ras) ? ras : []);
+    }).catch(() => {});
+  }, []);
 
   const addEmailNfe = () => setEmailsNfe((prev) => [...prev, '']);
   const removeEmailNfe = (idx: number) => setEmailsNfe((prev) => prev.filter((_, i) => i !== idx));
@@ -241,8 +260,9 @@ function NovaPessoaPageInner() {
         condicaoPagamento: form.paymentCondition || undefined,
         observacoes: form.notes || undefined,
         taxRegime: form.taxRegime || undefined,
-        tipoFornecedor: form.tipoFornecedor || undefined,
-        optanteSimples: form.taxRegime === 'SIMPLES_NACIONAL' || form.taxRegime === 'MEI',
+        naturezaJuridicaId: form.naturezaJuridicaId || undefined,
+        ramoAtividadeId: form.ramoAtividadeId || undefined,
+        optanteSimples: form.taxRegime === 'SIMPLES_NACIONAL',
         retencaoIss: form.retencaoIss,
         retencaoFederal: form.retencaoFederal,
         retencaoInss: form.retencaoInss,
@@ -308,7 +328,7 @@ function NovaPessoaPageInner() {
       }
 
       if (andNew) {
-        setForm({ type: 'PJ', document: '', name: '', tradeName: '', rgIe: '', municipalRegistration: '', telefoneGeral: '', roles: ['CLIENTE'], creditLimit: '', paymentCondition: '', notes: '', active: true, taxRegime: '', tipoFornecedor: '', retencaoIss: false, retencaoFederal: false, retencaoInss: false, municipioIbge: '' });
+        setForm({ type: 'PJ', document: '', name: '', tradeName: '', rgIe: '', municipalRegistration: '', telefoneGeral: '', roles: ['CLIENTE'], creditLimit: '', paymentCondition: '', notes: '', active: true, taxRegime: '', naturezaJuridicaId: '', ramoAtividadeId: '', retencaoIss: false, retencaoFederal: false, retencaoInss: false, municipioIbge: '' });
         setAddresses([emptyAddress()]);
         setContacts([emptyContact()]);
         setEmailsNfe(['']);
@@ -842,8 +862,8 @@ function NovaPessoaPageInner() {
           {/* Fiscal */}
           {activeTab === 'fiscal' && (
             <div className="space-y-6">
-              {/* Regime Tributário + Tipo Fornecedor */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Regime Tributário + Natureza Jurídica + Ramo de Atividade */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
                     Regime Tributário
@@ -857,28 +877,39 @@ function NovaPessoaPageInner() {
                     <option value="SIMPLES_NACIONAL">Simples Nacional</option>
                     <option value="LUCRO_PRESUMIDO">Lucro Presumido</option>
                     <option value="LUCRO_REAL">Lucro Real</option>
-                    <option value="MEI">MEI</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Tipo Fornecedor (Motor Fiscal)
+                    Natureza Jurídica
                   </label>
                   <select
-                    value={form.tipoFornecedor}
-                    onChange={(e) => updateForm('tipoFornecedor', e.target.value)}
+                    value={form.naturezaJuridicaId}
+                    onChange={(e) => updateForm('naturezaJuridicaId', e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="">Selecione...</option>
-                    <option value="INDUSTRIA">Indústria</option>
-                    <option value="ATACADISTA_EQUIPARADO">Atacadista Equiparado a Indústria</option>
-                    <option value="COMERCIO">Comércio</option>
-                    <option value="SIMPLES_NACIONAL">Simples Nacional</option>
-                    <option value="MEI">MEI</option>
-                    <option value="IMPORTADOR">Importador</option>
-                    <option value="PESSOA_FISICA">Pessoa Física</option>
+                    {naturezas.map(nj => (
+                      <option key={nj.id} value={nj.id}>{nj.sigla} — {nj.descricao}</option>
+                    ))}
                   </select>
-                  <p className="text-xs text-slate-400 mt-1">Usado pelo motor de regras fiscais para determinar CFOP e créditos</p>
+                  <p className="text-xs text-slate-400 mt-1">Ex: LTDA, MEI, S/A. Gerenciável em Configurações → Tabelas de Domínio</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Ramo de Atividade
+                  </label>
+                  <select
+                    value={form.ramoAtividadeId}
+                    onChange={(e) => updateForm('ramoAtividadeId', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Selecione...</option>
+                    {ramos.map(ra => (
+                      <option key={ra.id} value={ra.id}>{ra.descricao}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-slate-400 mt-1">Usado pelo motor fiscal para determinar CFOP e créditos</p>
                 </div>
               </div>
 

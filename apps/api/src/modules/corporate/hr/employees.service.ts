@@ -103,6 +103,7 @@ export class EmployeesService {
         costCenterId: data.costCenterId,
         dataAdmissao: new Date(data.dataAdmissao),
         salarioBase: data.salarioBase,
+        valorHora: data.valorHora ?? null,
         ctps: data.ctps,
         pis: data.pis,
         jornadaSemanal: data.jornadaSemanal ?? 44,

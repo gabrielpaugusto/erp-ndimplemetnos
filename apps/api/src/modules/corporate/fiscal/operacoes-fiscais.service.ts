@@ -8,7 +8,11 @@ import { PrismaService } from '@/modules/core/database/prisma.service';
 export interface DeterminarOperacaoParams {
   tipo?:                   'ENTRADA' | 'SAIDA';
   destinacao?:             string;
-  tipoFornecedor?:         string;   // ENTRADAS: tipo do fornecedor
+  /** @deprecated Use ramoAtividade + taxRegimeFornecedor. Mantido para compatibilidade com regras customizadas no BD. */
+  tipoFornecedor?:         string;
+  // Novos campos (Fase 2) — substituem tipoFornecedor nas entradas
+  ramoAtividade?:          string;   // ENTRADAS: ramo de atividade do fornecedor (INDUSTRIA, COMERCIO, PRESTADOR_SERVICO…)
+  taxRegimeFornecedor?:    string;   // ENTRADAS: regime tributário do fornecedor (SIMPLES_NACIONAL, LUCRO_REAL…)
   tipoCliente?:            string;   // SAÍDAS: tipo do destinatário
   ufFornecedor?:           string;
   ufCliente?:              string;   // SAÍDAS: UF do destinatário
@@ -66,6 +70,28 @@ function deveDebitarIpi(cstIpi: string): boolean {
 function deveDebitarPisCofins(cstPis: string): boolean {
   // CSTs 01, 02, 03 = tributável; demais = isento/zero/suspensão
   return ['01','02','03'].includes(cstPis);
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Resolver: converte ramoAtividade + taxRegimeFornecedor → tipoFornecedor efetivo
+// para manter compatibilidade com REGRAS_PADRAO e regras customizadas no BD.
+//
+// Lógica:
+//   - Fornecedor Simples Nacional (qualquer ramo) → 'SIMPLES_NACIONAL'
+//     (sem crédito ICMS via pCredSN normal; usa alíquota pCredSN do DAS)
+//   - Demais: usa o código do ramo diretamente (INDUSTRIA, COMERCIO, etc.)
+//   - Fallback: tipoFornecedor legado (campo ainda presente no BD durante migração)
+// ──────────────────────────────────────────────────────────────────────────────
+export function resolveEfetivaTipoFornecedor(
+  ramoAtividade?: string,
+  taxRegimeFornecedor?: string,
+  tipoFornecedorLegado?: string,
+): string | undefined {
+  if (ramoAtividade || taxRegimeFornecedor) {
+    if (taxRegimeFornecedor === 'SIMPLES_NACIONAL') return 'SIMPLES_NACIONAL';
+    return ramoAtividade;
+  }
+  return tipoFornecedorLegado;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -184,10 +210,17 @@ export class OperacoesFiscaisService {
   // ──────────────────────────────────────────────────────────────────────────
   async determinar(companyId: string, params: DeterminarOperacaoParams): Promise<ResultadoOperacaoFiscal | null> {
     const {
-      tipo, destinacao, tipoFornecedor, tipoCliente,
+      tipo, destinacao, tipoCliente,
       ufFornecedor, ufCliente, ufEmpresa,
       temST, stRetida, finalidade, freteContaDestinatario, taxRegimeEmpresa,
     } = params;
+
+    // Resolve tipoFornecedor efetivo: prioriza novos campos, fallback para legado
+    const tipoFornecedor = resolveEfetivaTipoFornecedor(
+      params.ramoAtividade,
+      params.taxRegimeFornecedor,
+      params.tipoFornecedor,
+    );
 
     // Calcula intraestadual
     const ufContraparte = tipo === 'SAIDA' ? ufCliente : ufFornecedor;
