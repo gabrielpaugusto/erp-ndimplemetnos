@@ -140,6 +140,8 @@ services:
 
   # --------------------------------------------------------------------------
   # Certbot — renovação automática do certificado SSL (Let's Encrypt)
+  # Roda certbot renew a cada 12h via webroot challenge.
+  # O cron no host (configurado pelo deploy.yml) recarrega o nginx após renovação.
   # --------------------------------------------------------------------------
   certbot:
     image: certbot/certbot:latest
