@@ -232,39 +232,63 @@ export class NfeXmlBuilderService {
             </COFINSAliq>`;
       }
 
-      // ── IBS / CBS / IS (Reforma Tributária — NT 2024.001) ──────────────────
-      // Only include tags when values were calculated (regime transitório 2026+)
-      const ibsValor = Number((item as any).valorIbs ?? 0);
-      const ibsBc    = Number((item as any).bcIbs   ?? 0);
-      const ibsAliq  = Number((item as any).aliqIbs ?? 0);
-      const cbsValor = Number((item as any).valorCbs ?? 0);
-      const cbsBc    = Number((item as any).bcCbs   ?? 0);
-      const cbsAliq  = Number((item as any).aliqCbs ?? 0);
+      // ── IBS / CBS / IS (Reforma Tributária — NT 2025.002) ──────────────────
+      // Em 2026: período informativo — obrigatório para LR/LP (Lucro Real/Presumido)
+      // com alíquotas padrão CBS=0,9% e IBS=0,1% quando cClassTrib=B00
+      const cClassTrib = (item as any).cClassTrib ?? 'B00';
+      const tributadoIBSCBS = ['B00', 'B07', 'B08'].includes(cClassTrib); // operações com IBS/CBS
+
+      // Alíquotas informativas 2026 (usadas quando campos não preenchidos e tributadoIBSCBS)
+      const ALIQ_CBS_2026 = 0.009;  // 0,9%
+      const ALIQ_IBS_2026 = 0.001;  // 0,1%
+
+      let ibsBc    = Number((item as any).bcIbs   ?? 0);
+      let ibsAliq  = Number((item as any).aliqIbs ?? 0);
+      let ibsValor = Number((item as any).valorIbs ?? 0);
+      let cbsBc    = Number((item as any).bcCbs   ?? 0);
+      let cbsAliq  = Number((item as any).aliqCbs ?? 0);
+      let cbsValor = Number((item as any).valorCbs ?? 0);
       const isValor  = Number((item as any).valorIs  ?? 0);
       const isBc     = Number((item as any).bcIs    ?? 0);
       const isAliq   = Number((item as any).aliqIs  ?? 0);
 
-      // IBS — Imposto sobre Bens e Serviços (federal/estadual/municipal)
-      const ibsTag = ibsValor > 0
+      // Cálculo automático para período informativo quando não foram preenchidos
+      if (tributadoIBSCBS && cbsValor === 0 && ibsValor === 0) {
+        cbsBc    = total;
+        cbsAliq  = ALIQ_CBS_2026;
+        cbsValor = parseFloat((total * ALIQ_CBS_2026).toFixed(2));
+        ibsBc    = total;
+        ibsAliq  = ALIQ_IBS_2026;
+        ibsValor = parseFloat((total * ALIQ_IBS_2026).toFixed(2));
+      }
+
+      // gIBSCBS — grupo obrigatório para LR/LP (NT 2025.002)
+      const ibsInnerTag = ibsValor > 0
         ? `<IBS>
-              <CST>01</CST>
-              <vBCIBS>${this.fmt(ibsBc)}</vBCIBS>
-              <pAliqIBS>${this.fmt(ibsAliq, 4)}</pAliqIBS>
-              <vIBS>${this.fmt(ibsValor)}</vIBS>
-            </IBS>`
+                <CST>01</CST>
+                <vBCIBS>${this.fmt(ibsBc)}</vBCIBS>
+                <pAliqIBS>${this.fmt(ibsAliq, 4)}</pAliqIBS>
+                <vIBS>${this.fmt(ibsValor)}</vIBS>
+              </IBS>`
         : '';
 
-      // CBS — Contribuição sobre Bens e Serviços (federal)
-      const cbsTag = cbsValor > 0
+      const cbsInnerTag = cbsValor > 0
         ? `<CBS>
-              <CST>01</CST>
-              <vBCCBS>${this.fmt(cbsBc)}</vBCCBS>
-              <pAliqCBS>${this.fmt(cbsAliq, 4)}</pAliqCBS>
-              <vCBS>${this.fmt(cbsValor)}</vCBS>
-            </CBS>`
+                <CST>01</CST>
+                <vBCCBS>${this.fmt(cbsBc)}</vBCCBS>
+                <pAliqCBS>${this.fmt(cbsAliq, 4)}</pAliqCBS>
+                <vCBS>${this.fmt(cbsValor)}</vCBS>
+              </CBS>`
         : '';
 
-      // IS — Imposto Seletivo (produtos específicos)
+      const ibscbsTag = (ibsInnerTag || cbsInnerTag)
+        ? `<gIBSCBS>
+              <cClassTrib>${cClassTrib}</cClassTrib>
+              ${ibsInnerTag}${cbsInnerTag}
+            </gIBSCBS>`
+        : '';
+
+      // IS — Imposto Seletivo (fora do gIBSCBS, produtos específicos)
       const isTag = isValor > 0
         ? `<IS>
               <CST>01</CST>
@@ -296,7 +320,7 @@ export class NfeXmlBuilderService {
             <ICMS>${icmsTag}</ICMS>
             <PIS>${pisTag}</PIS>
             <COFINS>${cofinsTag}</COFINS>
-            ${ibsTag}${cbsTag}${isTag}
+            ${ibscbsTag}${isTag}
           </imposto>
         </det>`;
     }).join('\n');
@@ -345,6 +369,7 @@ export class NfeXmlBuilderService {
       </enderEmit>
       <IE>${(company.inscricaoEstadual ?? '').replace(/\D/g,'')}</IE>
       <CRT>${crt}</CRT>
+      <cRegTrib>${(company as any).cRegTribIBSCBS ?? 3}</cRegTrib>
     </emit>
     <dest>
       ${destTag}
