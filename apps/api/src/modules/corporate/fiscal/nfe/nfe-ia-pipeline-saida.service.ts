@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@/modules/core/database/prisma.service';
 import { FiscalBrainService } from '@/modules/corporate/fiscal/fiscal-brain/fiscal-brain.service';
 import { ContextoOperacao } from '@/modules/corporate/fiscal/fiscal-brain/classificador.service';
+import { CbenefService } from '@/modules/corporate/fiscal/cbenef.service';
 import { STDetectorService, STDetectorResult } from '@/modules/corporate/fiscal/st-detector.service';
 import { DeclaracaoArt264Service } from '@/modules/corporate/fiscal/declaracao-art264.service';
 
@@ -87,6 +88,7 @@ export class NfeIaPipelineSaidaService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly brain: FiscalBrainService,
+    private readonly cbenef: CbenefService,
     private readonly stDetector: STDetectorService,
     private readonly declaracaoService: DeclaracaoArt264Service,
   ) {}
@@ -220,6 +222,23 @@ export class NfeIaPipelineSaidaService {
 
         const cls = resultado.classificacao;
 
+        // ── Valida código CBENEF sugerido pela IA contra a tabela cadastrada ──
+        let beneficioFiscalValidado: string | null = null;
+        const alertasCbenef: string[] = [];
+        if (cls.beneficioFiscal) {
+          const cbenefs = await this.cbenef.sugerirParaNcm(ufEmitente, item.ncmCode || '');
+          const match = cbenefs.find(
+            (c) => c.codigo === cls.beneficioFiscal!.toUpperCase(),
+          );
+          if (match) {
+            beneficioFiscalValidado = match.codigo;
+          } else {
+            alertasCbenef.push(
+              `CBENEF "${cls.beneficioFiscal}" sugerido pela IA não está cadastrado em Fiscal → Benefícios Fiscais`,
+            );
+          }
+        }
+
         // ── ETAPA 4-C: Aplicar no NFeItem (autoAplicado) ────────────────────
         if (resultado.autoAplicado) {
           const bcIcms = cls.baseCalculoIcmsPct < 100
@@ -237,15 +256,16 @@ export class NfeIaPipelineSaidaService {
               cstIcms:     cstFinal,
               aliqIcms:    cls.aliquotaIcms,
               bcIcms,
-              valorIcms:   bcIcms * cls.aliquotaIcms / 100,
-              cstPis:      cls.cstPis,
-              aliqPis:     cls.aliquotaPis,
-              bcPis:       valorItem,
-              valorPis:    valorItem * cls.aliquotaPis / 100,
-              cstCofins:   cls.cstCofins,
-              aliqCofins:  cls.aliquotaCofins,
-              bcCofins:    valorItem,
-              valorCofins: valorItem * cls.aliquotaCofins / 100,
+              valorIcms:      bcIcms * cls.aliquotaIcms / 100,
+              cstPis:         cls.cstPis,
+              aliqPis:        cls.aliquotaPis,
+              bcPis:          valorItem,
+              valorPis:       valorItem * cls.aliquotaPis / 100,
+              cstCofins:      cls.cstCofins,
+              aliqCofins:     cls.aliquotaCofins,
+              bcCofins:       valorItem,
+              valorCofins:    valorItem * cls.aliquotaCofins / 100,
+              beneficioFiscal: beneficioFiscalValidado,
               ...(cls.temIpi && {
                 cstIpi:   '50',
                 aliqIpi:  cls.aliquotaIpi,
@@ -263,10 +283,11 @@ export class NfeIaPipelineSaidaService {
           });
         }
 
-        // ── ETAPA 4-D: Mesclar alertas ST + FiscalBrain ─────────────────────
+        // ── ETAPA 4-D: Mesclar alertas ST + FiscalBrain + CBENEF ───────────────
         const alertasMerged = [
           ...cls.alertas,
           ...stResult.alertas,
+          ...alertasCbenef,
           ...(stResult.exigeDeclaracaoComprador
             ? ['⚠ Art. 264, I, RICMS-SP: exigir declaração escrita do comprador (finalidade industrialização) e incluir no campo <infCpl> da NF-e o texto de não-retenção da ST.']
             : []),
@@ -316,7 +337,7 @@ export class NfeIaPipelineSaidaService {
           temSt:           stResult.temST,
           temIpi:          cls.temIpi,
           aliquotaIpi:     cls.aliquotaIpi,
-          beneficioFiscal: cls.beneficioFiscal,
+          beneficioFiscal: beneficioFiscalValidado,
           fundamentoLegal: cls.fundamentoLegal,
           alertas:         alertasMerged,
           raciocinio:      cls.raciocinio,
@@ -487,19 +508,20 @@ export class NfeIaPipelineSaidaService {
     await this.prisma.nFeItem.update({
       where: { id: itemId },
       data: {
-        cfopCode:    decision.cfop     || item.cfopCode,
-        cstIcms:     decision.cstIcms,
-        aliqIcms:    decision.aliquotaIcms    as any,
-        bcIcms:      valorBase,
-        valorIcms:   valorBase * (Number(decision.aliquotaIcms)    / 100),
-        cstPis:      decision.cstPis,
-        aliqPis:     decision.aliquotaPis     as any,
-        bcPis:       valorBase,
-        valorPis:    valorBase * (Number(decision.aliquotaPis)     / 100),
-        cstCofins:   decision.cstCofins,
-        aliqCofins:  decision.aliquotaCofins  as any,
-        bcCofins:    valorBase,
-        valorCofins: valorBase * (Number(decision.aliquotaCofins)  / 100),
+        cfopCode:        decision.cfop     || item.cfopCode,
+        cstIcms:         decision.cstIcms,
+        aliqIcms:        decision.aliquotaIcms    as any,
+        bcIcms:          valorBase,
+        valorIcms:       valorBase * (Number(decision.aliquotaIcms)    / 100),
+        cstPis:          decision.cstPis,
+        aliqPis:         decision.aliquotaPis     as any,
+        bcPis:           valorBase,
+        valorPis:        valorBase * (Number(decision.aliquotaPis)     / 100),
+        cstCofins:       decision.cstCofins,
+        aliqCofins:      decision.aliquotaCofins  as any,
+        bcCofins:        valorBase,
+        valorCofins:     valorBase * (Number(decision.aliquotaCofins)  / 100),
+        beneficioFiscal: decision.beneficioFiscal ?? null,
       },
     });
 

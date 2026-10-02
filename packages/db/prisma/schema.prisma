@@ -811,6 +811,9 @@ model Company {
   ambienteDctfweb     Int       @default(2) // DCTFWeb
   ambienteDFe         Int       @default(2) // DF-e (NFeDistribuicaoDFe — NF-e, CT-e, MDF-e, eventos)
 
+  // Regime tributário para IBS/CBS (NT 2025.002): 1=SN, 2=SN-sublimite, 3=LucroPresumido, 4=LucroReal
+  cRegTribIBSCBS      Int       @default(3)
+
   // NF-e config
   serieNfe            Int       @default(1)
   serieNfce           Int       @default(1)
@@ -3011,6 +3014,10 @@ model NFeItem {
 
   // Destinação fiscal (A2/A4 — permite override por item na NF-e emitida)
   destinacaoFiscal        ItemDestinacao?  // se null, herda de product.destinacaoFiscal
+
+  // Classificação tributária IBS/CBS (NT 2025.002 — gIBSCBS)
+  // B00=tributado alíq.cheia, B01=imunidade, B02=não incidência, B03=suspensão, B05=alíq.zero, B06=isenção
+  cClassTrib              String?      @default("B00") @db.VarChar(3)
 
   // Benefício Fiscal (tag <pBenef> da NF-e)
   beneficioFiscal         String?      @db.VarChar(20)
