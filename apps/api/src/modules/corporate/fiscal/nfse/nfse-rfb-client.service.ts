@@ -174,6 +174,14 @@ export class NfseRfbClientService {
   }
 
   // ─── Extrai campos principais de um XML de NFS-e ────────────────────────
+  // Estrutura real da NFS-e Nacional (RFB):
+  // NFSe > infNFSe > emit          (prestador/emitente: CNPJ, xNome, enderNac)
+  //                > valores       (vBC, vISSQN, pAliqAplic, vLiq)
+  //                > DPS > infDPS > prest  (CNPJ, IM do prestador)
+  //                              > toma   (tomador: CNPJ, xNome)
+  //                              > serv   > cServ > xDescServ
+  //                              > valores > vServPrest > vServ
+  //                              > valores > trib > tribMun > tpRetISSQN
   parseNfseXml(xml: string, nsu: number, chaveAcesso: string | null, dataHoraGeracao: string | null): NfseRecebidaParsed {
     let parsed: any = {};
     try {
@@ -182,32 +190,50 @@ export class NfseRfbClientService {
       this.logger.warn(`Não foi possível parsear XML do NSU ${nsu}`);
     }
 
-    // Navegar pela estrutura do XML NFS-e nacional
-    // Estrutura: NFSe > infNFSe > ... ou DPS > infDPS > ...
-    const nfse = parsed?.NFSe?.infNFSe ?? parsed?.nfse?.infNFSe ?? {};
-    const dps  = parsed?.DPS?.infDPS ?? parsed?.dps?.infDPS ?? {};
-    const root = Object.keys(nfse).length ? nfse : dps;
+    const infNFSe = parsed?.NFSe?.infNFSe ?? parsed?.nfse?.infNFSe ?? {};
 
-    const prest = root?.prest ?? root?.prestador ?? {};
-    const toma  = root?.toma  ?? root?.tomador  ?? {};
-    const serv  = root?.serv  ?? root?.servico  ?? {};
-    const vals  = root?.valores ?? serv?.valores ?? {};
+    // Emitente (prestador) fica em infNFSe.emit
+    const emit  = infNFSe?.emit ?? {};
+    const ender = emit?.enderNac ?? {};
+    const cnpjPrest = String(emit?.CNPJ ?? emit?.cnpj ?? '').replace(/\D/g, '');
+    const nomePrest = String(emit?.xNome ?? emit?.razaoSocial ?? '');
+    const codMun    = String(ender?.cMun ?? '');
+    const uf        = String(ender?.UF   ?? ender?.uf ?? '');
 
-    const cnpjPrest = String(prest?.CNPJ ?? prest?.cnpj ?? '').replace(/\D/g, '');
-    const nomePrest = String(prest?.xNome ?? prest?.razaoSocial ?? prest?.nome ?? '');
-    const imPrest   = String(prest?.IM ?? prest?.im ?? '');
-    const codMun    = String(prest?.cMun ?? prest?.codigoMunicipio ?? '');
-    const uf        = String(prest?.UF ?? prest?.uf ?? '');
-    const cnpjToma  = String(toma?.CNPJ ?? toma?.cnpj ?? '').replace(/\D/g, '') || null;
-    const disc      = String(serv?.xDisc ?? serv?.discriminacao ?? '');
-    const nNumero   = String(root?.nNFSe ?? root?.numero ?? nsu);
-    const dtEmis    = String(root?.dhEmi ?? root?.dataEmissao ?? root?.dEmi ?? dataHoraGeracao ?? '');
-    const dtComp    = String(root?.competencia ?? root?.dComp ?? '') || null;
+    // Valores do ISS ficam em infNFSe.valores
+    const valsNFSe = infNFSe?.valores ?? {};
+    const vIss     = Number(valsNFSe?.vISSQN   ?? valsNFSe?.vISS     ?? 0);
+    const aliqIss  = Number(valsNFSe?.pAliqAplic ?? valsNFSe?.pAliqIss ?? 0);
 
-    const vServ   = Number(vals?.vServ    ?? vals?.valorServico   ?? 0);
-    const vIss    = Number(vals?.vISS     ?? vals?.valorIss       ?? 0);
-    const aliqIss = Number(vals?.pAliqIss ?? vals?.aliquotaIss    ?? 0);
-    const issRet  = String(vals?.indISS   ?? '').includes('1') || Boolean(vals?.issRetido);
+    // DPS está aninhado em infNFSe.DPS.infDPS
+    const infDPS = infNFSe?.DPS?.infDPS ?? infNFSe?.dps?.infDPS ?? {};
+
+    // IM do prestador em infDPS.prest
+    const prest   = infDPS?.prest ?? {};
+    const imPrest = String(prest?.IM ?? prest?.im ?? '');
+
+    // Tomador em infDPS.toma
+    const toma     = infDPS?.toma ?? infDPS?.tomador ?? {};
+    const cnpjToma = String(toma?.CNPJ ?? toma?.cnpj ?? '').replace(/\D/g, '') || null;
+
+    // Discriminação do serviço em infDPS.serv.cServ.xDescServ
+    const serv = infDPS?.serv ?? {};
+    const cServ = serv?.cServ ?? {};
+    const disc  = String(cServ?.xDescServ ?? serv?.xDisc ?? serv?.discriminacao ?? '');
+
+    // Valor do serviço em infDPS.valores.vServPrest.vServ
+    const valsDPS   = infDPS?.valores ?? {};
+    const vServPrest = valsDPS?.vServPrest ?? {};
+    const vServ     = Number(vServPrest?.vServ ?? valsNFSe?.vBC ?? 0);
+
+    // Retenção de ISS: tpRetISSQN=1 → retido na fonte
+    const tribMun  = valsDPS?.trib?.tribMun ?? {};
+    const issRet   = Number(tribMun?.tpRetISSQN ?? 0) === 1;
+
+    // Número e datas
+    const nNumero  = String(infNFSe?.nNFSe ?? infNFSe?.nDFSe ?? nsu);
+    const dtEmis   = String(infDPS?.dhEmi  ?? infNFSe?.dhProc ?? dataHoraGeracao ?? '');
+    const dtComp   = String(infDPS?.dCompet ?? '') || null;
 
     return {
       numero: nNumero,

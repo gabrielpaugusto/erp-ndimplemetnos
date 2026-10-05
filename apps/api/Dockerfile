@@ -37,7 +37,8 @@ RUN pnpm --filter @erp/api build
 # ============================================================================
 FROM node:20-alpine AS production
 
-RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+RUN apk add --no-cache postgresql-client && \
+    corepack enable && corepack prepare pnpm@9.15.0 --activate
 
 WORKDIR /app
 
