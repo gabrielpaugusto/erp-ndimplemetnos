@@ -58,13 +58,7 @@ export class BackupService {
       url.pathname.replace('/', ''),
     ].join(' ');
 
-    try {
-      await execAsync(cmd, { env });
-    } catch (err: any) {
-      // pg_dump may not be in PATH on Windows — try via docker exec
-      this.logger.warn(`pg_dump direto falhou (${err.message}), tentando via docker exec...`);
-      await this.createBackupViaDocker(filepath, url);
-    }
+    await execAsync(cmd, { env });
 
     const stat = fs.statSync(filepath);
     const info: BackupInfo = {
@@ -77,17 +71,6 @@ export class BackupService {
 
     this.logger.log(`Backup criado: ${filename} (${info.sizeFormatted})`);
     return info;
-  }
-
-  private async createBackupViaDocker(filepath: string, url: URL): Promise<void> {
-    // Detect container name from hostname (localhost → likely Docker)
-    const containerName = 'erp-postgres-dev';
-    const dbName = url.pathname.replace('/', '');
-    const user = url.username;
-
-    const cmd = `docker exec -e PGPASSWORD=${url.password} ${containerName} pg_dump -U ${user} --no-password --format=plain --no-owner --no-acl ${dbName}`;
-    const { stdout } = await execAsync(cmd);
-    fs.writeFileSync(filepath, stdout, 'utf8');
   }
 
   // ---------------------------------------------------------------------------
