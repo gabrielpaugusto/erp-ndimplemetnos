@@ -116,7 +116,8 @@ export class NfeXmlBuilderService {
     for (const item of nfe.items) {
       vProd += Number(item.totalPrice ?? 0);
       vICMS += Number(item.valorIcms ?? 0);
-      vIPI += Number(item.valorIpi ?? 0);
+      // IPI zerado em 2027 (Decreto IPI + LC 214/2025); implementos rodoviários já têm IPI 0%
+      if (!regime2027) vIPI += Number(item.valorIpi ?? 0);
       // PIS/COFINS extintos em 2027; zera totais para não constar no ICMSTot
       if (!regime2027) {
         vPIS += Number(item.valorPis ?? 0);
@@ -224,6 +225,21 @@ export class NfeXmlBuilderService {
         // Default: ICMS40 (isento)
         icmsTag = `<ICMS40><orig>0</orig><CST>40</CST></ICMS40>`;
       }
+
+      // IPI — zeragem por NCM a partir de 01/01/2027 (Decreto IPI + LC 214/2025)
+      // Regra: se regime2027 OU valorIpi=0 → IPINT (CST 53=saída NT); caso contrário IPITrib
+      const cstIpi    = (item as any).cstIpi ?? (regime2027 ? '53' : '53');
+      const valorIpi  = regime2027 ? 0 : Number(item.valorIpi ?? 0);
+      const ipiTag = valorIpi > 0
+        ? `<IPI>
+              <IPITrib>
+                <CST>${cstIpi}</CST>
+                <vBC>${this.fmt(Number((item as any).bcIpi ?? 0))}</vBC>
+                <pIPI>${this.fmt(Number((item as any).aliqIpi ?? 0), 4)}</pIPI>
+                <vIPI>${this.fmt(valorIpi)}</vIPI>
+              </IPITrib>
+            </IPI>`
+        : `<IPI><IPINT><CST>${cstIpi}</CST></IPINT></IPI>`;
 
       // PIS — extinto a partir de 01/01/2027 (LC 214/2025); declarado como isento (CST 07)
       const cstPis = regime2027 ? '07' : (item.cstPis ?? '07');
@@ -360,6 +376,7 @@ export class NfeXmlBuilderService {
           </prod>
           <imposto>
             <ICMS>${icmsTag}</ICMS>
+            ${ipiTag}
             <PIS>${pisTag}</PIS>
             <COFINS>${cofinsTag}</COFINS>
             ${ibscbsTag}${isTag}
