@@ -211,6 +211,47 @@ const MODELOS_CARROCERIA_DATA: {
   { tipoCodigoLegal: 'PR', nome: 'Prancha Extensível',         fabricante: 'ND Implementos', descricao: 'Prancha com extensão — vigas e cargas especiais' },
 ];
 
+// ============================================================================
+// cClassTrib — Classificação Tributária IBS/CBS (NT 2025.002 v1.70)
+// Fonte: IT 2025.002 — tabela oficial com 170 códigos
+// Incluídos aqui: os principais para fabricante industrial/comercial em SP (Lucro Real)
+// ============================================================================
+const CLASS_TRIB_DATA = [
+  // ── CST 000 — Tributação integral (regime geral) ──────────────────────────
+  { codigo: '000001', cst: '000', descricao: 'Tributado integralmente pelo IBS e CBS — regime geral', grupo: 'TRIBUTADO' },
+  { codigo: '000002', cst: '000', descricao: 'Tributado integralmente pelo IBS e CBS — operação com ativo imobilizado', grupo: 'TRIBUTADO' },
+  { codigo: '000003', cst: '000', descricao: 'Tributado integralmente pelo IBS e CBS — uso e consumo', grupo: 'TRIBUTADO' },
+
+  // ── CST 200 — Alíquota reduzida ───────────────────────────────────────────
+  { codigo: '200001', cst: '200', descricao: 'Tributado com alíquota reduzida — cesta básica nacional (art. 19)', grupo: 'REDUZIDO' },
+  { codigo: '200002', cst: '200', descricao: 'Tributado com alíquota reduzida — medicamentos (art. 20)', grupo: 'REDUZIDO' },
+  { codigo: '200003', cst: '200', descricao: 'Tributado com alíquota reduzida — serviços de educação', grupo: 'REDUZIDO' },
+  { codigo: '200004', cst: '200', descricao: 'Tributado com alíquota reduzida — serviços de saúde', grupo: 'REDUZIDO' },
+  { codigo: '200005', cst: '200', descricao: 'Tributado com alíquota reduzida — dispositivos médicos', grupo: 'REDUZIDO' },
+  { codigo: '200006', cst: '200', descricao: 'Tributado com alíquota reduzida — produção rural', grupo: 'REDUZIDO' },
+  { codigo: '200020', cst: '200', descricao: 'Tributado com alíquota reduzida — remessa para ZFM', grupo: 'REDUZIDO' },
+
+  // ── CST 400 — Isenção ────────────────────────────────────────────────────
+  { codigo: '400001', cst: '400', descricao: 'Isenção de IBS e CBS prevista em lei', grupo: 'ISENCAO' },
+
+  // ── CST 410 — Imunidade e não incidência ─────────────────────────────────
+  { codigo: '410001', cst: '410', descricao: 'Imunidade constitucional — IBS e CBS', grupo: 'IMUNIDADE' },
+  { codigo: '410002', cst: '410', descricao: 'Não incidência — exportação de mercadorias (art. 7º, I)', grupo: 'NAO_INCIDENCIA' },
+  { codigo: '410003', cst: '410', descricao: 'Não incidência — exportação de serviços (art. 7º, II)', grupo: 'NAO_INCIDENCIA' },
+  { codigo: '410004', cst: '410', descricao: 'Não incidência — operação não onerosa (bonificação, doação)', grupo: 'NAO_INCIDENCIA' },
+  { codigo: '410005', cst: '410', descricao: 'Não incidência — transferência entre estabelecimentos do mesmo contribuinte', grupo: 'NAO_INCIDENCIA' },
+  { codigo: '410999', cst: '410', descricao: 'Não incidência — outras hipóteses não especificadas', grupo: 'NAO_INCIDENCIA' },
+
+  // ── CST 510 — Diferimento ─────────────────────────────────────────────────
+  { codigo: '510001', cst: '510', descricao: 'Diferimento total de IBS e CBS', grupo: 'DIFERIMENTO' },
+  { codigo: '510002', cst: '510', descricao: 'Diferimento parcial de IBS e CBS', grupo: 'DIFERIMENTO' },
+
+  // ── CST 550 — Suspensão ───────────────────────────────────────────────────
+  { codigo: '550001', cst: '550', descricao: 'Suspensão — exportação com saída do país pendente', grupo: 'SUSPENSAO' },
+  { codigo: '550002', cst: '550', descricao: 'Suspensão — regime aduaneiro especial', grupo: 'SUSPENSAO' },
+  { codigo: '550003', cst: '550', descricao: 'Suspensão — drawback', grupo: 'SUSPENSAO' },
+];
+
 const prisma = new PrismaClient();
 
 async function main() {
@@ -1002,6 +1043,19 @@ async function seedCarroceria() {
     modelosCount++;
   }
   console.log(`✅ ${modelosCount} modelos de carroceria inseridos`);
+
+  // ============================================================================
+  // cClassTrib — NT 2025.002 v1.70
+  // ============================================================================
+  console.log('\n📋 Seedando classificações tributárias IBS/CBS (cClassTrib)...');
+  for (const ct of CLASS_TRIB_DATA) {
+    await (prisma as any).classTribIbs.upsert({
+      where: { codigo: ct.codigo },
+      update: { descricao: ct.descricao, grupo: ct.grupo },
+      create: ct,
+    });
+  }
+  console.log(`✅ ${CLASS_TRIB_DATA.length} classificações tributárias inseridas`);
 }
 
 main()

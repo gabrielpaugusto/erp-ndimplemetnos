@@ -232,66 +232,87 @@ export class NfeXmlBuilderService {
             </COFINSAliq>`;
       }
 
-      // ── IBS / CBS / IS (Reforma Tributária — NT 2025.002) ──────────────────
-      // Em 2026: período informativo — obrigatório para LR/LP (Lucro Real/Presumido)
-      // com alíquotas padrão CBS=0,9% e IBS=0,1% quando cClassTrib=B00
-      const cClassTrib = (item as any).cClassTrib ?? 'B00';
-      const tributadoIBSCBS = ['B00', 'B07', 'B08'].includes(cClassTrib); // operações com IBS/CBS
+      // ── IBS / CBS / IS (Reforma Tributária — NT 2025.002 v1.70) ──────────────
+      // cClassTrib: 6 dígitos (ex: "000001" = tributado integral)
+      //   primeiros 3 = CST IBS/CBS | últimos 3 = subdivisão
+      // cstIbsCbs: 3 dígitos (ex: "000" = tributado, "410" = imunidade/exportação)
+      // Em 2026: CBS=0,9% e IBS=0,1% informativo; LR/LP obrigatório desde 03/08/2026
+      const cClassTrib  = (item as any).cClassTrib  ?? '000001';
+      const cstIbsCbs   = (item as any).cstIbsCbs   ?? cClassTrib.slice(0, 3);
 
-      // Alíquotas informativas 2026 (usadas quando campos não preenchidos e tributadoIBSCBS)
+      // CSTs tributados: 000 (integral), 010 (alíq.uniformes fundo), 011 (alíq.uniformes)
+      const CST_TRIBUTADO = ['000', '010', '011'];
+      const tributadoIBSCBS = CST_TRIBUTADO.includes(cstIbsCbs);
+
+      // Alíquotas informativas 2026 (usadas quando campos não preenchidos e tributado)
       const ALIQ_CBS_2026 = 0.009;  // 0,9%
-      const ALIQ_IBS_2026 = 0.001;  // 0,1%
+      const ALIQ_IBS_UF_2026  = 0.0005; // 0,05% estadual
+      const ALIQ_IBS_MUN_2026 = 0.0005; // 0,05% municipal
 
-      let ibsBc    = Number((item as any).bcIbs   ?? 0);
-      let ibsAliq  = Number((item as any).aliqIbs ?? 0);
-      let ibsValor = Number((item as any).valorIbs ?? 0);
-      let cbsBc    = Number((item as any).bcCbs   ?? 0);
-      let cbsAliq  = Number((item as any).aliqCbs ?? 0);
+      let ibsBc       = Number((item as any).bcIbs       ?? 0);
+      let ibsAliqUf   = Number((item as any).aliqIbsUf   ?? 0);
+      let ibsValorUf  = Number((item as any).valorIbsUf  ?? 0);
+      let ibsAliqMun  = Number((item as any).aliqIbsMun  ?? 0);
+      let ibsValorMun = Number((item as any).valorIbsMun ?? 0);
+      // Compatibilidade: se só tem aliqIbs/valorIbs antigos, divide 50/50
+      if (ibsAliqUf === 0 && ibsAliqMun === 0) {
+        const aliqTotal = Number((item as any).aliqIbs ?? 0);
+        ibsAliqUf  = aliqTotal / 2;
+        ibsAliqMun = aliqTotal / 2;
+        const valorTotal = Number((item as any).valorIbs ?? 0);
+        ibsValorUf  = valorTotal / 2;
+        ibsValorMun = valorTotal / 2;
+      }
+      let cbsBc    = Number((item as any).bcCbs    ?? 0);
+      let cbsAliq  = Number((item as any).aliqCbs  ?? 0);
       let cbsValor = Number((item as any).valorCbs ?? 0);
-      const isValor  = Number((item as any).valorIs  ?? 0);
-      const isBc     = Number((item as any).bcIs    ?? 0);
-      const isAliq   = Number((item as any).aliqIs  ?? 0);
+      const isValor = Number((item as any).valorIs ?? 0);
+      const isBc    = Number((item as any).bcIs    ?? 0);
+      const isAliq  = Number((item as any).aliqIs  ?? 0);
 
-      // Cálculo automático para período informativo quando não foram preenchidos
-      if (tributadoIBSCBS && cbsValor === 0 && ibsValor === 0) {
-        cbsBc    = total;
-        cbsAliq  = ALIQ_CBS_2026;
-        cbsValor = parseFloat((total * ALIQ_CBS_2026).toFixed(2));
-        ibsBc    = total;
-        ibsAliq  = ALIQ_IBS_2026;
-        ibsValor = parseFloat((total * ALIQ_IBS_2026).toFixed(2));
+      // Cálculo automático para período informativo quando não preenchidos
+      if (tributadoIBSCBS && cbsValor === 0 && ibsValorUf === 0 && ibsValorMun === 0) {
+        cbsBc      = total;
+        cbsAliq    = ALIQ_CBS_2026;
+        cbsValor   = parseFloat((total * ALIQ_CBS_2026).toFixed(2));
+        ibsBc      = total;
+        ibsAliqUf  = ALIQ_IBS_UF_2026;
+        ibsValorUf = parseFloat((total * ALIQ_IBS_UF_2026).toFixed(2));
+        ibsAliqMun  = ALIQ_IBS_MUN_2026;
+        ibsValorMun = parseFloat((total * ALIQ_IBS_MUN_2026).toFixed(2));
       }
 
       // gIBSCBS — grupo obrigatório para LR/LP (NT 2025.002)
-      const ibsInnerTag = ibsValor > 0
-        ? `<IBS>
-                <CST>01</CST>
-                <vBCIBS>${this.fmt(ibsBc)}</vBCIBS>
-                <pAliqIBS>${this.fmt(ibsAliq, 4)}</pAliqIBS>
-                <vIBS>${this.fmt(ibsValor)}</vIBS>
-              </IBS>`
-        : '';
-
-      const cbsInnerTag = cbsValor > 0
-        ? `<CBS>
-                <CST>01</CST>
-                <vBCCBS>${this.fmt(cbsBc)}</vBCCBS>
-                <pAliqCBS>${this.fmt(cbsAliq, 4)}</pAliqCBS>
-                <vCBS>${this.fmt(cbsValor)}</vCBS>
-              </CBS>`
-        : '';
-
-      const ibscbsTag = (ibsInnerTag || cbsInnerTag)
+      // IBS agora dividido em gIBSUF (estadual) + gIBSMun (municipal)
+      const ibsTag = (ibsValorUf > 0 || ibsValorMun > 0)
         ? `<gIBSCBS>
-              <cClassTrib>${cClassTrib}</cClassTrib>
-              ${ibsInnerTag}${cbsInnerTag}
-            </gIBSCBS>`
+                <gIBSUF>
+                  <pAliqIBSUF>${this.fmt(ibsAliqUf, 4)}</pAliqIBSUF>
+                  <vIBSUF>${this.fmt(ibsValorUf)}</vIBSUF>
+                </gIBSUF>
+                <gIBSMun>
+                  <pAliqIBSMun>${this.fmt(ibsAliqMun, 4)}</pAliqIBSMun>
+                  <vIBSMun>${this.fmt(ibsValorMun)}</vIBSMun>
+                </gIBSMun>
+                <gCBS>
+                  <pAliqCBS>${this.fmt(cbsAliq, 4)}</pAliqCBS>
+                  <vCBS>${this.fmt(cbsValor)}</vCBS>
+                </gCBS>
+              </gIBSCBS>`
         : '';
 
-      // IS — Imposto Seletivo (fora do gIBSCBS, produtos específicos)
+      const ibscbsTag = (tributadoIBSCBS || ibsValorUf > 0 || cbsValor > 0)
+        ? `<IBSCBS>
+              <CST>${cstIbsCbs}</CST>
+              <cClassTrib>${cClassTrib}</cClassTrib>
+              ${ibsTag}
+            </IBSCBS>`
+        : '';
+
+      // IS — Imposto Seletivo (fora do IBSCBS, produtos específicos)
       const isTag = isValor > 0
         ? `<IS>
-              <CST>01</CST>
+              <CST>${cstIbsCbs}</CST>
               <vBCIS>${this.fmt(isBc)}</vBCIS>
               <pAliqIS>${this.fmt(isAliq, 4)}</pAliqIS>
               <vIS>${this.fmt(isValor)}</vIS>

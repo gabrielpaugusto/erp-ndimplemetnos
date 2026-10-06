@@ -1532,6 +1532,22 @@ model StProtocoloConfaz {
 }
 
 /// Código de Benefício Fiscal (pBenef na NF-e) — isenções, reduções de base, diferimentos, etc. por UF
+// Classificação Tributária IBS/CBS — NT 2025.002 v1.70 (170 códigos oficiais)
+model ClassTribIbs {
+  id        String   @id @default(cuid())
+  codigo    String   @unique @db.VarChar(6)   // 6 dígitos: ex "000001"
+  cst       String   @db.VarChar(3)           // 3 dígitos (primeiros 3 do codigo): ex "000"
+  descricao String   @db.VarChar(500)
+  grupo     String   @db.VarChar(30)          // TRIBUTADO | REDUZIDO | ISENCAO | IMUNIDADE | NAO_INCIDENCIA | DIFERIMENTO | SUSPENSAO
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cst])
+  @@index([grupo])
+  @@map("class_trib_ibs")
+}
+
 model Cbenef {
   id               String    @id @default(cuid())
   codigo           String    @db.VarChar(10)      // ex: "SP000001" — código oficial da SEFAZ
@@ -3016,8 +3032,12 @@ model NFeItem {
   destinacaoFiscal        ItemDestinacao?  // se null, herda de product.destinacaoFiscal
 
   // Classificação tributária IBS/CBS (NT 2025.002 — gIBSCBS)
-  // B00=tributado alíq.cheia, B01=imunidade, B02=não incidência, B03=suspensão, B05=alíq.zero, B06=isenção
-  cClassTrib              String?      @default("B00") @db.VarChar(3)
+  // 6 dígitos: primeiros 3 = CST IBS/CBS, últimos 3 = subdivisão (ex: "000001" = tributado integral)
+  // Tabela oficial IT 2025.002 v1.70 — 170 códigos ativos
+  cClassTrib              String?      @default("000001") @db.VarChar(6)
+  // CST IBS/CBS (3 dígitos, NT 2025.002): 000=tributado, 200=reduzida, 410=imunidade/não incidência,
+  // 510=diferimento, 550=suspensão, 400=isenção, 620=monofásico
+  cstIbsCbs               String?      @default("000") @db.VarChar(3)
 
   // Benefício Fiscal (tag <pBenef> da NF-e)
   beneficioFiscal         String?      @db.VarChar(20)
