@@ -1574,6 +1574,27 @@ model Cbenef {
   @@map("cbenef")
 }
 
+/// Classificação NCM × Imposto Seletivo (LC 214/2025, Art. 263)
+/// Produtos prejudiciais à saúde ou ao meio ambiente sujeitos ao IS
+model NcmIs {
+  id            String   @id @default(cuid())
+  ncm           String   @db.VarChar(8)    // 8 dígitos sem pontos/traços
+  cstIs         String   @db.VarChar(3)    // 000=tributado, 010=monofásico, 400=não trib, 410=imunidade
+  categoria     String   @db.VarChar(50)   // VEICULO | FUMIGENO | ALCOOLICO | ACUCARADO | MINERACAO | ARMAMENTO
+  descricao     String   @db.VarChar(500)
+  aliqIsPadrao  Decimal? @db.Decimal(7, 4) // alíquota IS padrão (% a definir por lei específica)
+  vigenciaInicio DateTime?
+  vigenciaFim   DateTime?
+  ativo         Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([ncm])
+  @@index([cstIs])
+  @@index([categoria])
+  @@map("ncm_is")
+}
+
 model Cest {
   id             String   @id @default(cuid())
   code           String   @unique @db.VarChar(7)
@@ -3032,10 +3053,12 @@ model NFeItem {
   aliqCbs                 Float        @default(0)
   valorCbs                Float        @default(0)
 
-  // IS — Imposto Seletivo
+  // IS — Imposto Seletivo (LC 214/2025, Art. 263 — produtos prejudiciais à saúde/ambiente)
   bcIs                    Float        @default(0)
   aliqIs                  Float        @default(0)
   valorIs                 Float        @default(0)
+  // CST IS (3 dígitos, NT 2025.002): 000=tributado, 010=monofásico, 400=não tributado, 410=imunidade
+  cstIs                   String?      @default("400") @db.VarChar(3)
 
   // Destinação fiscal (A2/A4 — permite override por item na NF-e emitida)
   destinacaoFiscal        ItemDestinacao?  // se null, herda de product.destinacaoFiscal

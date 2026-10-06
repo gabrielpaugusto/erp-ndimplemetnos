@@ -112,7 +112,9 @@ export class NfeXmlBuilderService {
 
     // Calculate totals
     let vProd = 0, vICMS = 0, vIPI = 0, vPIS = 0, vCOFINS = 0, vIcmsSt = 0;
-    let vBCIBS = 0, vIBS = 0, vBCCBS = 0, vCBS = 0, vBCIS = 0, vIS = 0;
+    // vBCIS/vIS calculados após o map (IS pode ter auto-calc baseado em NCM lookup)
+    let vBCIBS = 0, vIBS = 0, vBCCBS = 0, vCBS = 0;
+    let vBCIS = 0, vIS = 0; // preenchidos após itemsData map
     for (const item of nfe.items) {
       vProd += Number(item.totalPrice ?? 0);
       vICMS += Number(item.valorIcms ?? 0);
@@ -128,8 +130,6 @@ export class NfeXmlBuilderService {
       vIBS   += Number((item as any).valorIbs ?? 0);
       vBCCBS += Number((item as any).bcCbs ?? 0);
       vCBS   += Number((item as any).valorCbs ?? 0);
-      vBCIS  += Number((item as any).bcIs ?? 0);
-      vIS    += Number((item as any).valorIs ?? 0);
     }
     const vFrete = Number(nfe.valorFrete ?? 0);
     const vSeg = Number(nfe.valorSeguro ?? 0);
@@ -158,8 +158,21 @@ export class NfeXmlBuilderService {
     // Endereço do destinatário: usa o endereço principal ou o primeiro cadastrado
     const destAddr = (dest as any)?.addresses?.[0];
 
-    // Build items XML
-    const itemsXml = nfe.items.map((item, i) => {
+    // IS lookup: pré-carrega NCMs sujeitas ao IS (só relevante para 2027+)
+    // Map<ncm8, { cstIs, aliqIsPadrao }> — null se não sujeita ao IS
+    const ncmsItems = nfe.items.map(i => (i.ncmCode ?? '').replace(/\D/g,'').padStart(8,'0'));
+    const ncmIsRows = regime2027
+      ? await (this.prisma as any).ncmIs.findMany({
+          where: { ncm: { in: ncmsItems }, ativo: true },
+          select: { ncm: true, cstIs: true, aliqIsPadrao: true },
+        })
+      : [];
+    const ncmIsMap = new Map<string, { cstIs: string; aliqIsPadrao: number | null }>(
+      ncmIsRows.map((r: any) => [r.ncm, { cstIs: r.cstIs, aliqIsPadrao: r.aliqIsPadrao ? Number(r.aliqIsPadrao) : null }])
+    );
+
+    // Build items XML — retorna { xml, isValorFinal, isBcFinal } para acumular totais IS
+    const itemsData = nfe.items.map((item, i) => {
       const descProd = `${homPrefix}${this.sanitize(item.description, 120 - homPrefix.length)}`;
       const qty = Number(item.quantity ?? 1);
       const unitPrice = Number(item.unitPrice ?? 0);
@@ -346,17 +359,32 @@ export class NfeXmlBuilderService {
             </IBSCBS>`
         : '';
 
-      // IS — Imposto Seletivo (fora do IBSCBS, produtos específicos)
-      const isTag = isValor > 0
+      // IS — Imposto Seletivo (LC 214/2025, Art. 263 — vigente a partir de 01/01/2027)
+      // Só emite <IS> para notas 2027+; lookup por NCM determina sujeição ao imposto
+      const ncmIsInfo  = ncmIsMap.get(ncm);
+      // cstIs: usa campo do item se preenchido, senão '000' se NCM sujeita, '400' se não sujeita
+      const cstIs = (item as any).cstIs
+        ?? (ncmIsInfo ? ncmIsInfo.cstIs : '400');
+      let isValorFinal = isValor;
+      let isBcFinal    = isBc;
+      let isAliqFinal  = isAliq;
+      // Auto-calc IS quando NCM sujeita, regime2027 e valores não preenchidos
+      if (regime2027 && ncmIsInfo && cstIs === '000' && isValorFinal === 0 && ncmIsInfo.aliqIsPadrao) {
+        const pIS = ncmIsInfo.aliqIsPadrao / 100;
+        isBcFinal    = total;
+        isAliqFinal  = ncmIsInfo.aliqIsPadrao;
+        isValorFinal = parseFloat((total * pIS).toFixed(2));
+      }
+      const isTag = (regime2027 && isValorFinal > 0)
         ? `<IS>
-              <CST>${cstIbsCbs}</CST>
-              <vBCIS>${this.fmt(isBc)}</vBCIS>
-              <pAliqIS>${this.fmt(isAliq, 4)}</pAliqIS>
-              <vIS>${this.fmt(isValor)}</vIS>
+              <CST>${cstIs}</CST>
+              <vBCIS>${this.fmt(isBcFinal)}</vBCIS>
+              <pAliqIS>${this.fmt(isAliqFinal, 4)}</pAliqIS>
+              <vIS>${this.fmt(isValorFinal)}</vIS>
             </IS>`
         : '';
 
-      return `<det nItem="${i+1}">
+      const detXml = `<det nItem="${i+1}">
           <prod>
             <cProd>${this.sanitize(item.productId ? item.productId.slice(0,60) : (i+1).toString().padStart(3,'0'))}</cProd>
             <cEAN>SEM GTIN</cEAN>
@@ -382,7 +410,12 @@ export class NfeXmlBuilderService {
             ${ibscbsTag}${isTag}
           </imposto>
         </det>`;
-    }).join('\n');
+      return { xml: detXml, isValorFinal, isBcFinal };
+    });
+
+    // Acumula totais IS após map (auto-calc pode ter produzido valores > 0)
+    for (const d of itemsData) { vBCIS += d.isBcFinal; vIS += d.isValorFinal; }
+    const itemsXml = itemsData.map(d => d.xml).join('\n');
 
     // Main XML
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
