@@ -66,7 +66,15 @@ export class NfeXmlBuilderService {
             },
           },
         },
-        company: true,
+        company: {
+          include: {
+            taxRegimeConfigs: {
+              where: { vigenciaFim: null },
+              orderBy: { vigenciaInicio: 'desc' },
+              take: 1,
+            },
+          },
+        },
       },
     });
 
@@ -78,6 +86,12 @@ export class NfeXmlBuilderService {
     // LC 214/2025: PIS/COFINS extintos a partir de 01/01/2027; CBS assume o papel.
     // Regras fiscais dependem da data de emissão para compatibilidade com homologação em 2026.
     const regime2027 = anoEmissao >= 2027;
+
+    // Alíquotas CBS/IBS do TaxRegimeConfig ativo — parametrizáveis (Senado define até dez/2026)
+    const taxCfg = (company as any).taxRegimeConfigs?.[0];
+    const ALIQ_CBS_PADRAO  = taxCfg?.aliqCbsPadrao    ? Number(taxCfg.aliqCbsPadrao)    / 100 : 0.009;      // 0,9% teste 2026
+    const ALIQ_IBS_UF_PAD  = taxCfg?.aliqIbsUfPadrao  ? Number(taxCfg.aliqIbsUfPadrao)  / 100 : 0.0005;     // 0,05% estadual
+    const ALIQ_IBS_MUN_PAD = taxCfg?.aliqIbsMunPadrao ? Number(taxCfg.aliqIbsMunPadrao) / 100 : 0.0005;     // 0,05% municipal
     const cUF = this.ufCode(company.uf ?? 'SP');
     const cNf = Math.floor(Math.random() * 99999999).toString().padStart(8, '0');
     const serie = (nfe.serie ?? company.serieNfe ?? 1).toString().padStart(3, '0');
@@ -251,10 +265,10 @@ export class NfeXmlBuilderService {
       const CST_TRIBUTADO = ['000', '010', '011'];
       const tributadoIBSCBS = CST_TRIBUTADO.includes(cstIbsCbs);
 
-      // Alíquotas informativas 2026 (usadas quando campos não preenchidos e tributado)
-      const ALIQ_CBS_2026 = 0.009;  // 0,9%
-      const ALIQ_IBS_UF_2026  = 0.0005; // 0,05% estadual
-      const ALIQ_IBS_MUN_2026 = 0.0005; // 0,05% municipal
+      // Alíquotas do TaxRegimeConfig ativo (fallback: valores informativos 2026)
+      const ALIQ_CBS_2026     = ALIQ_CBS_PADRAO;
+      const ALIQ_IBS_UF_2026  = ALIQ_IBS_UF_PAD;
+      const ALIQ_IBS_MUN_2026 = ALIQ_IBS_MUN_PAD;
 
       let ibsBc       = Number((item as any).bcIbs       ?? 0);
       let ibsAliqUf   = Number((item as any).aliqIbsUf   ?? 0);

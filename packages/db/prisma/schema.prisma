@@ -1081,6 +1081,11 @@ model TaxRegimeConfig {
   percentualPisCofins   Decimal?  @db.Decimal(5, 2) // 100% → 0%
   percentualCbs         Decimal?  @db.Decimal(5, 2) // 0% → 100%
 
+  // Alíquotas padrão CBS/IBS (parametrizáveis — Senado define por Decreto até dez/2026)
+  aliqCbsPadrao         Decimal?  @db.Decimal(7, 4) // ex: 8.8000 (%) — CBS full rate 2027
+  aliqIbsUfPadrao       Decimal?  @db.Decimal(7, 4) // ex: 0.0500 (%) — IBS estadual 2026 teste
+  aliqIbsMunPadrao      Decimal?  @db.Decimal(7, 4) // ex: 0.0500 (%) — IBS municipal 2026 teste
+
   // Flags
   cbsAtiva              Boolean   @default(false)
   ibsAtiva              Boolean   @default(false)
@@ -3013,10 +3018,14 @@ model NFeItem {
   valorCofins             Float        @default(0)
   cstCofins               String?      @db.VarChar(2)
 
-  // IBS — Reforma Tributária (EC 132/2023)
+  // IBS — Reforma Tributária (EC 132/2023) — split UF + Municipal (NT 2025.002)
   bcIbs                   Float        @default(0)
-  aliqIbs                 Float        @default(0)
-  valorIbs                Float        @default(0)
+  aliqIbs                 Float        @default(0)  // total (retrocompatibilidade)
+  valorIbs                Float        @default(0)  // total (retrocompatibilidade)
+  aliqIbsUf               Float        @default(0)  // alíquota IBS estadual
+  valorIbsUf              Float        @default(0)  // valor IBS estadual
+  aliqIbsMun              Float        @default(0)  // alíquota IBS municipal
+  valorIbsMun             Float        @default(0)  // valor IBS municipal
 
   // CBS — Reforma Tributária
   bcCbs                   Float        @default(0)
