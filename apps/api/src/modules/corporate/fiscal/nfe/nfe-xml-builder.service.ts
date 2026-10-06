@@ -74,6 +74,10 @@ export class NfeXmlBuilderService {
     const dest = nfe.person;
 
     const dataEmissao = nfe.dataEmissao ?? new Date();
+    const anoEmissao = dataEmissao.getFullYear();
+    // LC 214/2025: PIS/COFINS extintos a partir de 01/01/2027; CBS assume o papel.
+    // Regras fiscais dependem da data de emissão para compatibilidade com homologação em 2026.
+    const regime2027 = anoEmissao >= 2027;
     const cUF = this.ufCode(company.uf ?? 'SP');
     const cNf = Math.floor(Math.random() * 99999999).toString().padStart(8, '0');
     const serie = (nfe.serie ?? company.serieNfe ?? 1).toString().padStart(3, '0');
@@ -99,8 +103,11 @@ export class NfeXmlBuilderService {
       vProd += Number(item.totalPrice ?? 0);
       vICMS += Number(item.valorIcms ?? 0);
       vIPI += Number(item.valorIpi ?? 0);
-      vPIS += Number(item.valorPis ?? 0);
-      vCOFINS += Number(item.valorCofins ?? 0);
+      // PIS/COFINS extintos em 2027; zera totais para não constar no ICMSTot
+      if (!regime2027) {
+        vPIS += Number(item.valorPis ?? 0);
+        vCOFINS += Number(item.valorCofins ?? 0);
+      }
       vIcmsSt += Number(item.valorIcmsSt ?? 0);
       vBCIBS += Number((item as any).bcIbs ?? 0);
       vIBS   += Number((item as any).valorIbs ?? 0);
@@ -204,10 +211,10 @@ export class NfeXmlBuilderService {
         icmsTag = `<ICMS40><orig>0</orig><CST>40</CST></ICMS40>`;
       }
 
-      // PIS
-      const cstPis = item.cstPis ?? '07';
+      // PIS — extinto a partir de 01/01/2027 (LC 214/2025); declarado como isento (CST 07)
+      const cstPis = regime2027 ? '07' : (item.cstPis ?? '07');
       let pisTag = '';
-      if (['07','08','09'].includes(cstPis)) {
+      if (regime2027 || ['07','08','09'].includes(cstPis)) {
         pisTag = `<PISNT><CST>${cstPis}</CST></PISNT>`;
       } else {
         pisTag = `<PISAliq>
@@ -218,10 +225,10 @@ export class NfeXmlBuilderService {
             </PISAliq>`;
       }
 
-      // COFINS
-      const cstCofins = item.cstCofins ?? '07';
+      // COFINS — extinto a partir de 01/01/2027 (LC 214/2025); declarado como isento (CST 07)
+      const cstCofins = regime2027 ? '07' : (item.cstCofins ?? '07');
       let cofinsTag = '';
-      if (['07','08','09'].includes(cstCofins)) {
+      if (regime2027 || ['07','08','09'].includes(cstCofins)) {
         cofinsTag = `<COFINSNT><CST>${cstCofins}</CST></COFINSNT>`;
       } else {
         cofinsTag = `<COFINSAliq>
