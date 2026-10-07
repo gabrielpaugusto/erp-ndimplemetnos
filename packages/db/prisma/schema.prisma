@@ -2961,11 +2961,15 @@ model NFeDocument {
   xmlRetorno              String?         @db.Text
   motivoCancelamento      String?         @db.Text
 
+  // Pagamento (NT 2013.005 / grupo YA)
+  vTroco                  Float?                      // troco (só para tPag=01 dinheiro)
+
   createdAt               DateTime        @default(now())
   updatedAt               DateTime        @updatedAt
 
   // Relations
   items                   NFeItem[]
+  detPag                  NFeDetPag[]
   fiscalEntries           FiscalEntry[]
 
   // Financeiro (Sprint 8)
@@ -2983,6 +2987,41 @@ model NFeDocument {
   @@index([companyId, status])
   @@index([personId])
   @@map("nfe_documents")
+}
+
+// ============================================================================
+// NF-e — FORMAS DE PAGAMENTO (grupo YA — detPag, NT 2013.005 v1.00)
+// ============================================================================
+// tPag: 01=dinheiro 02=cheque 03=cartão crédito 04=cartão débito
+//       05=crédito loja 10=vale alimentação 11=vale refeição
+//       12=vale presente 13=vale combustível 14=duplicata mercantil
+//       15=boleto bancário 16=depósito bancário 17=PIX 18=TED/DOC
+//       19=fidelidade/milhas 90=sem pagamento 99=outros
+// indPag: 0=à vista 1=a prazo (campo opcional desde layout 4.00)
+
+model NFeDetPag {
+  id        String      @id @default(cuid())
+  nfeId     String
+  nfe       NFeDocument @relation(fields: [nfeId], references: [id], onDelete: Cascade)
+
+  ordem     Int         @default(1)
+  indPag    Int?                        // 0=à vista 1=a prazo
+  tPag      String      @db.VarChar(2)
+  xPag      String?     @db.VarChar(60) // descrição quando tPag=99
+  vPag      Decimal     @db.Decimal(15, 2)
+  dVenc     DateTime?                   // vencimento (quando a prazo)
+
+  // Cartão de crédito/débito (tPag=03 ou 04)
+  tpIntegra Int?                        // 1=integrado 2=não integrado
+  cnpjCred  String?     @db.VarChar(14) // CNPJ credenciadora
+  tBand     String?     @db.VarChar(2)  // bandeira (01=Visa 02=Mastercard etc.)
+  cAut      String?     @db.VarChar(20) // código de autorização
+
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([nfeId, ordem])
+  @@map("nfe_det_pag")
 }
 
 // ============================================================================

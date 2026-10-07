@@ -58,6 +58,7 @@ export class NfeXmlBuilderService {
       where: { id: nfeId },
       include: {
         items: { orderBy: { itemNumber: 'asc' } },
+        detPag: { orderBy: { ordem: 'asc' } },
         person: {
           include: {
             addresses: {
@@ -517,16 +518,43 @@ export class NfeXmlBuilderService {
       <modFrete>9</modFrete>
     </transp>
     <pag>
-      <detPag>
-        <tPag>01</tPag>
-        <vPag>${this.fmt(vNF)}</vPag>
-      </detPag>
+      ${this.buildDetPag(nfe.detPag as any[], vNF)}
+      ${nfe.vTroco ? `<vTroco>${this.fmt(nfe.vTroco)}</vTroco>` : ''}
     </pag>
     ${nfe.informacoesComplementares ? `<infAdic><infCpl>${this.sanitize(nfe.informacoesComplementares, 2000)}</infCpl></infAdic>` : ''}
   </infNFe>
 </NFe>`;
 
     return { xml, chaveAcesso, cNf };
+  }
+
+  private buildDetPag(detPags: any[], vNF: number): string {
+    if (!detPags || detPags.length === 0) {
+      // Fallback: à vista em dinheiro pelo valor total
+      return `<detPag><tPag>01</tPag><vPag>${this.fmt(vNF)}</vPag></detPag>`;
+    }
+    return detPags.map((dp) => {
+      const vPag = this.fmt(Number(dp.vPag));
+      const dVenc = dp.dVenc
+        ? `<dVenc>${(dp.dVenc as Date).toISOString().split('T')[0]}</dVenc>`
+        : '';
+      const cardXml = dp.tpIntegra
+        ? `<card>
+          <tpIntegra>${dp.tpIntegra}</tpIntegra>
+          ${dp.cnpjCred ? `<CNPJ>${dp.cnpjCred}</CNPJ>` : ''}
+          ${dp.tBand ? `<tBand>${dp.tBand}</tBand>` : ''}
+          ${dp.cAut ? `<cAut>${dp.cAut}</cAut>` : ''}
+        </card>`
+        : '';
+      return `<detPag>
+        ${dp.indPag != null ? `<indPag>${dp.indPag}</indPag>` : ''}
+        <tPag>${dp.tPag}</tPag>
+        ${dp.xPag ? `<xPag>${this.sanitize(dp.xPag, 60)}</xPag>` : ''}
+        <vPag>${vPag}</vPag>
+        ${dVenc}
+        ${cardXml}
+      </detPag>`;
+    }).join('\n      ');
   }
 
   private calcMod11(chave: string): string {
