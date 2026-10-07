@@ -846,8 +846,9 @@ model Company {
   costCenters         CostCenter[]
   users               User[]
   userCompanies       UserCompany[]
-  taxRegimeConfigs    TaxRegimeConfig[]
-  operacoesFiscais    OperacaoFiscal[]
+  taxRegimeConfigs       TaxRegimeConfig[]
+  operacoesFiscais       OperacaoFiscal[]
+  encerCreditosPisCofins EncerCreditoPisCofins[]
   persons             Person[]
   products            Product[]
   leads               Lead[]
@@ -5876,6 +5877,46 @@ model FiscalBrainChatMessage {
 
   @@index([companyId, createdAt])
   @@map("fiscal_brain_chat_messages")
+}
+
+// ============================================================================
+// ENCERRAMENTO DE CRÉDITOS PIS/COFINS — REFORMA TRIBUTÁRIA (LC 214/2025)
+// Prazo: aproveitamento até 31/12/2026; saldos remanescentes extintos.
+// Ref: LC 214/2025 Art. 345 — disposições transitórias créditos PIS/COFINS.
+// ============================================================================
+
+/// Registro de créditos PIS/COFINS acumulados antes de 01/01/2027.
+/// Gerenciamento do aproveitamento progressivo e encerramento obrigatório até 31/12/2026.
+model EncerCreditoPisCofins {
+  id                  String   @id @default(cuid())
+  companyId           String
+  company             Company  @relation(fields: [companyId], references: [id])
+
+  // Identificação do crédito
+  tipo                String   @db.VarChar(10)   // PIS | COFINS
+  periodoOrigem       String   @db.VarChar(7)    // YYYY-MM em que o crédito foi apurado
+  natureza            String   @db.VarChar(50)   // ENTRADA_MERCADORIA | SERVICO | ATIVO_IMOBILIZADO | OUTROS
+  fundamentoLegal     String?  @db.VarChar(200)  // ex: "Lei 10.637/2002 Art. 3°, II"
+
+  // Valores
+  valorOriginal       Decimal  @db.Decimal(15, 4)  // valor apurado no período
+  valorAproveitado    Decimal  @default(0) @db.Decimal(15, 4)  // já compensado/aproveitado
+  valorSaldo          Decimal  @db.Decimal(15, 4)  // = valorOriginal - valorAproveitado
+  valorExtinto        Decimal  @default(0) @db.Decimal(15, 4)  // saldo não aproveitado até 31/12/2026
+
+  // Controle
+  // PENDENTE → APROVEITADO (total) | APROVEITADO_PARCIAL | EXTINTO (após 31/12/2026)
+  status              String   @default("PENDENTE") @db.VarChar(20)
+  dataLimiteAproveit  DateTime @default(dbgenerated("'2026-12-31 23:59:59'"))
+  dataEncerramento    DateTime?  // data em que foi marcado como EXTINTO ou APROVEITADO
+  observacoes         String?  @db.Text
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([companyId, tipo, status])
+  @@index([companyId, periodoOrigem])
+  @@map("encer_credito_pis_cofins")
 }
 
 // ============================================================================
