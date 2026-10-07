@@ -88,6 +88,12 @@ export class FiscalBrainService {
         alertas:         [...classificacao.alertas, ...validacao.avisos] as any,
         confianca:       confiancaEfetiva,
         autoAplicado,
+        // LC 214/2025 — CBS/IBS
+        regime2027:     classificacao.regime2027,
+        cstIbsCbs:      classificacao.cstIbsCbs,
+        aliquotaCbs:    classificacao.aliquotaCbs,
+        aliquotaIbsUf:  classificacao.aliquotaIbsUf,
+        aliquotaIbsMun: classificacao.aliquotaIbsMun,
       },
     });
 

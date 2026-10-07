@@ -70,6 +70,10 @@ export interface ContextoOperacao {
     natureza: string;
     confianca: number;
   }[];
+
+  // LC 214/2025 — pré-computado pelo chamador (NfeService/NfseService)
+  dataEmissao?: Date;
+  regime2027?: boolean; // true = emissão >= 01/01/2027 → CBS/IBS em vez de PIS/COFINS
 }
 
 export interface ClassificacaoFiscal {
@@ -90,6 +94,13 @@ export interface ClassificacaoFiscal {
   alternativas: { cfop: string; raciocinio: string; descartadoPor: string }[];
   alertas: string[];
   confianca: number; // 0–100
+
+  // LC 214/2025 — CBS/IBS (preenchido apenas quando regime2027=true)
+  regime2027: boolean;
+  cstIbsCbs?: string;    // CST NT 2025.002 (3 dígitos): 000|100|200|300|400|410|500|510|550|600|700
+  aliquotaCbs?: number;  // alíquota CBS %
+  aliquotaIbsUf?: number;  // alíquota IBS estadual %
+  aliquotaIbsMun?: number; // alíquota IBS municipal %
 }
 
 @Injectable()
@@ -180,6 +191,8 @@ export class ClassificadorService {
       ? ctx.operacoesSimilares.map((s) => `  CFOP ${s.cfop} | "${s.natureza}" | conf.${s.confianca}%`).join('\n')
       : '  (nenhum histórico disponível)';
 
+    const regime2027 = ctx.regime2027 ?? (ctx.dataEmissao ? ctx.dataEmissao.getFullYear() >= 2027 : false);
+
     return `Classifique o documento fiscal abaixo para fins de escrituração.
 
 ━━ EMPRESA EMITENTE ━━
@@ -188,6 +201,7 @@ Regime Tributário: ${ctx.regimeTributario === 'SN' ? 'Simples Nacional' : ctx.r
 UF: ${ctx.ufEmitente}
 Estabelecimento industrial: ${ctx.isIndustrial ? 'SIM' : 'NÃO'}
 Tipo de operação: ${ctx.tipoOperacao === 'SAIDA' ? 'SAÍDA' : 'ENTRADA'}
+Regime fiscal 2027+ (LC 214/2025): ${regime2027 ? 'SIM — CBS/IBS substituem PIS/COFINS' : 'NÃO — regras 2026 (PIS/COFINS vigentes)'}
 
 ━━ DESTINATÁRIO / REMETENTE ━━
 UF: ${ctx.ufDestinatario}
@@ -227,6 +241,7 @@ Retorne SOMENTE um JSON válido, sem markdown, sem explicação fora do JSON. Us
 
     try {
       const parsed = JSON.parse(jsonMatch[0]);
+      const regime2027 = Boolean(parsed.regime2027 ?? false);
       return {
         cfop:              String(parsed.cfop ?? ''),
         cstIcms:           String(parsed.cst_icms ?? ''),
@@ -245,6 +260,12 @@ Retorne SOMENTE um JSON válido, sem markdown, sem explicação fora do JSON. Us
         alternativas:      Array.isArray(parsed.alternativas) ? parsed.alternativas : [],
         alertas:           Array.isArray(parsed.alertas) ? parsed.alertas : [],
         confianca:         Math.min(100, Math.max(0, Number(parsed.confianca ?? 50))),
+        // LC 214/2025 — CBS/IBS
+        regime2027,
+        cstIbsCbs:         regime2027 ? String(parsed.cst_ibs_cbs ?? '000') : undefined,
+        aliquotaCbs:       regime2027 ? Number(parsed.aliquota_cbs ?? 0)    : undefined,
+        aliquotaIbsUf:     regime2027 ? Number(parsed.aliquota_ibs_uf ?? 0) : undefined,
+        aliquotaIbsMun:    regime2027 ? Number(parsed.aliquota_ibs_mun ?? 0): undefined,
       };
     } catch (e) {
       this.logger.error('Erro ao parsear JSON da IA:', jsonMatch[0].slice(0, 500));
@@ -329,25 +350,69 @@ ALERTAS OBRIGATÓRIOS — gere alerta quando:
   • Operação interestadual com ST mas sem protocolo confirmado → gerar exceção para revisão fiscal
   • CST 60 na entrada + destino industrialização → alertar sobre possível crédito Art. 272 RICMS-SP
 
+REGRAS LC 214/2025 — CBS/IBS (aplicar SOMENTE quando "Regime fiscal 2027+" = SIM):
+
+QUANDO regime2027 = true:
+  • PIS/COFINS são EXTINTOS — classifique cst_pis="07" e cst_cofins="07" (não tributado) com alíquotas 0.
+  • CBS (Contribuição sobre Bens e Serviços) substitui PIS/COFINS federais.
+  • IBS (Imposto sobre Bens e Serviços) substitui ICMS e ISS progressivamente (2027-2033).
+  • Para NF-e de mercadorias, classificar o CST IBS/CBS usando NT 2025.002 (cst_ibs_cbs):
+    – "000": Tributado integralmente (regra geral para mercadorias industriais)
+    – "100": Tributado com crédito presumido (produtor rural PF, cooperativa, Simples Nacional)
+    – "200": Alíquota reduzida (medicamentos, educação, saúde, agropecuária, etc. — LC 214 art.127)
+    – "300": Alíquota zero (exportação de mercadorias e serviços, cesta básica)
+    – "400": Isenção (Zona Franca de Manaus, missões diplomáticas — LC 214 arts.133-149)
+    – "410": Imunidade constitucional (exportação CF art.150 VI, templos, partidos, educação s/fins lucrativos)
+    – "500": Não incidência (transferências de estabelecimento, integralização de capital, fusões)
+    – "510": Diferimento (gado em pé, produtos primários não beneficiados)
+    – "550": Suspensão (exportação temporária, industrialização por encomenda)
+    – "600": ST IBS — retida pelo substituto (setores com substituição tributária mantida na transição)
+    – "700": Crédito presumido / Cashback (exportador, produtor rural, cooperativa)
+
+ALÍQUOTAS DE REFERÊNCIA CBS/IBS (período de teste 2026 / homologação):
+  • CBS: 0,9% (será definida pelo Senado em dez/2026 — usar TaxRegimeConfig quando disponível)
+  • IBS estadual: 0,05% (referência de transição)
+  • IBS municipal: 0,05% (referência de transição)
+
+REGRAS PRINCIPAIS CBS/IBS:
+  • Implementos rodoviários (NCM 8716) como fabricante: CST IBS/CBS "000" — tributado integralmente
+  • Exportação (CFOP 7.xxx): CST "300" (alíquota zero — CF art.153 §2 II e LC 214 art.128)
+  • ZFM — saída para Zona Franca de Manaus: CST "400" (isenção LC 214)
+  • Simples Nacional (fornecedor SN): CST "100" (crédito presumido — LC 214 art.164)
+  • Medicamentos, saúde, educação: CST "200" (redução 60% — LC 214 art.127)
+  • Transferência entre filiais: CST "500" (não incidência — LC 214)
+  • Gado em pé, produtos rurais primários: CST "510" (diferimento)
+
+QUANDO regime2027 = false (emissão até 31/12/2026):
+  • Classificar normalmente PIS/COFINS (cst_pis, cst_cofins, aliquota_pis, aliquota_cofins).
+  • CBS/IBS não aparecem no documento. Preencher cst_ibs_cbs, aliquota_cbs, etc. como null.
+
 ESTRUTURA JSON OBRIGATÓRIA:
 {
   "cfop": "6.101",
   "cst_icms": "400",
-  "cst_pis": "01",
-  "cst_cofins": "01",
+  "cst_pis": "07",
+  "cst_cofins": "07",
   "aliquota_icms": 12,
   "base_calculo_icms_pct": 100,
   "tem_icms_st": false,
-  "aliquota_pis": 1.65,
-  "aliquota_cofins": 7.6,
+  "aliquota_pis": 0,
+  "aliquota_cofins": 0,
   "tem_ipi": false,
   "aliquota_ipi": 0,
   "beneficio_fiscal": null,
-  "fundamento_legal": ["Resolução Senado 22/89", "RICMS-SP Art.52"],
+  "regime2027": true,
+  "cst_ibs_cbs": "000",
+  "aliquota_cbs": 0.9,
+  "aliquota_ibs_uf": 0.05,
+  "aliquota_ibs_mun": 0.05,
+  "fundamento_legal": ["LC 214/2025 art.1", "Resolução Senado 22/89", "RICMS-SP Art.52"],
   "raciocinio": "Explicação em português do raciocínio fiscal completo...",
   "alternativas": [
     { "cfop": "6.109", "raciocinio": "Seria usado se...", "descartado_por": "..." }
   ],
   "alertas": [],
   "confianca": 96
-}`;
+}
+
+IMPORTANTE: Quando regime2027=false, omita ou coloque null em regime2027, cst_ibs_cbs, aliquota_cbs, aliquota_ibs_uf, aliquota_ibs_mun. Preencha normalmente cst_pis, cst_cofins, aliquota_pis, aliquota_cofins.`;

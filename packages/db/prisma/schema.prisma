@@ -5795,6 +5795,13 @@ model FiscalBrainDecision {
   aliquotaIpi     Decimal? @db.Decimal(8, 4)
   beneficioFiscal String?  @db.VarChar(200)
 
+  // LC 214/2025 — CBS/IBS (regime 2027+)
+  regime2027      Boolean  @default(false)  // true se emissão >= 01/01/2027
+  cstIbsCbs       String?  @db.VarChar(3)   // CST NT 2025.002: 000=tributado, 200=reduzida, 300=zero, 400=isento, 410=imune, 500=não-incid
+  aliquotaCbs     Decimal? @db.Decimal(8,4) // alíquota CBS (%)
+  aliquotaIbsUf   Decimal? @db.Decimal(8,4) // alíquota IBS estadual (%)
+  aliquotaIbsMun  Decimal? @db.Decimal(8,4) // alíquota IBS municipal (%)
+
   /// Fundamentação legal retornada pela IA
   fundamentoLegal Json     @default("[]")   // string[]
   raciocinio      String   @db.Text
