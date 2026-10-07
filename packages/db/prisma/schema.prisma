@@ -4880,9 +4880,18 @@ model NfseEmitida {
   valorLiquidoNfse   Decimal    @default(0) @db.Decimal(15,2)
   issRetido          Boolean    @default(false)
 
-  // Reforma Tributária (EC 132/2023 + LC 214/2025)
+  // Reforma Tributária — CBS/IBS nos serviços (LC 214/2025)
+  // CBS: contribuição federal sobre serviços (substitui PIS/COFINS em 2027)
   valorCbs           Decimal    @default(0) @db.Decimal(15,2)
+  aliqCbs            Float      @default(0)  // alíquota CBS (%)
+  // IBS: imposto sobre serviços estadual + municipal (substitui ISS progressivamente 2027-2033)
   valorIbs           Decimal    @default(0) @db.Decimal(15,2)
+  aliqIbsUf          Float      @default(0)  // alíquota IBS estadual (%)
+  valorIbsUf         Decimal    @default(0) @db.Decimal(15,2)
+  aliqIbsMun         Float      @default(0)  // alíquota IBS municipal (%)
+  valorIbsMun        Decimal    @default(0) @db.Decimal(15,2)
+  // CBS/IBS CST (3 dígitos, NT 2025.002): 000=tributado, 400=não tributado
+  cstIbsCbs          String?    @default("000") @db.VarChar(3)
   usouSistemaNovo    Boolean    @default(false)
 
   // Datas

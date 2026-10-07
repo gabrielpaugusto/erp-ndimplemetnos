@@ -11,42 +11,87 @@ export class NfseXmlBuilderService {
   async buildDps(nfseId: string): Promise<string> {
     const nfse = await this.prisma.nfseEmitida.findUnique({
       where: { id: nfseId },
-      include: { company: true, nbsCode: true },
+      include: {
+        company: {
+          include: {
+            taxRegimeConfigs: {
+              where: { vigenciaFim: null },
+              orderBy: { vigenciaInicio: 'desc' },
+              take: 1,
+            },
+          },
+        },
+        nbsCode: true,
+      },
     });
 
     if (!nfse) throw new Error('NFS-e não encontrada');
 
     const company = nfse.company;
-    const competencia = nfse.dataCompetencia.toISOString().substring(0, 7); // YYYY-MM
+    const competencia = nfse.dataCompetencia.toISOString().substring(0, 7);
     const tpAmb = company.ambienteNfse === 1 ? '1' : '2';
 
-    const valorServico = Number(nfse.valorServico);
-    const valorPis = Number(nfse.valorPis);
-    const valorCofins = Number(nfse.valorCofins);
-    const valorCsll = Number(nfse.valorCsll);
-    const valorIr = Number(nfse.valorIr);
-    const valorInss = Number(nfse.valorInss);
+    // LC 214/2025: PIS/COFINS extintos; CBS assume para serviços a partir de 01/01/2027.
+    // Regras dependem da data de emissão — compatibilidade total com homologação em 2026.
+    const anoEmissao = nfse.dataEmissao.getFullYear();
+    const regime2027 = anoEmissao >= 2027;
 
-    const pPis =
-      valorServico > 0
-        ? ((valorPis / valorServico) * 100).toFixed(4)
-        : '0.0000';
-    const pCofins =
-      valorServico > 0
-        ? ((valorCofins / valorServico) * 100).toFixed(4)
-        : '0.0000';
-    const pCsll =
-      valorServico > 0
-        ? ((valorCsll / valorServico) * 100).toFixed(4)
-        : '0.0000';
-    const pIr =
-      valorServico > 0
-        ? ((valorIr / valorServico) * 100).toFixed(4)
-        : '0.0000';
-    const pInss =
-      valorServico > 0
-        ? ((valorInss / valorServico) * 100).toFixed(4)
-        : '0.0000';
+    // Alíquotas CBS/IBS do TaxRegimeConfig ativo (parametrizáveis)
+    const taxCfg = (company as any).taxRegimeConfigs?.[0];
+    const ALIQ_CBS_PAD  = taxCfg?.aliqCbsPadrao    ? Number(taxCfg.aliqCbsPadrao)    : 0.9;    // 0,9% teste 2026
+    const ALIQ_IBS_UF   = taxCfg?.aliqIbsUfPadrao  ? Number(taxCfg.aliqIbsUfPadrao)  : 0.05;   // 0,05% estadual
+    const ALIQ_IBS_MUN  = taxCfg?.aliqIbsMunPadrao ? Number(taxCfg.aliqIbsMunPadrao) : 0.05;   // 0,05% municipal
+
+    const valorServico  = Number(nfse.valorServico);
+    const valorDeducoes = Number(nfse.valorDeducoes ?? 0);
+    const valorCsll     = Number(nfse.valorCsll);
+    const valorIr       = Number(nfse.valorIr);
+    const valorInss     = Number(nfse.valorInss);
+    const valorIss      = Number(nfse.valorIss);
+
+    // CBS/IBS: usa valores do banco se preenchidos, senão auto-calc para tributado
+    const cstIbsCbs = (nfse as any).cstIbsCbs ?? '000';
+    const tributado  = cstIbsCbs === '000';
+
+    let valorCbs    = Number((nfse as any).valorCbs ?? 0);
+    let aliqCbs     = Number((nfse as any).aliqCbs  ?? 0);
+    let valorIbsUf  = Number((nfse as any).valorIbsUf  ?? 0);
+    let aliqIbsUf   = Number((nfse as any).aliqIbsUf   ?? 0);
+    let valorIbsMun = Number((nfse as any).valorIbsMun ?? 0);
+    let aliqIbsMun  = Number((nfse as any).aliqIbsMun  ?? 0);
+
+    if (regime2027 && tributado && valorCbs === 0 && valorIbsUf === 0) {
+      // Auto-calc CBS/IBS sobre base = valorServico - deduções
+      const base  = valorServico - valorDeducoes;
+      aliqCbs     = ALIQ_CBS_PAD;
+      valorCbs    = parseFloat((base * aliqCbs / 100).toFixed(2));
+      aliqIbsUf   = ALIQ_IBS_UF;
+      valorIbsUf  = parseFloat((base * aliqIbsUf / 100).toFixed(2));
+      aliqIbsMun  = ALIQ_IBS_MUN;
+      valorIbsMun = parseFloat((base * aliqIbsMun / 100).toFixed(2));
+    }
+
+    const valorIbsTot = valorIbsUf + valorIbsMun;
+
+    // vLiq = valorServico - deduções - retenções (ISS retido, IRRF, CSLL, INSS)
+    const retencoes = (nfse.issRetido ? valorIss : 0) + valorIr + valorCsll + valorInss;
+    const vLiq      = valorServico - valorDeducoes - retencoes;
+
+    // vNF: 2026 = vLiq | 2027 = vLiq + vCBS + vIBSTot (CBS/IBS entram na nota)
+    const vNF = regime2027
+      ? parseFloat((vLiq + valorCbs + valorIbsTot).toFixed(2))
+      : parseFloat(vLiq.toFixed(2));
+
+    // Alíquotas p/ retTrib (para cálculo percentual)
+    const base4pct  = valorServico > 0 ? valorServico : 1;
+    const pCsll     = ((valorCsll / base4pct) * 100).toFixed(4);
+    const pIr       = ((valorIr   / base4pct) * 100).toFixed(4);
+    const pInss     = ((valorInss / base4pct) * 100).toFixed(4);
+    // PIS/COFINS: só em 2026; zerados e omitidos em 2027
+    const valorPis    = regime2027 ? 0 : Number(nfse.valorPis);
+    const valorCofins = regime2027 ? 0 : Number(nfse.valorCofins);
+    const pPis    = ((valorPis    / base4pct) * 100).toFixed(4);
+    const pCofins = ((valorCofins / base4pct) * 100).toFixed(4);
 
     const tomadorDoc =
       nfse.tomadorCpfCnpj.replace(/\D/g, '').length === 14
@@ -54,8 +99,7 @@ export class NfseXmlBuilderService {
         : `<CPF>${nfse.tomadorCpfCnpj.replace(/\D/g, '')}</CPF>`;
 
     const endTomador = nfse.tomadorLogradouro
-      ? `
-      <end>
+      ? `<end>
         <xLgr>${nfse.tomadorLogradouro}</xLgr>
         <nro>${nfse.tomadorNumero ?? 'S/N'}</nro>
         ${nfse.tomadorComplemento ? `<xCpl>${nfse.tomadorComplemento}</xCpl>` : ''}
@@ -65,6 +109,31 @@ export class NfseXmlBuilderService {
         <CEP>${nfse.tomadorCep ?? ''}</CEP>
       </end>`
       : '';
+
+    // Bloco IBSCBS no tribNac — apenas para 2027+ (CBS substitui PIS/COFINS nos serviços)
+    const ibscbsBlock = regime2027
+      ? `<IBSCBS>
+          <CST>${cstIbsCbs}</CST>
+          <gCBS>
+            <pAliqCBS>${aliqCbs.toFixed(4)}</pAliqCBS>
+            <vCBS>${valorCbs.toFixed(2)}</vCBS>
+          </gCBS>
+          ${valorIbsUf > 0 ? `<gIBSUF>
+            <pAliqIBSUF>${aliqIbsUf.toFixed(4)}</pAliqIBSUF>
+            <vIBSUF>${valorIbsUf.toFixed(2)}</vIBSUF>
+          </gIBSUF>` : ''}
+          ${valorIbsMun > 0 ? `<gIBSMun>
+            <pAliqIBSMun>${aliqIbsMun.toFixed(4)}</pAliqIBSMun>
+            <vIBSMun>${valorIbsMun.toFixed(2)}</vIBSMun>
+          </gIBSMun>` : ''}
+        </IBSCBS>`
+      : '';
+
+    // retTrib: PIS/COFINS apenas em 2026 (extintos em 2027)
+    const retTribPisCofins = regime2027
+      ? ''
+      : `<pPIS>${pPis}</pPIS>
+          <pCOFINS>${pCofins}</pCOFINS>`;
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <DPS xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.00">
@@ -109,15 +178,17 @@ export class NfseXmlBuilderService {
     <valores>
       <vServPrest>
         <vReceb>${valorServico.toFixed(2)}</vReceb>
+        ${valorDeducoes > 0 ? `<vDeducao>${valorDeducoes.toFixed(2)}</vDeducao>` : ''}
       </vServPrest>
+      <vNF>${vNF.toFixed(2)}</vNF>
       <trib>
         <tribNac>
           <pISS>${nfse.aliquotaIss.toFixed(4)}</pISS>
           <tpRetISSQN>${nfse.issRetido ? '1' : '2'}</tpRetISSQN>
+          ${ibscbsBlock}
         </tribNac>
         <retTrib>
-          <pPIS>${pPis}</pPIS>
-          <pCOFINS>${pCofins}</pCOFINS>
+          ${retTribPisCofins}
           <pCSLL>${pCsll}</pCSLL>
           <pIRRF>${pIr}</pIRRF>
           <pINSS>${pInss}</pINSS>
