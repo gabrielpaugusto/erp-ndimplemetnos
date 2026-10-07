@@ -1540,11 +1540,11 @@ model StProtocoloConfaz {
 /// Código de Benefício Fiscal (pBenef na NF-e) — isenções, reduções de base, diferimentos, etc. por UF
 // Classificação Tributária IBS/CBS — NT 2025.002 v1.70 (170 códigos oficiais)
 model ClassTribIbs {
-  id        String   @id @default(cuid())
-  codigo    String   @unique @db.VarChar(6)   // 6 dígitos: ex "000001"
-  cst       String   @db.VarChar(3)           // 3 dígitos (primeiros 3 do codigo): ex "000"
+  id        String   @id @db.VarChar(36)
+  codigo    String   @unique @db.VarChar(6)   // 6 dígitos: CST(3)+subdivisão(3), ex "000001"
+  cst       String   @db.VarChar(3)           // CST IBS/CBS NT 2025.002: 000|100|200|300|400|410|500|510|550|600|610|700|900
   descricao String   @db.VarChar(500)
-  grupo     String   @db.VarChar(30)          // TRIBUTADO | REDUZIDO | ISENCAO | IMUNIDADE | NAO_INCIDENCIA | DIFERIMENTO | SUSPENSAO
+  grupo     String   @db.VarChar(30)          // TRIBUTADO|CREDITO_PRESUMIDO|REDUZIDA|ZERO|ISENCAO|IMUNIDADE|NAO_INCIDENCIA|DIFERIMENTO|SUSPENSAO|SUBSTITUICAO_TRIB|ST_COBRADA_ANT|CASHBACK|REGIME_ESPECIAL
   ativo     Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
