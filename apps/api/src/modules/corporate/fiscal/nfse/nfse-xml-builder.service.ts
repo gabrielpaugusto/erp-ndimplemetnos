@@ -22,6 +22,7 @@ export class NfseXmlBuilderService {
           },
         },
         nbsCode: true,
+        lc116Servico: true,
       },
     });
 
@@ -92,6 +93,21 @@ export class NfseXmlBuilderService {
     const valorCofins = regime2027 ? 0 : Number(nfse.valorCofins);
     const pPis    = ((valorPis    / base4pct) * 100).toFixed(4);
     const pCofins = ((valorCofins / base4pct) * 100).toFixed(4);
+
+    // NT 009 — tribMun
+    const cRegTrib    = (nfse as any).cRegTrib    ?? 3;
+    const cRegEspTrib = (nfse as any).cRegEspTrib ?? 0;
+    const indSN       = (nfse as any).indSN       ?? 2;
+    const cMunFg      = (nfse as any).cMunFg      ?? company.codigoMunicipioIbge ?? '';
+    const cServMun    = nfse.lc116Servico?.codigo  ?? '';
+
+    // NT 009 — Exigibilidade ISS (tribNac)
+    const indExigIssqn      = (nfse as any).indExigIssqn      ?? 1;
+    const nProcessoSuspenso = (nfse as any).nProcessoSuspenso ?? null;
+
+    // NT 009 — Descontos
+    const vDescIncond = Number((nfse as any).vDescIncond ?? 0);
+    const vDescCond   = Number((nfse as any).vDescCond   ?? 0);
 
     const tomadorDoc =
       nfse.tomadorCpfCnpj.replace(/\D/g, '').length === 14
@@ -171,22 +187,34 @@ export class NfseXmlBuilderService {
       </cServ>
       <COM>
         <locPrestacao>
-          <cMun>${company.codigoMunicipioIbge ?? ''}</cMun>
+          <cMun>${cMunFg}</cMun>
+          <cPais>1058</cPais>
         </locPrestacao>
       </COM>
     </serv>
     <valores>
       <vServPrest>
         <vReceb>${valorServico.toFixed(2)}</vReceb>
-        ${valorDeducoes > 0 ? `<vDeducao>${valorDeducoes.toFixed(2)}</vDeducao>` : ''}
+        ${valorDeducoes  > 0 ? `<vDeducao>${valorDeducoes.toFixed(2)}</vDeducao>`     : ''}
+        ${vDescIncond    > 0 ? `<vDescIncond>${vDescIncond.toFixed(2)}</vDescIncond>` : ''}
+        ${vDescCond      > 0 ? `<vDescCond>${vDescCond.toFixed(2)}</vDescCond>`       : ''}
       </vServPrest>
       <vNF>${vNF.toFixed(2)}</vNF>
       <trib>
         <tribNac>
           <pISS>${nfse.aliquotaIss.toFixed(4)}</pISS>
           <tpRetISSQN>${nfse.issRetido ? '1' : '2'}</tpRetISSQN>
+          <indExigISSQN>${indExigIssqn}</indExigISSQN>
+          ${nProcessoSuspenso ? `<nProcessoSuspenso>${nProcessoSuspenso}</nProcessoSuspenso>` : ''}
           ${ibscbsBlock}
         </tribNac>
+        <tribMun>
+          <cMunFG>${cMunFg}</cMunFG>
+          ${cServMun ? `<cServMun>${cServMun}</cServMun>` : ''}
+          <cRegTrib>${cRegTrib}</cRegTrib>
+          <cRegEspTrib>${cRegEspTrib}</cRegEspTrib>
+          <indSN>${indSN}</indSN>
+        </tribMun>
         <retTrib>
           ${retTribPisCofins}
           <pCSLL>${pCsll}</pCSLL>

@@ -4895,6 +4895,18 @@ model NfseEmitida {
   cstIbsCbs          String?    @default("000") @db.VarChar(3)
   usouSistemaNovo    Boolean    @default(false)
 
+  // NT 009 NFS-e Nacional — tribMun: regime tributário municipal
+  cRegTrib           Int?       @default(3)   // 1=Simples Nacional 2=SN-sublimite 3=Regime Normal
+  cRegEspTrib        Int?       @default(0)   // 0=sem 1=MicroempMun 2=Estimativa 3=Soc.Prof 4=Coop 5=MEI 6=ME/EPP-SN
+  indSN              Int?       @default(2)   // 1=optante Simples Nacional 2=não optante
+  cMunFg             String?    @db.VarChar(7) // município fato gerador (null = município do prestador)
+  // NT 009 — Exigibilidade ISS em tribNac
+  indExigIssqn       Int?       @default(1)   // 1=Exigível 2=Não incid 3=Isenção 4=Exportação 5=Imunidade 6=Susp.Judicial 7=Susp.Admin
+  nProcessoSuspenso  String?    @db.VarChar(30) // obrigatório quando indExigIssqn=6 ou 7
+  // NT 009 — Descontos em vServPrest
+  vDescIncond        Decimal?   @default(0) @db.Decimal(15,2) // desconto incondicional
+  vDescCond          Decimal?   @default(0) @db.Decimal(15,2) // desconto condicional
+
   // Datas
   dataEmissao        DateTime   @default(now())
   dataCompetencia    DateTime
