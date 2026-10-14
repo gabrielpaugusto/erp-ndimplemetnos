@@ -153,6 +153,37 @@ export class ValidadorService {
       }
     }
 
+    // ── LC 214/2025 — CBS/IBS (regime 2027+) ────────────────────────────────
+    const regime2027 = ctx.regime2027 ?? (ctx.dataEmissao ? ctx.dataEmissao.getFullYear() >= 2027 : false);
+
+    // 13. Regime 2027: cstIbsCbs deve estar presente
+    if (regime2027) {
+      if (!classificacao.cstIbsCbs) {
+        erros.push('Emissão 2027+: campo cst_ibs_cbs é obrigatório (NT 2025.002 — LC 214/2025).');
+      }
+
+      // 14. Tributado (CST 000) deve ter alíquota CBS > 0
+      if (classificacao.cstIbsCbs === '000' && (!classificacao.aliquotaCbs || classificacao.aliquotaCbs === 0)) {
+        avisos.push('CST IBS/CBS 000 (tributado) com alíquota CBS 0% — verifique alíquota configurada em TaxRegimeConfig.');
+      }
+
+      // 15. PIS/COFINS devem ser CST 07 (não tributado) em 2027
+      const cstsPisNaoTributado = ['07', '49', '70', '73', '99'];
+      if (classificacao.cstPis && !cstsPisNaoTributado.includes(classificacao.cstPis)) {
+        avisos.push(`Emissão 2027+: PIS/COFINS extintos pela LC 214/2025 — CST PIS deveria ser "07" (não tributado), não "${classificacao.cstPis}".`);
+      }
+
+      // 16. Exportação 2027 → CST IBS/CBS deve ser 300 (alíquota zero)
+      if (classificacao.cfop?.startsWith('7') && classificacao.cstIbsCbs !== '300') {
+        avisos.push(`Exportação (CFOP ${classificacao.cfop}) em 2027+: CST IBS/CBS deveria ser "300" (alíquota zero — LC 214/2025 art.128), não "${classificacao.cstIbsCbs}".`);
+      }
+    } else {
+      // 17. Fora do regime 2027: alertar se CBS/IBS foram classificados indevidamente
+      if (classificacao.cstIbsCbs && classificacao.cstIbsCbs !== '000') {
+        avisos.push(`CBS/IBS (cstIbsCbs=${classificacao.cstIbsCbs}) classificado para emissão em 2026 — esses campos só entram em vigor em 01/01/2027.`);
+      }
+    }
+
     return { valido: erros.length === 0, erros, avisos };
   }
 

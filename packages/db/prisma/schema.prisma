@@ -846,8 +846,9 @@ model Company {
   costCenters         CostCenter[]
   users               User[]
   userCompanies       UserCompany[]
-  taxRegimeConfigs    TaxRegimeConfig[]
-  operacoesFiscais    OperacaoFiscal[]
+  taxRegimeConfigs       TaxRegimeConfig[]
+  operacoesFiscais       OperacaoFiscal[]
+  encerCreditosPisCofins EncerCreditoPisCofins[]
   persons             Person[]
   products            Product[]
   leads               Lead[]
@@ -1080,6 +1081,11 @@ model TaxRegimeConfig {
   percentualIbs         Decimal?  @db.Decimal(5, 2) // 0% → 100%
   percentualPisCofins   Decimal?  @db.Decimal(5, 2) // 100% → 0%
   percentualCbs         Decimal?  @db.Decimal(5, 2) // 0% → 100%
+
+  // Alíquotas padrão CBS/IBS (parametrizáveis — Senado define por Decreto até dez/2026)
+  aliqCbsPadrao         Decimal?  @db.Decimal(7, 4) // ex: 8.8000 (%) — CBS full rate 2027
+  aliqIbsUfPadrao       Decimal?  @db.Decimal(7, 4) // ex: 0.0500 (%) — IBS estadual 2026 teste
+  aliqIbsMunPadrao      Decimal?  @db.Decimal(7, 4) // ex: 0.0500 (%) — IBS municipal 2026 teste
 
   // Flags
   cbsAtiva              Boolean   @default(false)
@@ -1532,6 +1538,22 @@ model StProtocoloConfaz {
 }
 
 /// Código de Benefício Fiscal (pBenef na NF-e) — isenções, reduções de base, diferimentos, etc. por UF
+// Classificação Tributária IBS/CBS — NT 2025.002 v1.70 (170 códigos oficiais)
+model ClassTribIbs {
+  id        String   @id @db.VarChar(36)
+  codigo    String   @unique @db.VarChar(6)   // 6 dígitos: CST(3)+subdivisão(3), ex "000001"
+  cst       String   @db.VarChar(3)           // CST IBS/CBS NT 2025.002: 000|100|200|300|400|410|500|510|550|600|610|700|900
+  descricao String   @db.VarChar(500)
+  grupo     String   @db.VarChar(30)          // TRIBUTADO|CREDITO_PRESUMIDO|REDUZIDA|ZERO|ISENCAO|IMUNIDADE|NAO_INCIDENCIA|DIFERIMENTO|SUSPENSAO|SUBSTITUICAO_TRIB|ST_COBRADA_ANT|CASHBACK|REGIME_ESPECIAL
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cst])
+  @@index([grupo])
+  @@map("class_trib_ibs")
+}
+
 model Cbenef {
   id               String    @id @default(cuid())
   codigo           String    @db.VarChar(10)      // ex: "SP000001" — código oficial da SEFAZ
@@ -1551,6 +1573,27 @@ model Cbenef {
   @@index([uf])
   @@index([tipo])
   @@map("cbenef")
+}
+
+/// Classificação NCM × Imposto Seletivo (LC 214/2025, Art. 263)
+/// Produtos prejudiciais à saúde ou ao meio ambiente sujeitos ao IS
+model NcmIs {
+  id            String   @id @default(cuid())
+  ncm           String   @db.VarChar(8)    // 8 dígitos sem pontos/traços
+  cstIs         String   @db.VarChar(3)    // 000=tributado, 010=monofásico, 400=não trib, 410=imunidade
+  categoria     String   @db.VarChar(50)   // VEICULO | FUMIGENO | ALCOOLICO | ACUCARADO | MINERACAO | ARMAMENTO
+  descricao     String   @db.VarChar(500)
+  aliqIsPadrao  Decimal? @db.Decimal(7, 4) // alíquota IS padrão (% a definir por lei específica)
+  vigenciaInicio DateTime?
+  vigenciaFim   DateTime?
+  ativo         Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([ncm])
+  @@index([cstIs])
+  @@index([categoria])
+  @@map("ncm_is")
 }
 
 model Cest {
@@ -2918,11 +2961,15 @@ model NFeDocument {
   xmlRetorno              String?         @db.Text
   motivoCancelamento      String?         @db.Text
 
+  // Pagamento (NT 2013.005 / grupo YA)
+  vTroco                  Float?                      // troco (só para tPag=01 dinheiro)
+
   createdAt               DateTime        @default(now())
   updatedAt               DateTime        @updatedAt
 
   // Relations
   items                   NFeItem[]
+  detPag                  NFeDetPag[]
   fiscalEntries           FiscalEntry[]
 
   // Financeiro (Sprint 8)
@@ -2940,6 +2987,41 @@ model NFeDocument {
   @@index([companyId, status])
   @@index([personId])
   @@map("nfe_documents")
+}
+
+// ============================================================================
+// NF-e — FORMAS DE PAGAMENTO (grupo YA — detPag, NT 2013.005 v1.00)
+// ============================================================================
+// tPag: 01=dinheiro 02=cheque 03=cartão crédito 04=cartão débito
+//       05=crédito loja 10=vale alimentação 11=vale refeição
+//       12=vale presente 13=vale combustível 14=duplicata mercantil
+//       15=boleto bancário 16=depósito bancário 17=PIX 18=TED/DOC
+//       19=fidelidade/milhas 90=sem pagamento 99=outros
+// indPag: 0=à vista 1=a prazo (campo opcional desde layout 4.00)
+
+model NFeDetPag {
+  id        String      @id @default(cuid())
+  nfeId     String
+  nfe       NFeDocument @relation(fields: [nfeId], references: [id], onDelete: Cascade)
+
+  ordem     Int         @default(1)
+  indPag    Int?                        // 0=à vista 1=a prazo
+  tPag      String      @db.VarChar(2)
+  xPag      String?     @db.VarChar(60) // descrição quando tPag=99
+  vPag      Decimal     @db.Decimal(15, 2)
+  dVenc     DateTime?                   // vencimento (quando a prazo)
+
+  // Cartão de crédito/débito (tPag=03 ou 04)
+  tpIntegra Int?                        // 1=integrado 2=não integrado
+  cnpjCred  String?     @db.VarChar(14) // CNPJ credenciadora
+  tBand     String?     @db.VarChar(2)  // bandeira (01=Visa 02=Mastercard etc.)
+  cAut      String?     @db.VarChar(20) // código de autorização
+
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([nfeId, ordem])
+  @@map("nfe_det_pag")
 }
 
 // ============================================================================
@@ -2997,27 +3079,37 @@ model NFeItem {
   valorCofins             Float        @default(0)
   cstCofins               String?      @db.VarChar(2)
 
-  // IBS — Reforma Tributária (EC 132/2023)
+  // IBS — Reforma Tributária (EC 132/2023) — split UF + Municipal (NT 2025.002)
   bcIbs                   Float        @default(0)
-  aliqIbs                 Float        @default(0)
-  valorIbs                Float        @default(0)
+  aliqIbs                 Float        @default(0)  // total (retrocompatibilidade)
+  valorIbs                Float        @default(0)  // total (retrocompatibilidade)
+  aliqIbsUf               Float        @default(0)  // alíquota IBS estadual
+  valorIbsUf              Float        @default(0)  // valor IBS estadual
+  aliqIbsMun              Float        @default(0)  // alíquota IBS municipal
+  valorIbsMun             Float        @default(0)  // valor IBS municipal
 
   // CBS — Reforma Tributária
   bcCbs                   Float        @default(0)
   aliqCbs                 Float        @default(0)
   valorCbs                Float        @default(0)
 
-  // IS — Imposto Seletivo
+  // IS — Imposto Seletivo (LC 214/2025, Art. 263 — produtos prejudiciais à saúde/ambiente)
   bcIs                    Float        @default(0)
   aliqIs                  Float        @default(0)
   valorIs                 Float        @default(0)
+  // CST IS (3 dígitos, NT 2025.002): 000=tributado, 010=monofásico, 400=não tributado, 410=imunidade
+  cstIs                   String?      @default("400") @db.VarChar(3)
 
   // Destinação fiscal (A2/A4 — permite override por item na NF-e emitida)
   destinacaoFiscal        ItemDestinacao?  // se null, herda de product.destinacaoFiscal
 
   // Classificação tributária IBS/CBS (NT 2025.002 — gIBSCBS)
-  // B00=tributado alíq.cheia, B01=imunidade, B02=não incidência, B03=suspensão, B05=alíq.zero, B06=isenção
-  cClassTrib              String?      @default("B00") @db.VarChar(3)
+  // 6 dígitos: primeiros 3 = CST IBS/CBS, últimos 3 = subdivisão (ex: "000001" = tributado integral)
+  // Tabela oficial IT 2025.002 v1.70 — 170 códigos ativos
+  cClassTrib              String?      @default("000001") @db.VarChar(6)
+  // CST IBS/CBS (3 dígitos, NT 2025.002): 000=tributado, 200=reduzida, 410=imunidade/não incidência,
+  // 510=diferimento, 550=suspensão, 400=isenção, 620=monofásico
+  cstIbsCbs               String?      @default("000") @db.VarChar(3)
 
   // Benefício Fiscal (tag <pBenef> da NF-e)
   beneficioFiscal         String?      @db.VarChar(20)
@@ -4828,10 +4920,31 @@ model NfseEmitida {
   valorLiquidoNfse   Decimal    @default(0) @db.Decimal(15,2)
   issRetido          Boolean    @default(false)
 
-  // Reforma Tributária (EC 132/2023 + LC 214/2025)
+  // Reforma Tributária — CBS/IBS nos serviços (LC 214/2025)
+  // CBS: contribuição federal sobre serviços (substitui PIS/COFINS em 2027)
   valorCbs           Decimal    @default(0) @db.Decimal(15,2)
+  aliqCbs            Float      @default(0)  // alíquota CBS (%)
+  // IBS: imposto sobre serviços estadual + municipal (substitui ISS progressivamente 2027-2033)
   valorIbs           Decimal    @default(0) @db.Decimal(15,2)
+  aliqIbsUf          Float      @default(0)  // alíquota IBS estadual (%)
+  valorIbsUf         Decimal    @default(0) @db.Decimal(15,2)
+  aliqIbsMun         Float      @default(0)  // alíquota IBS municipal (%)
+  valorIbsMun        Decimal    @default(0) @db.Decimal(15,2)
+  // CBS/IBS CST (3 dígitos, NT 2025.002): 000=tributado, 400=não tributado
+  cstIbsCbs          String?    @default("000") @db.VarChar(3)
   usouSistemaNovo    Boolean    @default(false)
+
+  // NT 009 NFS-e Nacional — tribMun: regime tributário municipal
+  cRegTrib           Int?       @default(3)   // 1=Simples Nacional 2=SN-sublimite 3=Regime Normal
+  cRegEspTrib        Int?       @default(0)   // 0=sem 1=MicroempMun 2=Estimativa 3=Soc.Prof 4=Coop 5=MEI 6=ME/EPP-SN
+  indSN              Int?       @default(2)   // 1=optante Simples Nacional 2=não optante
+  cMunFg             String?    @db.VarChar(7) // município fato gerador (null = município do prestador)
+  // NT 009 — Exigibilidade ISS em tribNac
+  indExigIssqn       Int?       @default(1)   // 1=Exigível 2=Não incid 3=Isenção 4=Exportação 5=Imunidade 6=Susp.Judicial 7=Susp.Admin
+  nProcessoSuspenso  String?    @db.VarChar(30) // obrigatório quando indExigIssqn=6 ou 7
+  // NT 009 — Descontos em vServPrest
+  vDescIncond        Decimal?   @default(0) @db.Decimal(15,2) // desconto incondicional
+  vDescCond          Decimal?   @default(0) @db.Decimal(15,2) // desconto condicional
 
   // Datas
   dataEmissao        DateTime   @default(now())
@@ -5721,6 +5834,13 @@ model FiscalBrainDecision {
   aliquotaIpi     Decimal? @db.Decimal(8, 4)
   beneficioFiscal String?  @db.VarChar(200)
 
+  // LC 214/2025 — CBS/IBS (regime 2027+)
+  regime2027      Boolean  @default(false)  // true se emissão >= 01/01/2027
+  cstIbsCbs       String?  @db.VarChar(3)   // CST NT 2025.002: 000=tributado, 200=reduzida, 300=zero, 400=isento, 410=imune, 500=não-incid
+  aliquotaCbs     Decimal? @db.Decimal(8,4) // alíquota CBS (%)
+  aliquotaIbsUf   Decimal? @db.Decimal(8,4) // alíquota IBS estadual (%)
+  aliquotaIbsMun  Decimal? @db.Decimal(8,4) // alíquota IBS municipal (%)
+
   /// Fundamentação legal retornada pela IA
   fundamentoLegal Json     @default("[]")   // string[]
   raciocinio      String   @db.Text
@@ -5815,6 +5935,46 @@ model FiscalBrainChatMessage {
 
   @@index([companyId, createdAt])
   @@map("fiscal_brain_chat_messages")
+}
+
+// ============================================================================
+// ENCERRAMENTO DE CRÉDITOS PIS/COFINS — REFORMA TRIBUTÁRIA (LC 214/2025)
+// Prazo: aproveitamento até 31/12/2026; saldos remanescentes extintos.
+// Ref: LC 214/2025 Art. 345 — disposições transitórias créditos PIS/COFINS.
+// ============================================================================
+
+/// Registro de créditos PIS/COFINS acumulados antes de 01/01/2027.
+/// Gerenciamento do aproveitamento progressivo e encerramento obrigatório até 31/12/2026.
+model EncerCreditoPisCofins {
+  id                  String   @id @default(cuid())
+  companyId           String
+  company             Company  @relation(fields: [companyId], references: [id])
+
+  // Identificação do crédito
+  tipo                String   @db.VarChar(10)   // PIS | COFINS
+  periodoOrigem       String   @db.VarChar(7)    // YYYY-MM em que o crédito foi apurado
+  natureza            String   @db.VarChar(50)   // ENTRADA_MERCADORIA | SERVICO | ATIVO_IMOBILIZADO | OUTROS
+  fundamentoLegal     String?  @db.VarChar(200)  // ex: "Lei 10.637/2002 Art. 3°, II"
+
+  // Valores
+  valorOriginal       Decimal  @db.Decimal(15, 4)  // valor apurado no período
+  valorAproveitado    Decimal  @default(0) @db.Decimal(15, 4)  // já compensado/aproveitado
+  valorSaldo          Decimal  @db.Decimal(15, 4)  // = valorOriginal - valorAproveitado
+  valorExtinto        Decimal  @default(0) @db.Decimal(15, 4)  // saldo não aproveitado até 31/12/2026
+
+  // Controle
+  // PENDENTE → APROVEITADO (total) | APROVEITADO_PARCIAL | EXTINTO (após 31/12/2026)
+  status              String   @default("PENDENTE") @db.VarChar(20)
+  dataLimiteAproveit  DateTime @default(dbgenerated("'2026-12-31 23:59:59'"))
+  dataEncerramento    DateTime?  // data em que foi marcado como EXTINTO ou APROVEITADO
+  observacoes         String?  @db.Text
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([companyId, tipo, status])
+  @@index([companyId, periodoOrigem])
+  @@map("encer_credito_pis_cofins")
 }
 
 // ============================================================================

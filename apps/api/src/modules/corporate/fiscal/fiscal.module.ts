@@ -29,6 +29,7 @@ import { DeclaracaoArt264Service } from './declaracao-art264.service';
 import { DeclaracaoArt264Controller } from './declaracao-art264.controller';
 import { CbenefController } from './cbenef.controller';
 import { CbenefService } from './cbenef.service';
+import { EncerCreditoPisCofinsService } from './encer-credito-pis-cofins.service';
 
 @Module({
   imports: [GovernmentTransmissionModule, CompanyModule, NfseModule, FiscalBrainModule],
@@ -61,7 +62,8 @@ import { CbenefService } from './cbenef.service';
     StEntradaCst60Service,
     DeclaracaoArt264Service,
     CbenefService,
+    EncerCreditoPisCofinsService,
   ],
-  exports: [NcmService, TaxEngineService, NfeService, FiscalEngineAutomationService, OperacoesFiscaisService, GovernmentTransmissionModule, NfseModule, FiscalBrainModule, StProtocoloService, STDetectorService, StEntradaCst60Service, DeclaracaoArt264Service, CbenefService],
+  exports: [NcmService, TaxEngineService, NfeService, FiscalEngineAutomationService, OperacoesFiscaisService, GovernmentTransmissionModule, NfseModule, FiscalBrainModule, StProtocoloService, STDetectorService, StEntradaCst60Service, DeclaracaoArt264Service, CbenefService, EncerCreditoPisCofinsService],
 })
 export class FiscalModule {}

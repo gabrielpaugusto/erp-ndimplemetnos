@@ -58,6 +58,7 @@ export class NfeXmlBuilderService {
       where: { id: nfeId },
       include: {
         items: { orderBy: { itemNumber: 'asc' } },
+        detPag: { orderBy: { ordem: 'asc' } },
         person: {
           include: {
             addresses: {
@@ -66,7 +67,15 @@ export class NfeXmlBuilderService {
             },
           },
         },
-        company: true,
+        company: {
+          include: {
+            taxRegimeConfigs: {
+              where: { vigenciaFim: null },
+              orderBy: { vigenciaInicio: 'desc' },
+              take: 1,
+            },
+          },
+        },
       },
     });
 
@@ -74,6 +83,16 @@ export class NfeXmlBuilderService {
     const dest = nfe.person;
 
     const dataEmissao = nfe.dataEmissao ?? new Date();
+    const anoEmissao = dataEmissao.getFullYear();
+    // LC 214/2025: PIS/COFINS extintos a partir de 01/01/2027; CBS assume o papel.
+    // Regras fiscais dependem da data de emissão para compatibilidade com homologação em 2026.
+    const regime2027 = anoEmissao >= 2027;
+
+    // Alíquotas CBS/IBS do TaxRegimeConfig ativo — parametrizáveis (Senado define até dez/2026)
+    const taxCfg = (company as any).taxRegimeConfigs?.[0];
+    const ALIQ_CBS_PADRAO  = taxCfg?.aliqCbsPadrao    ? Number(taxCfg.aliqCbsPadrao)    / 100 : 0.009;      // 0,9% teste 2026
+    const ALIQ_IBS_UF_PAD  = taxCfg?.aliqIbsUfPadrao  ? Number(taxCfg.aliqIbsUfPadrao)  / 100 : 0.0005;     // 0,05% estadual
+    const ALIQ_IBS_MUN_PAD = taxCfg?.aliqIbsMunPadrao ? Number(taxCfg.aliqIbsMunPadrao) / 100 : 0.0005;     // 0,05% municipal
     const cUF = this.ufCode(company.uf ?? 'SP');
     const cNf = Math.floor(Math.random() * 99999999).toString().padStart(8, '0');
     const serie = (nfe.serie ?? company.serieNfe ?? 1).toString().padStart(3, '0');
@@ -94,20 +113,24 @@ export class NfeXmlBuilderService {
 
     // Calculate totals
     let vProd = 0, vICMS = 0, vIPI = 0, vPIS = 0, vCOFINS = 0, vIcmsSt = 0;
-    let vBCIBS = 0, vIBS = 0, vBCCBS = 0, vCBS = 0, vBCIS = 0, vIS = 0;
+    // vBCIS/vIS calculados após o map (IS pode ter auto-calc baseado em NCM lookup)
+    let vBCIBS = 0, vIBS = 0, vBCCBS = 0, vCBS = 0;
+    let vBCIS = 0, vIS = 0; // preenchidos após itemsData map
     for (const item of nfe.items) {
       vProd += Number(item.totalPrice ?? 0);
       vICMS += Number(item.valorIcms ?? 0);
-      vIPI += Number(item.valorIpi ?? 0);
-      vPIS += Number(item.valorPis ?? 0);
-      vCOFINS += Number(item.valorCofins ?? 0);
+      // IPI zerado em 2027 (Decreto IPI + LC 214/2025); implementos rodoviários já têm IPI 0%
+      if (!regime2027) vIPI += Number(item.valorIpi ?? 0);
+      // PIS/COFINS extintos em 2027; zera totais para não constar no ICMSTot
+      if (!regime2027) {
+        vPIS += Number(item.valorPis ?? 0);
+        vCOFINS += Number(item.valorCofins ?? 0);
+      }
       vIcmsSt += Number(item.valorIcmsSt ?? 0);
       vBCIBS += Number((item as any).bcIbs ?? 0);
       vIBS   += Number((item as any).valorIbs ?? 0);
       vBCCBS += Number((item as any).bcCbs ?? 0);
       vCBS   += Number((item as any).valorCbs ?? 0);
-      vBCIS  += Number((item as any).bcIs ?? 0);
-      vIS    += Number((item as any).valorIs ?? 0);
     }
     const vFrete = Number(nfe.valorFrete ?? 0);
     const vSeg = Number(nfe.valorSeguro ?? 0);
@@ -136,8 +159,21 @@ export class NfeXmlBuilderService {
     // Endereço do destinatário: usa o endereço principal ou o primeiro cadastrado
     const destAddr = (dest as any)?.addresses?.[0];
 
-    // Build items XML
-    const itemsXml = nfe.items.map((item, i) => {
+    // IS lookup: pré-carrega NCMs sujeitas ao IS (só relevante para 2027+)
+    // Map<ncm8, { cstIs, aliqIsPadrao }> — null se não sujeita ao IS
+    const ncmsItems = nfe.items.map(i => (i.ncmCode ?? '').replace(/\D/g,'').padStart(8,'0'));
+    const ncmIsRows = regime2027
+      ? await (this.prisma as any).ncmIs.findMany({
+          where: { ncm: { in: ncmsItems }, ativo: true },
+          select: { ncm: true, cstIs: true, aliqIsPadrao: true },
+        })
+      : [];
+    const ncmIsMap = new Map<string, { cstIs: string; aliqIsPadrao: number | null }>(
+      ncmIsRows.map((r: any) => [r.ncm, { cstIs: r.cstIs, aliqIsPadrao: r.aliqIsPadrao ? Number(r.aliqIsPadrao) : null }])
+    );
+
+    // Build items XML — retorna { xml, isValorFinal, isBcFinal } para acumular totais IS
+    const itemsData = nfe.items.map((item, i) => {
       const descProd = `${homPrefix}${this.sanitize(item.description, 120 - homPrefix.length)}`;
       const qty = Number(item.quantity ?? 1);
       const unitPrice = Number(item.unitPrice ?? 0);
@@ -204,10 +240,25 @@ export class NfeXmlBuilderService {
         icmsTag = `<ICMS40><orig>0</orig><CST>40</CST></ICMS40>`;
       }
 
-      // PIS
-      const cstPis = item.cstPis ?? '07';
+      // IPI — zeragem por NCM a partir de 01/01/2027 (Decreto IPI + LC 214/2025)
+      // Regra: se regime2027 OU valorIpi=0 → IPINT (CST 53=saída NT); caso contrário IPITrib
+      const cstIpi    = (item as any).cstIpi ?? (regime2027 ? '53' : '53');
+      const valorIpi  = regime2027 ? 0 : Number(item.valorIpi ?? 0);
+      const ipiTag = valorIpi > 0
+        ? `<IPI>
+              <IPITrib>
+                <CST>${cstIpi}</CST>
+                <vBC>${this.fmt(Number((item as any).bcIpi ?? 0))}</vBC>
+                <pIPI>${this.fmt(Number((item as any).aliqIpi ?? 0), 4)}</pIPI>
+                <vIPI>${this.fmt(valorIpi)}</vIPI>
+              </IPITrib>
+            </IPI>`
+        : `<IPI><IPINT><CST>${cstIpi}</CST></IPINT></IPI>`;
+
+      // PIS — extinto a partir de 01/01/2027 (LC 214/2025); declarado como isento (CST 07)
+      const cstPis = regime2027 ? '07' : (item.cstPis ?? '07');
       let pisTag = '';
-      if (['07','08','09'].includes(cstPis)) {
+      if (regime2027 || ['07','08','09'].includes(cstPis)) {
         pisTag = `<PISNT><CST>${cstPis}</CST></PISNT>`;
       } else {
         pisTag = `<PISAliq>
@@ -218,10 +269,10 @@ export class NfeXmlBuilderService {
             </PISAliq>`;
       }
 
-      // COFINS
-      const cstCofins = item.cstCofins ?? '07';
+      // COFINS — extinto a partir de 01/01/2027 (LC 214/2025); declarado como isento (CST 07)
+      const cstCofins = regime2027 ? '07' : (item.cstCofins ?? '07');
       let cofinsTag = '';
-      if (['07','08','09'].includes(cstCofins)) {
+      if (regime2027 || ['07','08','09'].includes(cstCofins)) {
         cofinsTag = `<COFINSNT><CST>${cstCofins}</CST></COFINSNT>`;
       } else {
         cofinsTag = `<COFINSAliq>
@@ -232,73 +283,109 @@ export class NfeXmlBuilderService {
             </COFINSAliq>`;
       }
 
-      // ── IBS / CBS / IS (Reforma Tributária — NT 2025.002) ──────────────────
-      // Em 2026: período informativo — obrigatório para LR/LP (Lucro Real/Presumido)
-      // com alíquotas padrão CBS=0,9% e IBS=0,1% quando cClassTrib=B00
-      const cClassTrib = (item as any).cClassTrib ?? 'B00';
-      const tributadoIBSCBS = ['B00', 'B07', 'B08'].includes(cClassTrib); // operações com IBS/CBS
+      // ── IBS / CBS / IS (Reforma Tributária — NT 2025.002 v1.70) ──────────────
+      // cClassTrib: 6 dígitos (ex: "000001" = tributado integral)
+      //   primeiros 3 = CST IBS/CBS | últimos 3 = subdivisão
+      // cstIbsCbs: 3 dígitos (ex: "000" = tributado, "410" = imunidade/exportação)
+      // Em 2026: CBS=0,9% e IBS=0,1% informativo; LR/LP obrigatório desde 03/08/2026
+      const cClassTrib  = (item as any).cClassTrib  ?? '000001';
+      const cstIbsCbs   = (item as any).cstIbsCbs   ?? cClassTrib.slice(0, 3);
 
-      // Alíquotas informativas 2026 (usadas quando campos não preenchidos e tributadoIBSCBS)
-      const ALIQ_CBS_2026 = 0.009;  // 0,9%
-      const ALIQ_IBS_2026 = 0.001;  // 0,1%
+      // CSTs tributados: 000 (integral), 010 (alíq.uniformes fundo), 011 (alíq.uniformes)
+      const CST_TRIBUTADO = ['000', '010', '011'];
+      const tributadoIBSCBS = CST_TRIBUTADO.includes(cstIbsCbs);
 
-      let ibsBc    = Number((item as any).bcIbs   ?? 0);
-      let ibsAliq  = Number((item as any).aliqIbs ?? 0);
-      let ibsValor = Number((item as any).valorIbs ?? 0);
-      let cbsBc    = Number((item as any).bcCbs   ?? 0);
-      let cbsAliq  = Number((item as any).aliqCbs ?? 0);
+      // Alíquotas do TaxRegimeConfig ativo (fallback: valores informativos 2026)
+      const ALIQ_CBS_2026     = ALIQ_CBS_PADRAO;
+      const ALIQ_IBS_UF_2026  = ALIQ_IBS_UF_PAD;
+      const ALIQ_IBS_MUN_2026 = ALIQ_IBS_MUN_PAD;
+
+      let ibsBc       = Number((item as any).bcIbs       ?? 0);
+      let ibsAliqUf   = Number((item as any).aliqIbsUf   ?? 0);
+      let ibsValorUf  = Number((item as any).valorIbsUf  ?? 0);
+      let ibsAliqMun  = Number((item as any).aliqIbsMun  ?? 0);
+      let ibsValorMun = Number((item as any).valorIbsMun ?? 0);
+      // Compatibilidade: se só tem aliqIbs/valorIbs antigos, divide 50/50
+      if (ibsAliqUf === 0 && ibsAliqMun === 0) {
+        const aliqTotal = Number((item as any).aliqIbs ?? 0);
+        ibsAliqUf  = aliqTotal / 2;
+        ibsAliqMun = aliqTotal / 2;
+        const valorTotal = Number((item as any).valorIbs ?? 0);
+        ibsValorUf  = valorTotal / 2;
+        ibsValorMun = valorTotal / 2;
+      }
+      let cbsBc    = Number((item as any).bcCbs    ?? 0);
+      let cbsAliq  = Number((item as any).aliqCbs  ?? 0);
       let cbsValor = Number((item as any).valorCbs ?? 0);
-      const isValor  = Number((item as any).valorIs  ?? 0);
-      const isBc     = Number((item as any).bcIs    ?? 0);
-      const isAliq   = Number((item as any).aliqIs  ?? 0);
+      const isValor = Number((item as any).valorIs ?? 0);
+      const isBc    = Number((item as any).bcIs    ?? 0);
+      const isAliq  = Number((item as any).aliqIs  ?? 0);
 
-      // Cálculo automático para período informativo quando não foram preenchidos
-      if (tributadoIBSCBS && cbsValor === 0 && ibsValor === 0) {
-        cbsBc    = total;
-        cbsAliq  = ALIQ_CBS_2026;
-        cbsValor = parseFloat((total * ALIQ_CBS_2026).toFixed(2));
-        ibsBc    = total;
-        ibsAliq  = ALIQ_IBS_2026;
-        ibsValor = parseFloat((total * ALIQ_IBS_2026).toFixed(2));
+      // Cálculo automático para período informativo quando não preenchidos
+      if (tributadoIBSCBS && cbsValor === 0 && ibsValorUf === 0 && ibsValorMun === 0) {
+        cbsBc      = total;
+        cbsAliq    = ALIQ_CBS_2026;
+        cbsValor   = parseFloat((total * ALIQ_CBS_2026).toFixed(2));
+        ibsBc      = total;
+        ibsAliqUf  = ALIQ_IBS_UF_2026;
+        ibsValorUf = parseFloat((total * ALIQ_IBS_UF_2026).toFixed(2));
+        ibsAliqMun  = ALIQ_IBS_MUN_2026;
+        ibsValorMun = parseFloat((total * ALIQ_IBS_MUN_2026).toFixed(2));
       }
 
       // gIBSCBS — grupo obrigatório para LR/LP (NT 2025.002)
-      const ibsInnerTag = ibsValor > 0
-        ? `<IBS>
-                <CST>01</CST>
-                <vBCIBS>${this.fmt(ibsBc)}</vBCIBS>
-                <pAliqIBS>${this.fmt(ibsAliq, 4)}</pAliqIBS>
-                <vIBS>${this.fmt(ibsValor)}</vIBS>
-              </IBS>`
-        : '';
-
-      const cbsInnerTag = cbsValor > 0
-        ? `<CBS>
-                <CST>01</CST>
-                <vBCCBS>${this.fmt(cbsBc)}</vBCCBS>
-                <pAliqCBS>${this.fmt(cbsAliq, 4)}</pAliqCBS>
-                <vCBS>${this.fmt(cbsValor)}</vCBS>
-              </CBS>`
-        : '';
-
-      const ibscbsTag = (ibsInnerTag || cbsInnerTag)
+      // IBS agora dividido em gIBSUF (estadual) + gIBSMun (municipal)
+      const ibsTag = (ibsValorUf > 0 || ibsValorMun > 0)
         ? `<gIBSCBS>
-              <cClassTrib>${cClassTrib}</cClassTrib>
-              ${ibsInnerTag}${cbsInnerTag}
-            </gIBSCBS>`
+                <gIBSUF>
+                  <pAliqIBSUF>${this.fmt(ibsAliqUf, 4)}</pAliqIBSUF>
+                  <vIBSUF>${this.fmt(ibsValorUf)}</vIBSUF>
+                </gIBSUF>
+                <gIBSMun>
+                  <pAliqIBSMun>${this.fmt(ibsAliqMun, 4)}</pAliqIBSMun>
+                  <vIBSMun>${this.fmt(ibsValorMun)}</vIBSMun>
+                </gIBSMun>
+                <gCBS>
+                  <pAliqCBS>${this.fmt(cbsAliq, 4)}</pAliqCBS>
+                  <vCBS>${this.fmt(cbsValor)}</vCBS>
+                </gCBS>
+              </gIBSCBS>`
         : '';
 
-      // IS — Imposto Seletivo (fora do gIBSCBS, produtos específicos)
-      const isTag = isValor > 0
+      const ibscbsTag = (tributadoIBSCBS || ibsValorUf > 0 || cbsValor > 0)
+        ? `<IBSCBS>
+              <CST>${cstIbsCbs}</CST>
+              <cClassTrib>${cClassTrib}</cClassTrib>
+              ${ibsTag}
+            </IBSCBS>`
+        : '';
+
+      // IS — Imposto Seletivo (LC 214/2025, Art. 263 — vigente a partir de 01/01/2027)
+      // Só emite <IS> para notas 2027+; lookup por NCM determina sujeição ao imposto
+      const ncmIsInfo  = ncmIsMap.get(ncm);
+      // cstIs: usa campo do item se preenchido, senão '000' se NCM sujeita, '400' se não sujeita
+      const cstIs = (item as any).cstIs
+        ?? (ncmIsInfo ? ncmIsInfo.cstIs : '400');
+      let isValorFinal = isValor;
+      let isBcFinal    = isBc;
+      let isAliqFinal  = isAliq;
+      // Auto-calc IS quando NCM sujeita, regime2027 e valores não preenchidos
+      if (regime2027 && ncmIsInfo && cstIs === '000' && isValorFinal === 0 && ncmIsInfo.aliqIsPadrao) {
+        const pIS = ncmIsInfo.aliqIsPadrao / 100;
+        isBcFinal    = total;
+        isAliqFinal  = ncmIsInfo.aliqIsPadrao;
+        isValorFinal = parseFloat((total * pIS).toFixed(2));
+      }
+      const isTag = (regime2027 && isValorFinal > 0)
         ? `<IS>
-              <CST>01</CST>
-              <vBCIS>${this.fmt(isBc)}</vBCIS>
-              <pAliqIS>${this.fmt(isAliq, 4)}</pAliqIS>
-              <vIS>${this.fmt(isValor)}</vIS>
+              <CST>${cstIs}</CST>
+              <vBCIS>${this.fmt(isBcFinal)}</vBCIS>
+              <pAliqIS>${this.fmt(isAliqFinal, 4)}</pAliqIS>
+              <vIS>${this.fmt(isValorFinal)}</vIS>
             </IS>`
         : '';
 
-      return `<det nItem="${i+1}">
+      const detXml = `<det nItem="${i+1}">
           <prod>
             <cProd>${this.sanitize(item.productId ? item.productId.slice(0,60) : (i+1).toString().padStart(3,'0'))}</cProd>
             <cEAN>SEM GTIN</cEAN>
@@ -318,12 +405,18 @@ export class NfeXmlBuilderService {
           </prod>
           <imposto>
             <ICMS>${icmsTag}</ICMS>
+            ${ipiTag}
             <PIS>${pisTag}</PIS>
             <COFINS>${cofinsTag}</COFINS>
             ${ibscbsTag}${isTag}
           </imposto>
         </det>`;
-    }).join('\n');
+      return { xml: detXml, isValorFinal, isBcFinal };
+    });
+
+    // Acumula totais IS após map (auto-calc pode ter produzido valores > 0)
+    for (const d of itemsData) { vBCIS += d.isBcFinal; vIS += d.isValorFinal; }
+    const itemsXml = itemsData.map(d => d.xml).join('\n');
 
     // Main XML
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -425,16 +518,43 @@ export class NfeXmlBuilderService {
       <modFrete>9</modFrete>
     </transp>
     <pag>
-      <detPag>
-        <tPag>01</tPag>
-        <vPag>${this.fmt(vNF)}</vPag>
-      </detPag>
+      ${this.buildDetPag(nfe.detPag as any[], vNF)}
+      ${nfe.vTroco ? `<vTroco>${this.fmt(nfe.vTroco)}</vTroco>` : ''}
     </pag>
     ${nfe.informacoesComplementares ? `<infAdic><infCpl>${this.sanitize(nfe.informacoesComplementares, 2000)}</infCpl></infAdic>` : ''}
   </infNFe>
 </NFe>`;
 
     return { xml, chaveAcesso, cNf };
+  }
+
+  private buildDetPag(detPags: any[], vNF: number): string {
+    if (!detPags || detPags.length === 0) {
+      // Fallback: à vista em dinheiro pelo valor total
+      return `<detPag><tPag>01</tPag><vPag>${this.fmt(vNF)}</vPag></detPag>`;
+    }
+    return detPags.map((dp) => {
+      const vPag = this.fmt(Number(dp.vPag));
+      const dVenc = dp.dVenc
+        ? `<dVenc>${(dp.dVenc as Date).toISOString().split('T')[0]}</dVenc>`
+        : '';
+      const cardXml = dp.tpIntegra
+        ? `<card>
+          <tpIntegra>${dp.tpIntegra}</tpIntegra>
+          ${dp.cnpjCred ? `<CNPJ>${dp.cnpjCred}</CNPJ>` : ''}
+          ${dp.tBand ? `<tBand>${dp.tBand}</tBand>` : ''}
+          ${dp.cAut ? `<cAut>${dp.cAut}</cAut>` : ''}
+        </card>`
+        : '';
+      return `<detPag>
+        ${dp.indPag != null ? `<indPag>${dp.indPag}</indPag>` : ''}
+        <tPag>${dp.tPag}</tPag>
+        ${dp.xPag ? `<xPag>${this.sanitize(dp.xPag, 60)}</xPag>` : ''}
+        <vPag>${vPag}</vPag>
+        ${dVenc}
+        ${cardXml}
+      </detPag>`;
+    }).join('\n      ');
   }
 
   private calcMod11(chave: string): string {
