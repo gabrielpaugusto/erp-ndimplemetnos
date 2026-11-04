@@ -14,6 +14,7 @@ import {
   ShoppingCart,
   RefreshCw,
   FileText,
+  Download,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { EmptyStateRow } from '@/components/ui/empty-state';
@@ -158,6 +159,19 @@ export default function PedidosPage() {
 
   const hasActiveFilters = search || statusFilter || saleTypeFilter;
 
+  const handleExportCsv = async () => {
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (statusFilter) params.set('status', statusFilter);
+    const res = await apiFetch(`/api/commercial/sale-orders/export/csv?${params}`);
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'pedidos-venda.csv'; a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -175,6 +189,14 @@ export default function PedidosPage() {
             className="inline-flex items-center gap-2 px-3 py-2 border border-slate-300 bg-white text-slate-700 rounded-lg hover:bg-slate-50 text-sm font-medium transition-colors disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+          <button
+            onClick={handleExportCsv}
+            className="inline-flex items-center gap-2 px-3 py-2 border border-slate-300 bg-white text-slate-700 rounded-lg hover:bg-slate-50 text-sm font-medium transition-colors"
+            title="Exportar CSV"
+          >
+            <Download className="w-4 h-4" />
+            CSV
           </button>
           <Link
             href="/comercial/pedidos/novo"

@@ -382,6 +382,83 @@ export class SaleOrdersService {
     return updated;
   }
 
+  async exportCsv(
+    companyId: string,
+    filters: { status?: string; dataInicio?: string; dataFim?: string },
+  ): Promise<string> {
+    const where: any = { companyId, deletedAt: null };
+
+    if (filters.status) {
+      where.status = filters.status;
+    }
+
+    if (filters.dataInicio || filters.dataFim) {
+      where.dataEmissao = {};
+      if (filters.dataInicio) {
+        where.dataEmissao.gte = new Date(filters.dataInicio);
+      }
+      if (filters.dataFim) {
+        where.dataEmissao.lte = new Date(filters.dataFim);
+      }
+    }
+
+    const records = await this.prisma.saleOrder.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        person: {
+          select: { razaoSocial: true, cpfCnpj: true },
+        },
+        vendedor: {
+          select: { name: true },
+        },
+      },
+    });
+
+    const formatDate = (d: Date | null | undefined): string => {
+      if (!d) return '';
+      const date = new Date(d);
+      const dd = String(date.getDate()).padStart(2, '0');
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    };
+
+    const formatCurrency = (v: unknown): string => {
+      if (v === null || v === undefined) return '';
+      return Number(v).toFixed(2).replace('.', ',');
+    };
+
+    const escapeValue = (v: string): string => {
+      if (v.includes(';') || v.includes('\n') || v.includes('"')) {
+        return `"${v.replace(/"/g, '""')}"`;
+      }
+      return v;
+    };
+
+    const header =
+      'ID;Número;Tipo de Venda;Status;Data de Emissão;Valor Total;Razão Social;CPF/CNPJ;Vendedor;Criado em';
+
+    const rows = records.map((r) =>
+      [
+        r.id,
+        r.numero ?? '',
+        (r as any).saleType ?? '',
+        r.status ?? '',
+        formatDate((r as any).dataEmissao ?? r.createdAt),
+        formatCurrency((r as any).valorTotal ?? (r as any).total),
+        (r as any).person?.razaoSocial ?? '',
+        (r as any).person?.cpfCnpj ?? '',
+        (r as any).vendedor?.name ?? '',
+        formatDate(r.createdAt),
+      ]
+        .map((v) => escapeValue(String(v)))
+        .join(';'),
+    );
+
+    return [header, ...rows].join('\r\n');
+  }
+
   private async recalculate(orderId: string) {
     const items = await this.prisma.saleOrderItem.findMany({
       where: { saleOrderId: orderId },

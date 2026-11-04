@@ -73,6 +73,19 @@ export class NfeController {
     });
   }
 
+  // export/csv deve vir antes de :id para não ser capturado como id
+  @Get('export/csv')
+  async exportCsv(
+    @CurrentUser() user: { companyId: string },
+    @Query() query: any,
+    @Res() res: Response,
+  ) {
+    const csv = await this.nfeService.exportCsv(user.companyId, query);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="nfe-export.csv"');
+    res.send('﻿' + csv); // BOM for Excel UTF-8
+  }
+
   // DANFE deve vir antes de :id para não ser capturado como id
   @Get(':id/danfe')
   async getDanfe(@Param('id') id: string, @Res() res: Response) {

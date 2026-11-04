@@ -1002,6 +1002,96 @@ export class NfeService {
     });
   }
 
+  async exportCsv(
+    companyId: string,
+    filters: { status?: string; type?: string; dataInicio?: string; dataFim?: string },
+  ): Promise<string> {
+    const where: any = { companyId };
+
+    if (filters.type) {
+      where.type = filters.type;
+    }
+
+    if (filters.status) {
+      where.status = filters.status;
+    }
+
+    if (filters.dataInicio || filters.dataFim) {
+      where.dataEmissao = {};
+      if (filters.dataInicio) {
+        where.dataEmissao.gte = new Date(filters.dataInicio);
+      }
+      if (filters.dataFim) {
+        where.dataEmissao.lte = new Date(filters.dataFim);
+      }
+    }
+
+    const records = await this.prisma.nFeDocument.findMany({
+      where,
+      orderBy: [{ createdAt: 'desc' }],
+      select: {
+        id: true,
+        numero: true,
+        serie: true,
+        type: true,
+        status: true,
+        naturezaOperacao: true,
+        dataEmissao: true,
+        chaveAcesso: true,
+        valorTotal: true,
+        createdAt: true,
+        person: {
+          select: { razaoSocial: true, cpfCnpj: true },
+        },
+      },
+    });
+
+    const formatDate = (d: Date | null | undefined): string => {
+      if (!d) return '';
+      const date = new Date(d);
+      const dd = String(date.getDate()).padStart(2, '0');
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    };
+
+    const formatCurrency = (v: unknown): string => {
+      if (v === null || v === undefined) return '';
+      return Number(v).toFixed(2).replace('.', ',');
+    };
+
+    const escapeValue = (v: string): string => {
+      if (v.includes(';') || v.includes('\n') || v.includes('"')) {
+        return `"${v.replace(/"/g, '""')}"`;
+      }
+      return v;
+    };
+
+    const header =
+      'ID;Número;Série;Tipo;Status;Natureza da Operação;Data de Emissão;Chave de Acesso;Valor Total;Razão Social;CPF/CNPJ;Criado em';
+
+    const rows = records.map((r) =>
+      [
+        r.id,
+        r.numero ?? '',
+        r.serie ?? '',
+        r.type ?? '',
+        r.status ?? '',
+        r.naturezaOperacao ?? '',
+        formatDate(r.dataEmissao),
+        r.chaveAcesso ?? '',
+        formatCurrency(r.valorTotal),
+        r.person?.razaoSocial ?? '',
+        r.person?.cpfCnpj ?? '',
+        formatDate(r.createdAt),
+      ]
+        .map((v) => escapeValue(String(v)))
+        .join(';'),
+    );
+
+    return [header, ...rows].join('\r\n');
+  }
+
   /**
    * Generate a mock 44-digit chaveAcesso for NF-e.
    */

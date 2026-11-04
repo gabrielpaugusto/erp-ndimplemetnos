@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Plus, Search, Filter, X, Eye, Edit,
-  ChevronLeft, ChevronRight, FileText, Calendar, RefreshCw, Hash,
+  ChevronLeft, ChevronRight, FileText, Calendar, RefreshCw, Hash, Download,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { fmtCurrency } from '@/lib/format';
@@ -218,6 +218,22 @@ export default function NFeListPage() {
     return chave.substring(0, 8) + '...' + chave.substring(chave.length - 8);
   };
 
+  const handleExportCsv = async () => {
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (statusFilter) params.set('status', statusFilter);
+    if (tipoFilter) params.set('type', tipoFilter);
+    if (dataInicio) params.set('startDate', dataInicio);
+    if (dataFim) params.set('endDate', dataFim);
+    const res = await apiFetch(`/api/fiscal/nfe/export/csv?${params}`);
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'nfe-export.csv'; a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <>
       {showInutilizar && <InutilizarModal onClose={() => setShowInutilizar(false)} />}
@@ -237,6 +253,14 @@ export default function NFeListPage() {
             title="Atualizar"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+          <button
+            onClick={handleExportCsv}
+            className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 text-sm font-medium transition-colors"
+            title="Exportar CSV"
+          >
+            <Download className="w-4 h-4" />
+            CSV
           </button>
           <button
             onClick={() => setShowInutilizar(true)}
