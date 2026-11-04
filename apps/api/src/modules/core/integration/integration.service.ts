@@ -1019,6 +1019,24 @@ export class IntegrationService {
 
       const qtyProduced = Number(po.quantityProduced);
 
+      // Calculate production cost from consumed components' average costs
+      let unitCostProduced = 0;
+      if (po.items.length > 0) {
+        const componentCosts = await Promise.all(
+          po.items
+            .filter(i => Number(i.quantityConsumed) > 0)
+            .map(async (item) => {
+              const balance = await this.prisma.stockBalance.findFirst({
+                where: { productId: item.productId, companyId },
+              });
+              const avgCost = balance ? Number(balance.averageCost) : 0;
+              return avgCost * Number(item.quantityConsumed);
+            }),
+        );
+        const totalComponentCost = componentCosts.reduce((s, c) => s + c, 0);
+        unitCostProduced = qtyProduced > 0 ? totalComponentCost / qtyProduced : 0;
+      }
+
       // 1. Stock entry for the finished product
       if (qtyProduced > 0) {
         try {
@@ -1031,8 +1049,8 @@ export class IntegrationService {
                 type: 'ENTRADA',
                 source: 'PRODUCAO',
                 quantity: qtyProduced,
-                unitCost: 0,
-                totalCost: 0,
+                unitCost: unitCostProduced,
+                totalCost: unitCostProduced * qtyProduced,
                 documentNumber: po.numero,
                 productionOrderId: po.id,
                 userId,
@@ -1045,6 +1063,7 @@ export class IntegrationService {
               po.productId,
               defaultLocation.id,
               qtyProduced,
+              unitCostProduced,
             );
           });
         } catch (err) {

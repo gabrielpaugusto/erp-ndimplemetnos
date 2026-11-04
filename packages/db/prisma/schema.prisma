@@ -987,6 +987,9 @@ model Company {
   equipamentos             Equipamento[]
   tarefasCatalogo          TarefaCatalogo[]
 
+  // Controle de Qualidade
+  qualityInspections       QualityInspection[]
+
   @@map("companies")
 }
 
@@ -1177,6 +1180,9 @@ model User {
   bomOverridesAprovados       OrderBomOverride[]    @relation("BomOverrideAprovador")
   ecosSolicitados             EngineeringChange[]   @relation("EcoSolicitante")
   ecosAprovados               EngineeringChange[]   @relation("EcoAprovador")
+
+  // Controle de Qualidade
+  qualityInspectionsResponsavel QualityInspection[] @relation("QualityInspectionResponsavel")
 
   @@map("users")
 }
@@ -1394,6 +1400,9 @@ model Person {
 
   // Sprint 7 — Equipamentos (proprietário do veículo/implemento)
   equipamentos            Equipamento[]   @relation("EquipamentoProprietario")
+
+  // Manutenção de Ativos Fixos (fornecedor externo)
+  maintenances            FixedAssetMaintenance[] @relation("MaintenanceFornecedor")
 
   @@unique([companyId, cpfCnpj])
   @@index([companyId, type])
@@ -1902,6 +1911,9 @@ model Product {
 
   // Sprint 4 — MRP
   mrpSuggestions          MrpSuggestion[]
+
+  // Controle de Qualidade
+  qualityInspections      QualityInspection[]
 
   @@unique([companyId, code])
   @@index([description])
@@ -2507,6 +2519,9 @@ model ProductionOrder {
 
   // Sprint 3 — BOM customizada
   bomOverride         OrderBomOverride?  @relation("OpBomOverride")
+
+  // Controle de Qualidade
+  qualityInspections  QualityInspection[]
 
   @@unique([companyId, numero])
   @@index([companyId, status])
@@ -5291,6 +5306,7 @@ model FixedAssetMaintenance {
 
   // Fornecedor
   fornecedorId        String?             // FK para Person
+  fornecedor          Person?             @relation("MaintenanceFornecedor", fields: [fornecedorId], references: [id])
   fornecedorNome      String?             @db.VarChar(100) // fallback se não cadastrado
 
   // Fiscal
@@ -6375,4 +6391,61 @@ enum FiscalApuracaoStatus {
   ABERTA
   FECHADA
   RETIFICADA
+}
+
+
+// ============================================================================
+// CONTROLE DE QUALIDADE — INSPEÇÕES
+// ============================================================================
+
+enum QualityInspectionStatus {
+  PENDENTE
+  APROVADA
+  REPROVADA
+  APROVADA_COM_RESSALVA
+}
+
+enum QualityInspectionType {
+  RECEBIMENTO
+  PROCESSO
+  PRODUTO_ACABADO
+  AUDITORIA
+}
+
+model QualityInspection {
+  id                  String                   @id @default(cuid())
+  companyId           String
+  company             Company                  @relation(fields: [companyId], references: [id])
+
+  numero              String                   @db.VarChar(30)
+  type                QualityInspectionType
+  status              QualityInspectionStatus  @default(PENDENTE)
+
+  // Vínculo opcional com OP ou OS
+  productionOrderId   String?
+  productionOrder     ProductionOrder?         @relation(fields: [productionOrderId], references: [id])
+
+  productId           String?
+  product             Product?                 @relation(fields: [productId], references: [id])
+
+  // Resultado
+  quantidadeInspecionada Decimal               @db.Decimal(15, 4) @default(0)
+  quantidadeAprovada     Decimal               @db.Decimal(15, 4) @default(0)
+  quantidadeReprovada    Decimal               @db.Decimal(15, 4) @default(0)
+
+  observacoes         String?                  @db.Text
+  acaoCorretiva       String?                  @db.Text
+
+  responsavelId       String?
+  responsavel         User?                    @relation("QualityInspectionResponsavel", fields: [responsavelId], references: [id])
+
+  dataInspecao        DateTime                 @default(now())
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+
+  @@unique([companyId, numero])
+  @@index([companyId, status])
+  @@index([companyId, type])
+  @@index([productionOrderId])
+  @@map("quality_inspections")
 }

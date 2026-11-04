@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../database/prisma.service';
 import { StorageService } from '../storage/storage.service';
@@ -39,5 +39,26 @@ export class HealthController {
         minio: minio ? 'ok' : 'unreachable',
       },
     };
+  }
+
+  @Get('chart-of-accounts')
+  async chartOfAccountsHealth(@Query('companyId') companyId: string) {
+    if (!companyId) {
+      return { ok: false, count: 0, message: 'companyId query param is required' };
+    }
+    try {
+      const count = await this.prisma.chartOfAccount.count({
+        where: { companyId, active: true },
+      });
+      return {
+        ok: count > 0,
+        count,
+        message: count > 0
+          ? `Plano de contas OK: ${count} contas ativas`
+          : 'Plano de contas vazio — nenhuma conta ativa encontrada',
+      };
+    } catch {
+      return { ok: false, count: 0, message: 'Erro ao consultar plano de contas' };
+    }
   }
 }

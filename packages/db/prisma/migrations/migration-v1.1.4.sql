@@ -265,4 +265,43 @@ CREATE INDEX IF NOT EXISTS idx_nfse_emitidas_company_created
 CREATE INDEX IF NOT EXISTS idx_nfse_recebidas_company_data_emissao
   ON nfse_recebidas ("companyId", "dataEmissao");
 
+-- ── 12. FixedAssetMaintenance: formaliza FK para fornecedor (Person) ─────────
+ALTER TABLE fixed_asset_maintenances
+  ADD CONSTRAINT fk_maintenance_fornecedor
+  FOREIGN KEY ("fornecedorId") REFERENCES persons(id) ON DELETE SET NULL
+  NOT VALID;
+
+-- ── 13. Quality Inspections ───────────────────────────────────────────────────
+DO $$ BEGIN
+  CREATE TYPE "QualityInspectionStatus" AS ENUM ('PENDENTE', 'APROVADA', 'REPROVADA', 'APROVADA_COM_RESSALVA');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE "QualityInspectionType" AS ENUM ('RECEBIMENTO', 'PROCESSO', 'PRODUTO_ACABADO', 'AUDITORIA');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+CREATE TABLE IF NOT EXISTS quality_inspections (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+  "companyId" TEXT NOT NULL REFERENCES companies(id),
+  numero VARCHAR(30) NOT NULL,
+  type "QualityInspectionType" NOT NULL,
+  status "QualityInspectionStatus" NOT NULL DEFAULT 'PENDENTE',
+  "productionOrderId" TEXT REFERENCES production_orders(id),
+  "productId" TEXT REFERENCES products(id),
+  "quantidadeInspecionada" NUMERIC(15,4) NOT NULL DEFAULT 0,
+  "quantidadeAprovada" NUMERIC(15,4) NOT NULL DEFAULT 0,
+  "quantidadeReprovada" NUMERIC(15,4) NOT NULL DEFAULT 0,
+  observacoes TEXT,
+  "acaoCorretiva" TEXT,
+  "responsavelId" TEXT REFERENCES users(id) ON DELETE SET NULL,
+  "dataInspecao" TIMESTAMP NOT NULL DEFAULT NOW(),
+  "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+  "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+  CONSTRAINT "quality_inspections_companyId_numero_key" UNIQUE ("companyId", numero)
+);
+
+CREATE INDEX IF NOT EXISTS idx_quality_inspections_company_status ON quality_inspections ("companyId", status);
+CREATE INDEX IF NOT EXISTS idx_quality_inspections_company_type   ON quality_inspections ("companyId", type);
+CREATE INDEX IF NOT EXISTS idx_quality_inspections_production_order ON quality_inspections ("productionOrderId");
+
 COMMIT;
