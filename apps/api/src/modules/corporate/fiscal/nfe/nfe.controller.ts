@@ -86,8 +86,8 @@ export class NfeController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.nfeService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: { companyId: string }) {
+    return this.nfeService.findOne(id, user.companyId);
   }
 
   @Post()

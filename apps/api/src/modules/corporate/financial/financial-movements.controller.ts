@@ -57,8 +57,8 @@ export class FinancialMovementsController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.movementsService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: { id: string; companyId: string }) {
+    return this.movementsService.findOne(id, user.companyId);
   }
 
   @Post()

@@ -40,8 +40,8 @@ export class QuotationsController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.quotationsService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: { id: string; companyId: string }) {
+    return this.quotationsService.findOne(id, user.companyId);
   }
 
   @Post()

@@ -125,9 +125,11 @@ export class FinancialMovementsService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, companyId?: string) {
+    const where: any = { id };
+    if (companyId) where.companyId = companyId;
     const movement = await this.prisma.financialMovement.findUnique({
-      where: { id },
+      where,
       include: {
         person: { select: { id: true, razaoSocial: true, cpfCnpj: true } },
         bankAccount: { select: { id: true, name: true } },

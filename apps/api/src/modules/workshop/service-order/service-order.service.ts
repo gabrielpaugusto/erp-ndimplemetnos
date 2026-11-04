@@ -96,9 +96,11 @@ export class ServiceOrderService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, companyId?: string) {
+    const where: any = { id };
+    if (companyId) where.companyId = companyId;
     const order = await this.prisma.serviceOrder.findUnique({
-      where: { id },
+      where,
       include: {
         person: { select: { id: true, razaoSocial: true, cpfCnpj: true, nomeFantasia: true } },
         seguradora: { select: { id: true, razaoSocial: true, cpfCnpj: true } },

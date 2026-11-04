@@ -92,9 +92,11 @@ export class QuotationsService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, companyId?: string) {
+    const where: any = { id };
+    if (companyId) where.companyId = companyId;
     const quotation = await this.prisma.quotation.findUnique({
-      where: { id },
+      where,
       include: {
         person: true,
         vendedor: {

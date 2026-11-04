@@ -22,8 +22,8 @@ export class ServiceOrderController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.serviceOrderService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.serviceOrderService.findOne(id, user.companyId);
   }
 
   @Post()
