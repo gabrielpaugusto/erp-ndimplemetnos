@@ -88,8 +88,12 @@ export class NfeController {
 
   // DANFE deve vir antes de :id para não ser capturado como id
   @Get(':id/danfe')
-  async getDanfe(@Param('id') id: string, @Res() res: Response) {
-    const pdfBuffer = await this.danfeService.generateDanfe(id);
+  async getDanfe(
+    @Param('id') id: string,
+    @CurrentUser() user: { companyId: string },
+    @Res() res: Response,
+  ) {
+    const pdfBuffer = await this.danfeService.generateDanfe(id, user.companyId);
     res.set({
       'Content-Type': 'application/pdf',
       'Content-Disposition': `inline; filename="DANFE-${id}.pdf"`,
@@ -159,13 +163,20 @@ export class NfeController {
   }
 
   @Post(':id/cancel')
-  cancel(@Param('id') id: string, @Body() cancelDto: CancelNfeDto) {
-    return this.nfeService.cancel(id, cancelDto.motivo);
+  cancel(
+    @Param('id') id: string,
+    @CurrentUser() user: { companyId: string },
+    @Body() cancelDto: CancelNfeDto,
+  ) {
+    return this.nfeService.cancel(id, user.companyId, cancelDto.motivo);
   }
 
   @Post(':id/copiar-rascunho')
-  copiarParaRascunho(@Param('id') id: string) {
-    return this.nfeService.copiarParaRascunho(id);
+  copiarParaRascunho(
+    @Param('id') id: string,
+    @CurrentUser() user: { companyId: string },
+  ) {
+    return this.nfeService.copiarParaRascunho(id, user.companyId);
   }
 
   /**

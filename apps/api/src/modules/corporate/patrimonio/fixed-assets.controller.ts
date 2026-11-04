@@ -67,11 +67,13 @@ export class FixedAssetsController {
   @Post(':id/depreciar')
   depreciarAtivo(
     @Param('id') id: string,
+    @Request() req: any,
     @Body() body: { ano?: number; mes?: number },
   ) {
     const agora = new Date();
     return this.service.depreciarAtivo(
       id,
+      req.user.companyId,
       body.ano || agora.getFullYear(),
       body.mes || agora.getMonth() + 1,
     );
@@ -81,8 +83,8 @@ export class FixedAssetsController {
 
   /** GET /patrimonio/:id/ciap — saldo CIAP de um ativo */
   @Get(':id/ciap')
-  getCiapSaldo(@Param('id') id: string) {
-    return this.service.getCiapSaldo(id);
+  getCiapSaldo(@Param('id') id: string, @Request() req: any) {
+    return this.service.getCiapSaldo(id, req.user.companyId);
   }
 
   /** POST /patrimonio/ciap/processar — processa crédito CIAP do mês */

@@ -50,7 +50,7 @@ function labelValue(label: string, value: string, labelSize = 6, valueSize = 8):
 export class DanfeService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async generateDanfe(nfeId: string): Promise<Buffer> {
+  async generateDanfe(nfeId: string, companyId: string): Promise<Buffer> {
     const nfe = await this.prisma.nFeDocument.findUnique({
       where: { id: nfeId },
       include: {
@@ -62,7 +62,7 @@ export class DanfeService {
       },
     });
 
-    if (!nfe) throw new NotFoundException(`NF-e ${nfeId} não encontrada`);
+    if (!nfe || nfe.companyId !== companyId) throw new NotFoundException(`NF-e ${nfeId} não encontrada`);
 
     const emit = nfe.company;
     const dest = nfe.person;

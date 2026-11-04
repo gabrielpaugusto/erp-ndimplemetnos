@@ -694,12 +694,12 @@ export class NfeService {
   /**
    * Cancel an authorized NF-e with a reason.
    */
-  async cancel(id: string, motivo: string) {
+  async cancel(id: string, companyId: string, motivo: string) {
     const nfe = await this.prisma.nFeDocument.findUnique({
       where: { id },
     });
 
-    if (!nfe) {
+    if (!nfe || nfe.companyId !== companyId) {
       throw new NotFoundException(`NF-e ${id} not found`);
     }
 
@@ -960,13 +960,13 @@ export class NfeService {
    * Cria uma cópia em RASCUNHO de uma NF-e DENEGADA ou REJEITADA,
    * permitindo correção e reenvio.
    */
-  async copiarParaRascunho(id: string) {
+  async copiarParaRascunho(id: string, companyId: string) {
     const nfe = await this.prisma.nFeDocument.findUnique({
       where: { id },
       include: { items: true },
     });
 
-    if (!nfe) throw new NotFoundException(`NF-e ${id} not found`);
+    if (!nfe || nfe.companyId !== companyId) throw new NotFoundException(`NF-e ${id} not found`);
 
     if (nfe.status !== 'DENEGADA' && nfe.status !== 'REJEITADA') {
       throw new BadRequestException(
@@ -1185,7 +1185,7 @@ export class NfeService {
         person: { include: { addresses: { take: 1 } } },
       },
     });
-    if (!nfe) throw new NotFoundException(`NF-e ${nfeId} não encontrada`);
+    if (!nfe || nfe.companyId !== companyId) throw new NotFoundException(`NF-e ${nfeId} não encontrada`);
     if ((nfe as any).type !== 'SAIDA') throw new BadRequestException('Escrituração de saída só se aplica a NF-e de saída.');
     if (!['AUTORIZADA'].includes(nfe.status as string)) throw new BadRequestException('NF-e deve estar AUTORIZADA para ser escriturada.');
 

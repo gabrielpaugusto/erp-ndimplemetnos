@@ -139,11 +139,11 @@ export class FixedAssetsService {
   /**
    * Calcula e registra a depreciação de UM ativo para um mês específico
    */
-  async depreciarAtivo(assetId: string, ano: number, mes: number): Promise<{
+  async depreciarAtivo(assetId: string, companyId: string, ano: number, mes: number): Promise<{
     asset: string; valorDepreciacao: number; valorResidual: number; jaProcessado: boolean;
   }> {
     const asset = await this.prisma.fixedAsset.findUnique({ where: { id: assetId } });
-    if (!asset) throw new NotFoundException('Ativo não encontrado');
+    if (!asset || asset.companyId !== companyId) throw new NotFoundException('Ativo não encontrado');
     if (asset.status === 'BAIXADO') return { asset: assetId, valorDepreciacao: 0, valorResidual: Number(asset.valorResidual), jaProcessado: false };
 
     // Verificar se já foi processado este mês
@@ -306,14 +306,14 @@ export class FixedAssetsService {
   /**
    * Retorna o saldo e status CIAP de um ativo específico.
    */
-  async getCiapSaldo(assetId: string) {
+  async getCiapSaldo(assetId: string, companyId: string) {
     const asset = await this.prisma.fixedAsset.findUnique({
       where: { id: assetId },
       include: {
         ciapMovimentos: { orderBy: [{ ano: 'asc' }, { mes: 'asc' }] },
       },
     });
-    if (!asset) throw new NotFoundException('Ativo não encontrado');
+    if (!asset || asset.companyId !== companyId) throw new NotFoundException('Ativo não encontrado');
 
     const icmsTotal = Number(asset.icmsNaEntrada ?? 0);
     const parcelas = asset.parcelasIcmsCiap || 48;
