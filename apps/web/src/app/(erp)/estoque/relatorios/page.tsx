@@ -218,7 +218,7 @@ export default function EstoqueRelatoriosPage() {
           {abcEstoque.length > 0 && (() => {
             const { total, grouped, count } = abcTotals(abcEstoque);
             return (
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {(['A', 'B', 'C'] as AbcClass[]).map((cls) => (
                   <div key={cls} className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
                     <div className="flex items-center justify-between">
@@ -310,7 +310,7 @@ export default function EstoqueRelatoriosPage() {
           {abcConsumo.length > 0 && (() => {
             const { total, grouped, count } = abcTotals(abcConsumo);
             return (
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {(['A', 'B', 'C'] as AbcClass[]).map((cls) => (
                   <div key={cls} className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
                     <div className="flex items-center justify-between">

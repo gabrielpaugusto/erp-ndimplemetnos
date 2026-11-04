@@ -120,7 +120,7 @@ export default function FluxoCaixaPage() {
               <BarChart3 className="w-5 h-5 text-emerald-600" />
               <h2 className="text-lg font-semibold text-slate-900">Resumo Visual — {months[month]}/{year}</h2>
             </div>
-            <div className="grid grid-cols-2 gap-8 h-48">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 h-48">
               {[
                 { label: 'Entradas', prev: totalEntradasPrev, real: totalEntradasReal, color: 'emerald' },
                 { label: 'Saidas', prev: totalSaidasPrev, real: totalSaidasReal, color: 'red' },

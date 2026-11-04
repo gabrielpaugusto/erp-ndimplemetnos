@@ -284,7 +284,7 @@ export default function NfseRecebidas() {
       )}
 
       {/* Totalizadores */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white border border-gray-200 rounded-xl p-4">
           <div className="flex items-center gap-2 text-gray-500 text-xs font-medium mb-1">
             <Building2 size={14} /> NOTAS RECEBIDAS

@@ -344,7 +344,7 @@ function ContaCorrenteDetalhe({
       </div>
 
       {/* Cards de saldo */}
-      <div className="mb-6 grid grid-cols-3 gap-4">
+      <div className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
           <p className="mb-1 text-xs font-medium text-emerald-700">Total Creditado</p>
           <p className="text-2xl font-bold text-emerald-700">{fmt(Number(current.saldoTotal))}</p>
@@ -521,7 +521,7 @@ export default function AdiantamentosPage() {
 
       {/* Cards de resumo */}
       {resumoAtual && (
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
             { label: 'Contas ativas', value: resumoAtual.contas.toString(), color: 'blue', icon: Wallet },
             { label: 'Total creditado', value: fmt(resumoAtual.saldoTotal), color: 'emerald', icon: TrendingUp },

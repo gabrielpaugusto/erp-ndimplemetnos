@@ -112,7 +112,7 @@ export default function SinaleiraPage() {
       </div>
 
       {/* Resumo */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div className="bg-green-50 border border-green-200 rounded-xl p-4">
           <p className="text-2xl font-bold text-green-700">{andando.length}</p>
           <p className="text-sm text-green-600">Trabalhando</p>

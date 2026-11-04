@@ -388,7 +388,7 @@ export default function CteDetailPage() {
             <h2 className="text-base font-semibold text-slate-900 mb-4 flex items-center gap-2">
               <Truck className="w-4 h-4 text-slate-500" /> Transportadora
             </h2>
-            <dl className="grid grid-cols-2 gap-3 text-sm">
+            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
               <div>
                 <dt className="text-slate-500">CNPJ</dt>
                 <dd className="font-mono font-medium text-slate-900">{cte.transportadoraCnpj}</dd>
@@ -421,7 +421,7 @@ export default function CteDetailPage() {
           {/* Transporte */}
           <div className="bg-white rounded-lg border border-slate-200 p-6">
             <h2 className="text-base font-semibold text-slate-900 mb-4">Dados do Transporte</h2>
-            <dl className="grid grid-cols-3 gap-3 text-sm">
+            <dl className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
               <div>
                 <dt className="text-slate-500">Modalidade</dt>
                 <dd>

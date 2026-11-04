@@ -108,7 +108,7 @@ export default function ComprasEstoqueDashboard() {
       )}
 
       {/* KPIs */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className={`rounded-lg border p-4 ${resumo.itensCriticos > 0 ? 'bg-red-50 border-red-200' : 'bg-card'}`}>
           <p className="text-xs text-muted-foreground">Itens Críticos</p>
           <p className={`text-2xl font-bold ${resumo.itensCriticos > 0 ? 'text-red-600' : ''}`}>
