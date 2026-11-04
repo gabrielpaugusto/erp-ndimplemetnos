@@ -98,4 +98,55 @@ CREATE INDEX IF NOT EXISTS idx_nfse_emitidas_company_status
 CREATE INDEX IF NOT EXISTS idx_nfse_recebidas_company_status
   ON nfse_recebidas ("companyId", status);
 
+CREATE INDEX IF NOT EXISTS idx_sale_orders_company_status
+  ON sale_orders ("companyId", status);
+
+CREATE INDEX IF NOT EXISTS idx_journal_entries_company_status
+  ON journal_entries ("companyId", status);
+
+-- ── 5. FK ON DELETE SET NULL — relações opcionais com User ───────────────────
+-- Remove e recria as 21 FKs opcionais de User com SET NULL para evitar erros
+-- ao deletar usuários que tenham registros vinculados por campos anuláveis.
+
+DO $$
+DECLARE
+  r RECORD;
+  col_name TEXT;
+  col_nullable TEXT;
+BEGIN
+  FOR r IN
+    SELECT tc.table_name, tc.constraint_name
+    FROM information_schema.table_constraints tc
+    JOIN information_schema.referential_constraints rc
+      ON tc.constraint_name = rc.constraint_name
+    JOIN information_schema.table_constraints tc2
+      ON rc.unique_constraint_name = tc2.constraint_name
+    WHERE tc2.table_name = 'users'
+      AND rc.delete_rule = 'NO ACTION'
+      AND tc.constraint_type = 'FOREIGN KEY'
+  LOOP
+    SELECT kcu.column_name INTO col_name
+    FROM information_schema.key_column_usage kcu
+    WHERE kcu.constraint_name = r.constraint_name
+      AND kcu.table_name = r.table_name
+    LIMIT 1;
+
+    SELECT c.is_nullable INTO col_nullable
+    FROM information_schema.columns c
+    WHERE c.table_name = r.table_name AND c.column_name = col_name;
+
+    IF col_nullable = 'YES' THEN
+      EXECUTE format(
+        'ALTER TABLE %I DROP CONSTRAINT %I',
+        r.table_name, r.constraint_name
+      );
+      EXECUTE format(
+        'ALTER TABLE %I ADD CONSTRAINT %I FOREIGN KEY (%I) REFERENCES users(id) ON DELETE SET NULL',
+        r.table_name, r.constraint_name, col_name
+      );
+    END IF;
+  END LOOP;
+END;
+$$;
+
 COMMIT;

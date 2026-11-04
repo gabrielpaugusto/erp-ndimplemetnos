@@ -1269,7 +1269,7 @@ model RefreshToken {
 model AuditLog {
   id         String   @id @default(cuid())
   userId     String?
-  user       User?    @relation(fields: [userId], references: [id])
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   module     Module
   action     String   @db.VarChar(50)
   entityType String   @db.VarChar(100)
@@ -1949,7 +1949,7 @@ model Lead {
 
   // Responsável
   vendedorId      String?
-  vendedor        User?       @relation("LeadVendedor", fields: [vendedorId], references: [id])
+  vendedor        User?       @relation("LeadVendedor", fields: [vendedorId], references: [id], onDelete: SetNull)
 
   // Datas
   dataPrevisaoFechamento DateTime?
@@ -2016,7 +2016,7 @@ model Quotation {
 
   // Vendedor e comissão
   vendedorId      String?
-  vendedor        User?           @relation("QuotationVendedor", fields: [vendedorId], references: [id])
+  vendedor        User?           @relation("QuotationVendedor", fields: [vendedorId], references: [id], onDelete: SetNull)
   comissaoPercent Decimal?        @db.Decimal(5, 2)
 
   // Sprint 3.3 — Versões de Orçamento
@@ -2094,7 +2094,7 @@ model SaleOrder {
 
   // Vendedor e comissão
   vendedorId      String?
-  vendedor        User?       @relation("SaleOrderVendedor", fields: [vendedorId], references: [id])
+  vendedor        User?       @relation("SaleOrderVendedor", fields: [vendedorId], references: [id], onDelete: SetNull)
   comissaoPercent Decimal?    @db.Decimal(5, 2)
   comissaoValor   Decimal?    @db.Decimal(15, 2)
 
@@ -2141,6 +2141,7 @@ model SaleOrder {
   @@unique([companyId, numero])
   @@index([personId])
   @@index([status])
+  @@index([companyId, status])
   @@map("sale_orders")
 }
 
@@ -2613,7 +2614,7 @@ model ServiceOrder {
 
   // Responsável (técnico atribuído)
   responsavelId     String?
-  responsavel       User?                @relation("ServiceOrderResponsavel", fields: [responsavelId], references: [id])
+  responsavel       User?                @relation("ServiceOrderResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
 
   observations      String?              @db.Text
 
@@ -2701,7 +2702,7 @@ model CalderariaOrder {
 
   // Responsável (soldador/operador)
   responsavelId           String?
-  responsavel             User?                 @relation("CalderariaOrderResponsavel", fields: [responsavelId], references: [id])
+  responsavel             User?                 @relation("CalderariaOrderResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
 
   observations            String?               @db.Text
   especificacoesTecnicas  String?               @db.Text // espessura, tipo material, tipo solda etc.
@@ -2754,7 +2755,7 @@ model Requisition {
   solicitanteId       String
   solicitante         User              @relation("RequisitionSolicitante", fields: [solicitanteId], references: [id])
   aprovadorId         String?
-  aprovador           User?             @relation("RequisitionAprovador", fields: [aprovadorId], references: [id])
+  aprovador           User?             @relation("RequisitionAprovador", fields: [aprovadorId], references: [id], onDelete: SetNull)
 
   // Vínculos opcionais
   serviceOrderId      String?
@@ -3384,6 +3385,7 @@ model JournalEntry {
   adiantamentoMovimentos AdiantamentoMovimento[] @relation("AdiantamentoMovJournal")
 
   @@unique([companyId, numero])
+  @@index([companyId, status])
   @@map("journal_entries")
 }
 
@@ -3578,7 +3580,7 @@ model Employee {
   personId        String
   person          Person         @relation(fields: [personId], references: [id])
   userId          String?
-  user            User?          @relation("EmployeeUser", fields: [userId], references: [id])
+  user            User?          @relation("EmployeeUser", fields: [userId], references: [id], onDelete: SetNull)
   matricula       String         @db.VarChar(50)
   cargo           String         @db.VarChar(200)
   departamento    String         @db.VarChar(200)
@@ -3695,7 +3697,7 @@ model PurchaseRequest {
   solicitanteId   String
   solicitante     User                  @relation("PurchaseRequestSolicitante", fields: [solicitanteId], references: [id])
   aprovadorId     String?
-  aprovador       User?                 @relation("PurchaseRequestAprovador", fields: [aprovadorId], references: [id])
+  aprovador       User?                 @relation("PurchaseRequestAprovador", fields: [aprovadorId], references: [id], onDelete: SetNull)
   description     String                @db.Text
   justificativa   String?               @db.Text
   dataSolicitacao DateTime              @default(now())
@@ -4038,7 +4040,7 @@ model AiInsight {
   companyId   String
   company     Company   @relation(fields: [companyId], references: [id])
   userId      String?
-  user        User?     @relation(fields: [userId], references: [id])
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   title       String    @db.VarChar(300)
   description String    @db.Text
   category    String    @db.VarChar(100) // e.g. "financeiro", "estoque", "producao"
@@ -4090,7 +4092,7 @@ model PortalTicket {
   portalUserId  String
   portalUser    PortalUser           @relation(fields: [portalUserId], references: [id])
   assignedToId  String?
-  assignedTo    User?                @relation("PortalTicketAssigned", fields: [assignedToId], references: [id])
+  assignedTo    User?                @relation("PortalTicketAssigned", fields: [assignedToId], references: [id], onDelete: SetNull)
   subject       String               @db.VarChar(300)
   description   String               @db.Text
   status        PortalTicketStatus   @default(ABERTO)
@@ -4112,9 +4114,9 @@ model PortalTicketMessage {
   ticketId      String
   ticket        PortalTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   portalUserId  String?
-  portalUser    PortalUser?  @relation(fields: [portalUserId], references: [id])
+  portalUser    PortalUser?  @relation(fields: [portalUserId], references: [id], onDelete: SetNull)
   userId        String?
-  user          User?        @relation("PortalTicketMessageUser", fields: [userId], references: [id])
+  user          User?        @relation("PortalTicketMessageUser", fields: [userId], references: [id], onDelete: SetNull)
   content       String       @db.Text
   isInternal    Boolean      @default(false) // internal notes not visible to client
   createdAt     DateTime     @default(now())
@@ -4127,7 +4129,7 @@ model PortalDocument {
   companyId       String
   company         Company       @relation(fields: [companyId], references: [id])
   portalUserId    String?
-  portalUser      PortalUser?   @relation(fields: [portalUserId], references: [id])
+  portalUser      PortalUser?   @relation(fields: [portalUserId], references: [id], onDelete: SetNull)
   personId        String
   person          Person        @relation(fields: [personId], references: [id])
   title           String        @db.VarChar(300)
@@ -4159,9 +4161,9 @@ model Notification {
   companyId     String
   company       Company          @relation(fields: [companyId], references: [id])
   userId        String?
-  user          User?            @relation(fields: [userId], references: [id])
+  user          User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
   portalUserId  String?
-  portalUser    PortalUser?      @relation(fields: [portalUserId], references: [id])
+  portalUser    PortalUser?      @relation(fields: [portalUserId], references: [id], onDelete: SetNull)
   type          NotificationType @default(INFO)
   title         String           @db.VarChar(300)
   message       String           @db.Text
@@ -4537,7 +4539,7 @@ model PurchaseReceipt {
   nfeInboxId        String?
   nfeInbox          NFeInbox?      @relation("NFeInboxReceiptLink", fields: [nfeInboxId], references: [id])
   responsavelId     String?
-  responsavel       User?          @relation("PurchaseReceiptResponsavel", fields: [responsavelId], references: [id])
+  responsavel       User?          @relation("PurchaseReceiptResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
 
   status            ReceiptStatus  @default(PENDENTE)
   dataRecebimento   DateTime       @default(now())
@@ -5537,7 +5539,7 @@ model DocumentEvent {
   description     String?           @db.Text          // texto livre opcional
 
   userId          String?
-  user            User?             @relation(fields: [userId], references: [id])
+  user            User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
   ipAddress       String?           @db.VarChar(50)
 
   createdAt       DateTime          @default(now())
@@ -5624,7 +5626,7 @@ model OrderBomOverride {
 
   motivoCustomizacao  String          @db.Text
   aprovadoPorId       String?
-  aprovadoPor         User?           @relation("BomOverrideAprovador", fields: [aprovadoPorId], references: [id])
+  aprovadoPor         User?           @relation("BomOverrideAprovador", fields: [aprovadoPorId], references: [id], onDelete: SetNull)
 
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
@@ -5672,9 +5674,9 @@ model EngineeringChange {
   anexos          Json      @default("[]")  // [{ nome, url, tipo }]
 
   solicitanteId   String?
-  solicitante     User?     @relation("EcoSolicitante", fields: [solicitanteId], references: [id])
+  solicitante     User?     @relation("EcoSolicitante", fields: [solicitanteId], references: [id], onDelete: SetNull)
   aprovadorId     String?
-  aprovador       User?     @relation("EcoAprovador", fields: [aprovadorId], references: [id])
+  aprovador       User?     @relation("EcoAprovador", fields: [aprovadorId], references: [id], onDelete: SetNull)
 
   implementadoEm  DateTime?
   createdAt       DateTime  @default(now())
