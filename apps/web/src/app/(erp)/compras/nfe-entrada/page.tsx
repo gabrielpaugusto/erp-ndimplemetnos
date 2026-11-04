@@ -436,7 +436,7 @@ export default function NFeEntradaPage() {
                             <Link
                               href={`/compras/nfe-entrada/${nfe.id}`}
                               title="Dar Entrada"
-                              className="p-1.5 text-white bg-emerald-600 hover:bg-emerald-700 rounded transition-colors"
+                              className="p-1.5 text-white bg-primary-600 hover:bg-primary-700 rounded transition-colors"
                             >
                               <LogIn className="w-4 h-4" />
                             </Link>

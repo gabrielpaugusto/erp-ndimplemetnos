@@ -487,7 +487,7 @@ export default function ConsorcioDetailPage() {
                         <button
                           onClick={() => handleRegisterPayment(payment.id)}
                           disabled={payingId === payment.id}
-                          className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-600 text-white rounded text-xs font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                          className="inline-flex items-center gap-1 px-3 py-1 bg-primary-600 text-white rounded text-xs font-medium hover:bg-primary-700 transition-colors disabled:opacity-50"
                         >
                           <CheckCircle className="w-3 h-3" />
                           {payingId === payment.id ? 'Registrando...' : 'Registrar Pgto'}

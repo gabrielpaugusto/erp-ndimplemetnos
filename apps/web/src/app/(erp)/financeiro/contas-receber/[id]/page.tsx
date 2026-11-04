@@ -150,7 +150,7 @@ export default function ContaReceberDetailPage() {
         <div className="flex items-center gap-2">
           {receivable.status === 'PENDENTE' && (
             <>
-              <button onClick={() => setShowReceiveForm(!showReceiveForm)} className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition-colors">
+              <button onClick={() => setShowReceiveForm(!showReceiveForm)} className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium transition-colors">
                 <CheckCircle className="w-4 h-4" />
                 Registrar Recebimento
               </button>
@@ -244,7 +244,7 @@ export default function ContaReceberDetailPage() {
           </div>
           <div className="flex items-center justify-end gap-3 mt-4">
             <button onClick={() => setShowReceiveForm(false)} className="px-4 py-2 text-sm text-slate-600 hover:text-slate-800">Cancelar</button>
-            <button onClick={handleReceive} disabled={!dataRecebimento || !valorRecebido || !metodoPag || receiving} className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            <button onClick={handleReceive} disabled={!dataRecebimento || !valorRecebido || !metodoPag || receiving} className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               <Save className="w-4 h-4" />
               {receiving ? 'Aguarde...' : 'Confirmar Recebimento'}
             </button>

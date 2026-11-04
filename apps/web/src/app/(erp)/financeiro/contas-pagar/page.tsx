@@ -94,7 +94,7 @@ export default function ContasPagarPage() {
           <h1 className="text-2xl font-bold text-slate-900">Contas a Pagar</h1>
           <p className="text-slate-500 mt-1">Gerencie os titulos a pagar</p>
         </div>
-        <Link href="/financeiro/contas-pagar/novo" className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition-colors">
+        <Link href="/financeiro/contas-pagar/novo" className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium transition-colors">
           <Plus className="w-4 h-4" /> Novo Titulo
         </Link>
       </div>

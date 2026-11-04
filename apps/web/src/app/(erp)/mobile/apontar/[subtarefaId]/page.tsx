@@ -250,7 +250,7 @@ export default function ApontarSubtarefaPage() {
               <button
                 onClick={() => doAction('start')}
                 disabled={acting}
-                className="w-full flex items-center justify-center gap-3 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-bold text-lg transition-colors disabled:opacity-60 active:scale-95"
+                className="w-full flex items-center justify-center gap-3 py-4 bg-primary-500 hover:bg-primary-600 text-white rounded-2xl font-bold text-lg transition-colors disabled:opacity-60 active:scale-95"
               >
                 {acting ? <RefreshCw className="w-6 h-6 animate-spin" /> : <PlayCircle className="w-6 h-6" />}
                 Iniciar Apontamento
@@ -285,7 +285,7 @@ export default function ApontarSubtarefaPage() {
                 <button
                   onClick={() => doAction('start')}
                   disabled={acting}
-                  className="w-full flex items-center justify-center gap-3 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-bold text-lg transition-colors disabled:opacity-60 active:scale-95"
+                  className="w-full flex items-center justify-center gap-3 py-4 bg-primary-500 hover:bg-primary-600 text-white rounded-2xl font-bold text-lg transition-colors disabled:opacity-60 active:scale-95"
                 >
                   {acting ? <RefreshCw className="w-6 h-6 animate-spin" /> : <PlayCircle className="w-6 h-6" />}
                   Retomar

@@ -99,7 +99,16 @@ export const ERP_MODULES = {
       INVENTORY: { label: 'Estoque', path: '/estoque', icon: 'Warehouse' },
       PRODUCT_GROUPS: { label: 'Grupos e Subgrupos', path: '/estoque/grupos', icon: 'Layers' },
       PRODUCTS: { label: 'Produtos', path: '/estoque/produtos', icon: 'Package' },
-      STOCK_MOVES: { label: 'Movimentações', path: '/estoque/movimentacoes', icon: 'ArrowUpDown' },
+      STOCK_MOVES:       { label: 'Movimentações',          path: '/estoque/movimentacoes',          icon: 'ArrowUpDown'    },
+      STOCK_SALDOS:      { label: 'Saldos de Estoque',     path: '/estoque/saldos',                 icon: 'BarChart2'      },
+      STOCK_ALERTAS:     { label: 'Alertas de Estoque',    path: '/estoque/alertas',                icon: 'Bell'           },
+      STOCK_INVENTARIO:  { label: 'Inventário',            path: '/estoque/inventario',             icon: 'ClipboardCheck' },
+      STOCK_LOCAIS:      { label: 'Locais de Armazenagem', path: '/estoque/locais',                 icon: 'MapPin'         },
+      STOCK_RELATORIOS:  { label: 'Relatórios de Estoque', path: '/estoque/relatorios',             icon: 'FileBarChart'   },
+      STOCK_ABREVIACOES: { label: 'Abreviações',           path: '/estoque/abreviacoes',            icon: 'AlignLeft'      },
+      EXTRATO:           { label: 'Extrato',               path: '/financeiro/extrato',             icon: 'List'           },
+      FLUXO_CAIXA:       { label: 'Fluxo de Caixa',        path: '/financeiro/fluxo-caixa',         icon: 'TrendingUp'     },
+      CONTAS_BANCARIAS:  { label: 'Contas Bancárias',      path: '/financeiro/contas-bancarias',    icon: 'Landmark'       },
     },
   },
 
@@ -111,7 +120,8 @@ export const ERP_MODULES = {
       FISCAL_DASHBOARD: { label: 'Dashboard Fiscal', path: '/fiscal', icon: 'Receipt' },
       IA_FISCAL: { label: 'IA Fiscal', path: '/fiscal/ia', icon: 'Brain' },
       IA_FISCAL_CHAT: { label: 'Chat FiscalBrain', path: '/fiscal/ia/chat', icon: 'MessageSquare' },
-      IA_FISCAL_EXCECOES: { label: 'Exceções IA', path: '/fiscal/ia/excecoes', icon: 'AlertTriangle' },
+      IA_FISCAL_EXCECOES:    { label: 'Exceções IA',           path: '/fiscal/ia/excecoes',         icon: 'AlertTriangle' },
+      IA_PAINEL_DECISOES:    { label: 'Painel de Decisões IA', path: '/fiscal/ia/painel-decisoes',  icon: 'Brain'         },
       CONFIGURACAO_FISCAL: { label: 'Configuração Fiscal', path: '/fiscal/configuracao', icon: 'Scale' },
       NFE: { label: 'NF-e', path: '/fiscal/notas', icon: 'FileText' },
       NFSE_EMITIDAS: { label: 'NFS-e Emitidas', path: '/fiscal/nfse', icon: 'FileText' },
@@ -122,6 +132,8 @@ export const ERP_MODULES = {
       BANCOS: { label: 'Bancos', path: '/fiscal/indices/bancos', icon: 'Landmark' },
       PAISES: { label: 'Países', path: '/fiscal/indices/paises', icon: 'Globe' },
       ST_PROTOCOLO: { label: 'Protocolos ST/MVA', path: '/fiscal/indices/st-protocolo', icon: 'FileText' },
+      CBENEF:       { label: 'CBENEF',            path: '/fiscal/indices/cbenef',       icon: 'Tag'      },
+      CEST:         { label: 'CEST',              path: '/fiscal/indices/cest',         icon: 'Tag'      },
       AUDITORIA_NCM: { label: 'Auditoria NCM', path: '/fiscal/auditoria-ncm', icon: 'ShieldAlert' },
       OPERACOES_FISCAIS: { label: 'Operações Fiscais (TES)', path: '/fiscal/operacoes-fiscais', icon: 'ListChecks' },
       SPED: { label: 'SPED / EFD', path: '/fiscal/sped', icon: 'FileSpreadsheet' },
@@ -148,6 +160,16 @@ export const ERP_MODULES = {
       ESOCIAL: { label: 'eSocial', path: '/rh/esocial', icon: 'Users' },
       REINF: { label: 'EFD-REINF', path: '/fiscal/reinf', icon: 'FileCheck' },
       DCTFWEB: { label: 'DCTF-Web', path: '/fiscal/dctfweb', icon: 'Receipt' },
+    },
+  },
+
+  // Configurações
+  CONFIGURACOES: {
+    label: 'Configurações',
+    icon: 'Settings',
+    children: {
+      NBS:      { label: 'NBS',      path: '/configuracoes/nbs',      icon: 'Tag'       },
+      EMPRESAS: { label: 'Empresas', path: '/configuracoes/empresas', icon: 'Building2' },
     },
   },
 

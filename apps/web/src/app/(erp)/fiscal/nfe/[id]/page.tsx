@@ -526,7 +526,7 @@ export default function NFeDetailPage() {
             )}
             {canTransmit && (
               <button onClick={handleAuthorize} disabled={actionLoading}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition-colors disabled:opacity-50">
+                className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium transition-colors disabled:opacity-50">
                 <Send className="w-4 h-4" />{actionLoading ? 'Transmitindo...' : 'Transmitir SEFAZ'}
               </button>
             )}
