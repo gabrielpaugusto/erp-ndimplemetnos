@@ -42,8 +42,11 @@ export class AssistantController {
   }
 
   @Get('conversations/:id')
-  getConversation(@Param('id') id: string) {
-    return this.assistantService.getConversation(id);
+  getConversation(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; companyId: string },
+  ) {
+    return this.assistantService.getConversation(id, user.companyId);
   }
 
   @Post('conversations/:id/messages')
@@ -56,13 +59,19 @@ export class AssistantController {
   }
 
   @Patch('conversations/:id/archive')
-  archiveConversation(@Param('id') id: string) {
-    return this.assistantService.archiveConversation(id);
+  archiveConversation(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; companyId: string },
+  ) {
+    return this.assistantService.archiveConversation(id, user.companyId);
   }
 
   @Delete('conversations/:id')
-  deleteConversation(@Param('id') id: string) {
-    return this.assistantService.deleteConversation(id);
+  deleteConversation(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; companyId: string },
+  ) {
+    return this.assistantService.deleteConversation(id, user.companyId);
   }
 
   // ── Sprint 4.3 — Copiloto IA ────────────────────────────────────────────

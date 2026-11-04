@@ -47,8 +47,11 @@ export class LeadsController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.leadsService.findOne(id);
+  findOne(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; companyId: string },
+  ) {
+    return this.leadsService.findOne(id, user.companyId);
   }
 
   @Post()
@@ -60,13 +63,20 @@ export class LeadsController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateLeadDto: UpdateLeadDto) {
-    return this.leadsService.update(id, updateLeadDto);
+  update(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; companyId: string },
+    @Body() updateLeadDto: UpdateLeadDto,
+  ) {
+    return this.leadsService.update(id, user.companyId, updateLeadDto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.leadsService.remove(id);
+  remove(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; companyId: string },
+  ) {
+    return this.leadsService.remove(id, user.companyId);
   }
 
   @Post(':id/activities')
@@ -75,11 +85,14 @@ export class LeadsController {
     @CurrentUser() user: { id: string; companyId: string },
     @Body() createActivityDto: CreateActivityDto,
   ) {
-    return this.leadsService.addActivity(id, user.id, createActivityDto);
+    return this.leadsService.addActivity(id, user.companyId, user.id, createActivityDto);
   }
 
   @Get(':id/activities')
-  getActivities(@Param('id') id: string) {
-    return this.leadsService.getActivities(id);
+  getActivities(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; companyId: string },
+  ) {
+    return this.leadsService.getActivities(id, user.companyId);
   }
 }

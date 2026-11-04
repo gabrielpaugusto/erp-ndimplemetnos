@@ -35,10 +35,10 @@ export class InsightsService {
     });
   }
 
-  async dismiss(id: string) {
+  async dismiss(id: string, companyId: string) {
     const insight = await this.prisma.aiInsight.findUnique({ where: { id } });
 
-    if (!insight) {
+    if (!insight || insight.companyId !== companyId) {
       throw new NotFoundException(`Insight ${id} not found`);
     }
 

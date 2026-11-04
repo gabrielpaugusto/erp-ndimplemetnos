@@ -77,7 +77,7 @@ export class LeadsService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, companyId: string) {
     const lead = await this.prisma.lead.findUnique({
       where: { id },
       include: {
@@ -103,7 +103,7 @@ export class LeadsService {
       },
     });
 
-    if (!lead) {
+    if (!lead || lead.companyId !== companyId) {
       throw new NotFoundException(`Lead ${id} not found`);
     }
 
@@ -136,9 +136,9 @@ export class LeadsService {
     });
   }
 
-  async update(id: string, data: UpdateLeadDto) {
+  async update(id: string, companyId: string, data: UpdateLeadDto) {
     const existing = await this.prisma.lead.findUnique({ where: { id } });
-    if (!existing) {
+    if (!existing || existing.companyId !== companyId) {
       throw new NotFoundException(`Lead ${id} not found`);
     }
 
@@ -169,9 +169,9 @@ export class LeadsService {
     });
   }
 
-  async remove(id: string) {
+  async remove(id: string, companyId: string) {
     const existing = await this.prisma.lead.findUnique({ where: { id } });
-    if (!existing) {
+    if (!existing || existing.companyId !== companyId) {
       throw new NotFoundException(`Lead ${id} not found`);
     }
 
@@ -187,11 +187,12 @@ export class LeadsService {
 
   async addActivity(
     leadId: string,
+    companyId: string,
     userId: string,
     data: CreateActivityDto,
   ) {
     const lead = await this.prisma.lead.findUnique({ where: { id: leadId } });
-    if (!lead) {
+    if (!lead || lead.companyId !== companyId) {
       throw new NotFoundException(`Lead ${leadId} not found`);
     }
 
@@ -211,9 +212,9 @@ export class LeadsService {
     });
   }
 
-  async getActivities(leadId: string) {
+  async getActivities(leadId: string, companyId: string) {
     const lead = await this.prisma.lead.findUnique({ where: { id: leadId } });
-    if (!lead) {
+    if (!lead || lead.companyId !== companyId) {
       throw new NotFoundException(`Lead ${leadId} not found`);
     }
 
