@@ -423,7 +423,7 @@ export default function SpedPage() {
 
           {/* Statistics */}
           <div className="p-5">
-            <div className="grid grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
               <div className="text-center p-3 bg-slate-50 rounded-lg">
                 <p className="text-xs text-slate-500">Total de Linhas</p>
                 <p className="text-xl font-bold text-slate-900">{previews[activePreview]!.totalLinhas.toLocaleString('pt-BR')}</p>

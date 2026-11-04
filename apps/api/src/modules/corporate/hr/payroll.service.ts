@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '@/modules/core/database/prisma.service';
 import { IntegrationService } from '@/modules/core/integration/integration.service';
@@ -27,6 +28,8 @@ const IRRF_TABLE_FALLBACK = [
 
 @Injectable()
 export class PayrollService {
+  private readonly logger = new Logger(PayrollService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly integration: IntegrationService,
@@ -415,7 +418,7 @@ export class PayrollService {
     });
 
     // Fire integration (non-blocking)
-    this.integration.onPayrollPaid(id, payroll.companyId, 'system').catch(err => console.error('Integration error:', err));
+    this.integration.onPayrollPaid(id, payroll.companyId, 'system').catch(err => this.logger.error('Integration error', err?.message ?? err));
 
     return result;
   }

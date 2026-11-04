@@ -612,9 +612,9 @@ export class NfeService {
     });
 
     if (nfe.type === 'SAIDA') {
-      this.integration.onNfeAuthorizedSaida(id, nfe.companyId, 'system').catch(err => console.error('Integration error:', err));
+      this.integration.onNfeAuthorizedSaida(id, nfe.companyId, 'system').catch(err => this.logger.error('Integration error', err?.message ?? err));
     } else {
-      this.integration.onNfeAuthorizedEntrada(id, nfe.companyId, 'system').catch(err => console.error('Integration error:', err));
+      this.integration.onNfeAuthorizedEntrada(id, nfe.companyId, 'system').catch(err => this.logger.error('Integration error', err?.message ?? err));
     }
 
     // Auto-faturar the linked SaleOrder when NF-e is authorized
@@ -622,7 +622,7 @@ export class NfeService {
       this.prisma.saleOrder.update({
         where: { id: nfe.saleOrderId },
         data: { status: 'FATURADO' as any, dataFaturamento: new Date() },
-      }).catch(err => console.error('SaleOrder faturamento error:', err));
+      }).catch(err => this.logger.error('SaleOrder faturamento error', err?.message ?? err));
     }
 
     // Backup XML no MinIO (fire-and-forget, não bloqueia a resposta)

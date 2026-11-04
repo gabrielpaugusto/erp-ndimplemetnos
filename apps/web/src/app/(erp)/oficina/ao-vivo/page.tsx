@@ -128,7 +128,7 @@ export default function AoVivoPage() {
       </div>
 
       {/* Resumo */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="rounded-lg border p-4 text-center bg-green-50">
           <div className="text-3xl font-bold text-green-700">{totais.trabalhando ?? 0}</div>
           <div className="text-sm text-green-600 mt-1">Trabalhando</div>

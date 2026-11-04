@@ -456,7 +456,7 @@ export class ProductionOrdersService {
     });
 
     // Fire integration (non-blocking)
-    this.integration.onProductionOrderCompleted(id, order.companyId, 'system').catch(err => console.error('Integration error:', err));
+    this.integration.onProductionOrderCompleted(id, order.companyId, 'system').catch(err => this.logger.error('Integration error', err?.message ?? err));
 
     return result;
   }
