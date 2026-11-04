@@ -140,16 +140,16 @@ export class EquipamentosService {
 
   // ── Vínculo Carroceria ↔ Veículo ──────────────────────────────────────────
 
-  async vincular(carroceriaId: string, veiculoId: string, observations?: string) {
+  async vincular(carroceriaId: string, veiculoId: string, companyId: string, observations?: string) {
     const [carroceria, veiculo] = await Promise.all([
       this.prisma.equipamento.findUnique({ where: { id: carroceriaId } }),
       this.prisma.equipamento.findUnique({ where: { id: veiculoId } }),
     ]);
 
-    if (!carroceria || carroceria.tipo !== 'CARROCERIA')
+    if (!carroceria || carroceria.companyId !== companyId || carroceria.tipo !== 'CARROCERIA')
       throw new BadRequestException('carroceriaId deve referenciar um equipamento do tipo CARROCERIA');
 
-    if (!veiculo || !['REBOQUE', 'SEMIRREBOQUE'].includes(veiculo.tipo))
+    if (!veiculo || veiculo.companyId !== companyId || !['REBOQUE', 'SEMIRREBOQUE'].includes(veiculo.tipo))
       throw new BadRequestException('veiculoId deve referenciar REBOQUE ou SEMIRREBOQUE');
 
     // Desativa vínculos ativos anteriores
@@ -175,9 +175,13 @@ export class EquipamentosService {
     return vinculo;
   }
 
-  async desvincular(vinculoId: string) {
-    const vinculo = await this.prisma.equipamentoVinculo.findUnique({ where: { id: vinculoId } });
-    if (!vinculo) throw new NotFoundException(`Vínculo ${vinculoId} não encontrado`);
+  async desvincular(vinculoId: string, companyId: string) {
+    const vinculo = await this.prisma.equipamentoVinculo.findUnique({
+      where: { id: vinculoId },
+      include: { carroceria: { select: { companyId: true } } },
+    });
+    if (!vinculo || vinculo.carroceria.companyId !== companyId)
+      throw new NotFoundException(`Vínculo ${vinculoId} não encontrado`);
 
     await this.prisma.equipamentoVinculo.update({
       where: { id: vinculoId },

@@ -46,13 +46,16 @@ export class EquipamentosController {
   // ── Vínculos ──────────────────────────────────────────────────────────────
 
   @Post('vinculos')
-  vincular(@Body() body: { carroceriaId: string; veiculoId: string; observations?: string }) {
-    return this.service.vincular(body.carroceriaId, body.veiculoId, body.observations);
+  vincular(
+    @CurrentUser() user: any,
+    @Body() body: { carroceriaId: string; veiculoId: string; observations?: string },
+  ) {
+    return this.service.vincular(body.carroceriaId, body.veiculoId, user.companyId, body.observations);
   }
 
   @Patch('vinculos/:id/desvincular')
-  desvincular(@Param('id') id: string) {
-    return this.service.desvincular(id);
+  desvincular(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.service.desvincular(id, user.companyId);
   }
 
   // ── Tipos e Modelos de Carroceria ─────────────────────────────────────────

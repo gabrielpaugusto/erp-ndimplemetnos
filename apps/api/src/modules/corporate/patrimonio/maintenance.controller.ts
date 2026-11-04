@@ -57,12 +57,12 @@ export class MaintenanceController {
   }
 
   @Get('anexos/:attachmentId/download')
-  getPresignedUrl(@Param('attachmentId') attachmentId: string) {
-    return this.service.getPresignedUrl(attachmentId);
+  getPresignedUrl(@Param('attachmentId') attachmentId: string, @Request() req: any) {
+    return this.service.getPresignedUrl(attachmentId, req.user.companyId);
   }
 
   @Delete('anexos/:attachmentId')
-  deleteAnexo(@Param('attachmentId') attachmentId: string) {
-    return this.service.deleteAnexo(attachmentId);
+  deleteAnexo(@Param('attachmentId') attachmentId: string, @Request() req: any) {
+    return this.service.deleteAnexo(attachmentId, req.user.companyId);
   }
 }

@@ -195,9 +195,13 @@ export class MaintenanceService {
     });
   }
 
-  async deleteAnexo(attachmentId: string) {
-    const att = await this.prisma.maintenanceAttachment.findUnique({ where: { id: attachmentId } });
-    if (!att) throw new NotFoundException('Anexo não encontrado');
+  async deleteAnexo(attachmentId: string, companyId: string) {
+    const att = await this.prisma.maintenanceAttachment.findUnique({
+      where: { id: attachmentId },
+      include: { maintenance: { select: { companyId: true } } },
+    });
+    if (!att || att.maintenance.companyId !== companyId)
+      throw new NotFoundException('Anexo não encontrado');
 
     await this.storage.delete(att.objectKey);
     try {
@@ -211,9 +215,13 @@ export class MaintenanceService {
     return { message: 'Anexo removido' };
   }
 
-  async getPresignedUrl(attachmentId: string): Promise<{ url: string }> {
-    const att = await this.prisma.maintenanceAttachment.findUnique({ where: { id: attachmentId } });
-    if (!att) throw new NotFoundException('Anexo não encontrado');
+  async getPresignedUrl(attachmentId: string, companyId: string): Promise<{ url: string }> {
+    const att = await this.prisma.maintenanceAttachment.findUnique({
+      where: { id: attachmentId },
+      include: { maintenance: { select: { companyId: true } } },
+    });
+    if (!att || att.maintenance.companyId !== companyId)
+      throw new NotFoundException('Anexo não encontrado');
     const url = await this.storage.getPresignedUrl(att.objectKey, 3600);
     return { url };
   }
