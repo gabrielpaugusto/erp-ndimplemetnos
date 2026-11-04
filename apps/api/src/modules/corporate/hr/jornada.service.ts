@@ -30,7 +30,14 @@ export class JornadaService {
 
   async removeJornada(companyId: string, id: string) {
     await this.findOneJornada(companyId, id);
-    return this.prisma.jornadaTrabalho.delete({ where: { id } });
+    try {
+      return await this.prisma.jornadaTrabalho.delete({ where: { id } });
+    } catch (error) {
+      if (error?.code === 'P2003' || error?.code === 'P2014') {
+        throw new ConflictException('Registro em uso e não pode ser excluído');
+      }
+      throw error;
+    }
   }
 
   private async findOneJornada(companyId: string, id: string) {
@@ -69,7 +76,14 @@ export class JornadaService {
   async removeFeriado(companyId: string, id: string) {
     const f = await this.prisma.feriadoCalendario.findFirst({ where: { id, companyId } });
     if (!f) throw new NotFoundException('Feriado não encontrado');
-    return this.prisma.feriadoCalendario.delete({ where: { id } });
+    try {
+      return await this.prisma.feriadoCalendario.delete({ where: { id } });
+    } catch (error) {
+      if (error?.code === 'P2003' || error?.code === 'P2014') {
+        throw new ConflictException('Registro em uso e não pode ser excluído');
+      }
+      throw error;
+    }
   }
 
   // ── Carga Horária ─────────────────────────────────────────────────────────

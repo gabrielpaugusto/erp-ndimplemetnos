@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '@/modules/core/database/prisma.service';
 import { StorageService } from '@/modules/core/storage/storage.service';
 import { v4 as uuidv4 } from 'uuid';
@@ -200,7 +200,14 @@ export class MaintenanceService {
     if (!att) throw new NotFoundException('Anexo não encontrado');
 
     await this.storage.delete(att.objectKey);
-    await this.prisma.maintenanceAttachment.delete({ where: { id: attachmentId } });
+    try {
+      await this.prisma.maintenanceAttachment.delete({ where: { id: attachmentId } });
+    } catch (error) {
+      if (error?.code === 'P2003' || error?.code === 'P2014') {
+        throw new ConflictException('Registro em uso e não pode ser excluído');
+      }
+      throw error;
+    }
     return { message: 'Anexo removido' };
   }
 

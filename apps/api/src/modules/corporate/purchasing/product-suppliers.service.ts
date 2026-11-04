@@ -189,7 +189,14 @@ export class ProductSuppliersService {
       throw new NotFoundException(`ProductSupplier ${id} not found`);
     }
 
-    await this.prisma.productSupplier.delete({ where: { id } });
+    try {
+      await this.prisma.productSupplier.delete({ where: { id } });
+    } catch (error) {
+      if (error?.code === 'P2003' || error?.code === 'P2014') {
+        throw new ConflictException('Registro em uso e não pode ser excluído');
+      }
+      throw error;
+    }
     return { success: true, id };
   }
 }

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '@/modules/core/database/prisma.service';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
@@ -175,7 +175,14 @@ export class LeadsService {
       throw new NotFoundException(`Lead ${id} not found`);
     }
 
-    return this.prisma.lead.delete({ where: { id } });
+    try {
+      return await this.prisma.lead.delete({ where: { id } });
+    } catch (error) {
+      if (error?.code === 'P2003' || error?.code === 'P2014') {
+        throw new ConflictException('Registro em uso e não pode ser excluído');
+      }
+      throw error;
+    }
   }
 
   async addActivity(

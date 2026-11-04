@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '@/modules/core/database/prisma.service';
 import { CreateWorkCenterDto } from './dto/create-work-center.dto';
 import { UpdateWorkCenterDto } from './dto/update-work-center.dto';
@@ -104,6 +104,13 @@ export class WorkCentersService {
       throw new NotFoundException(`WorkCenter ${id} not found`);
     }
 
-    return this.prisma.workCenter.delete({ where: { id } });
+    try {
+      return await this.prisma.workCenter.delete({ where: { id } });
+    } catch (error) {
+      if (error?.code === 'P2003' || error?.code === 'P2014') {
+        throw new ConflictException('Registro em uso e não pode ser excluído');
+      }
+      throw error;
+    }
   }
 }
