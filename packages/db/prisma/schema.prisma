@@ -2406,6 +2406,8 @@ model BomItem {
   unit           String          @db.VarChar(20)
   wastagePercent Float           @default(0) // % perda
   observations   String?         @db.VarChar(500)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
   @@map("bom_items")
 }
@@ -2442,6 +2444,8 @@ model RoutingStep {
   tempoExecucao Float             // minutos por unidade
   tempoEspera   Float             @default(0) // minutos de espera
   instructions  String?           @db.Text
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
   apontamentos  Apontamento[]
 
@@ -2516,6 +2520,8 @@ model ProductionOrderItem {
   quantityRequired  Float
   quantityConsumed  Float           @default(0)
   unit              String          @db.VarChar(20)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
   @@map("production_order_items")
 }
@@ -3412,6 +3418,7 @@ model JournalEntryItem {
   costCenter      CostCenter?    @relation(fields: [costCenterId], references: [id])
   description     String?        @db.Text
   createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   @@map("journal_entry_items")
 }
@@ -3854,6 +3861,7 @@ model PurchaseOrderItem {
   motivoRejeicao    String?            @db.Text
 
   createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
   @@map("purchase_order_items")
 }

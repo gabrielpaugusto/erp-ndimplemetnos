@@ -41,15 +41,18 @@ export default function MrpPage() {
   const [running, setRunning]     = useState(false);
   const [runResult, setRunResult] = useState<RunResult | null>(null);
   const [filter, setFilter]       = useState('PENDENTE');
+  const [error, setError]         = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
       const res  = await apiFetch(`/api/mrp/sugestoes?status=${filter}`);
       const data = await res.json();
       setSugestoes(Array.isArray(data) ? data : []);
-    } catch { /* ignore */ }
-    finally { setLoading(false); }
+    } catch {
+      setError('Erro ao carregar dados. Tente novamente.');
+    } finally { setLoading(false); }
   }, [filter]);
 
   useEffect(() => { load(); }, [load]);
@@ -104,6 +107,12 @@ export default function MrpPage() {
           {running ? 'Calculando...' : 'Executar MRP'}
         </button>
       </div>
+
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          {error}
+        </div>
+      )}
 
       {/* Resultado do último run */}
       {runResult && (

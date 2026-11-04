@@ -184,4 +184,23 @@ CREATE INDEX IF NOT EXISTS idx_employees_company_status
 -- No PostgreSQL 12+ é seguro dentro de transação com IF NOT EXISTS.
 ALTER TYPE "NFeStatus" ADD VALUE IF NOT EXISTS 'AGUARDANDO_TRANSMISSAO' BEFORE 'TRANSMITIDA';
 
+-- ── 9. Timestamps (createdAt / updatedAt) em modelos filho sem rastreabilidade ─
+ALTER TABLE bom_items
+  ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP DEFAULT NOW(),
+  ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP DEFAULT NOW();
+
+ALTER TABLE routing_steps
+  ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP DEFAULT NOW(),
+  ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP DEFAULT NOW();
+
+ALTER TABLE production_order_items
+  ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP DEFAULT NOW(),
+  ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP DEFAULT NOW();
+
+ALTER TABLE journal_entry_items
+  ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP DEFAULT NOW();
+
+ALTER TABLE purchase_order_items
+  ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP DEFAULT NOW();
+
 COMMIT;
