@@ -87,7 +87,7 @@ export class MaintenanceService {
     notaFiscalRemessa?: string; descricaoProblema?: string; observacoes?: string;
   }) {
     const asset = await this.prisma.fixedAsset.findUnique({ where: { id: data.assetId } });
-    if (!asset) throw new NotFoundException('Ativo não encontrado');
+    if (!asset || asset.companyId !== companyId) throw new NotFoundException('Ativo não encontrado');
 
     const numero = await this.generateNumero(companyId);
 
@@ -174,7 +174,7 @@ export class MaintenanceService {
   // ----------------------------------------------------------------
   async uploadAnexo(maintenanceId: string, file: Express.Multer.File, companyId: string) {
     const m = await this.prisma.fixedAssetMaintenance.findUnique({ where: { id: maintenanceId } });
-    if (!m) throw new NotFoundException('Manutenção não encontrada');
+    if (!m || m.companyId !== companyId) throw new NotFoundException('Manutenção não encontrada');
 
     const ext = path.extname(file.originalname);
     const objectKey = `maintenance/${companyId}/${maintenanceId}/${uuidv4()}${ext}`;

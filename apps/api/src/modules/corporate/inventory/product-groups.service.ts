@@ -75,8 +75,8 @@ export class ProductGroupsService {
 
   // Gera o próximo código GG.SS.NNNN para um subgrupo
   async generateProductCode(subgroupId: string, companyId: string): Promise<{ code: string }> {
-    const subgroup = await this.prisma.productSubgroup.findUnique({
-      where: { id: subgroupId },
+    const subgroup = await this.prisma.productSubgroup.findFirst({
+      where: { id: subgroupId, companyId },
       include: { group: true },
     });
     if (!subgroup) throw new NotFoundException('Subgrupo não encontrado');
