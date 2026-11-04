@@ -12,12 +12,13 @@ export class AuditInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest();
     const userId = request.user?.id ?? request.user?.sub;
+    const companyId = request.user?.companyId ?? undefined;
     const ipAddress =
       request.headers['x-forwarded-for']?.split(',')[0]?.trim() ?? request.ip ?? '';
     const userAgent = request.headers['user-agent'] ?? '';
 
     return new Observable((subscriber) => {
-      auditStorage.run({ userId, ipAddress, userAgent }, () => {
+      auditStorage.run({ userId, companyId, ipAddress, userAgent }, () => {
         next
           .handle()
           .subscribe({

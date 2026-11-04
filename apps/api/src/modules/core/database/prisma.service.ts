@@ -57,7 +57,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       try {
         await (this as any).auditLog.create({
           data: {
-            userId:     context?.userId   ?? null,
+            userId:     context?.userId    ?? null,
+            companyId:  context?.companyId ?? null,
             module:     'SETTINGS' as any,
             action:     params.action,
             entityType: params.model,

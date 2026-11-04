@@ -1270,6 +1270,8 @@ model AuditLog {
   id         String   @id @default(cuid())
   userId     String?
   user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  companyId  String?
+  company    Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
   module     Module
   action     String   @db.VarChar(50)
   entityType String   @db.VarChar(100)
@@ -1282,6 +1284,7 @@ model AuditLog {
 
   @@index([module, createdAt])
   @@index([entityType, entityId])
+  @@index([companyId, createdAt])
   @@map("audit_logs")
 }
 

@@ -123,7 +123,7 @@ export const ERP_MODULES = {
       IA_FISCAL_EXCECOES:    { label: 'Exceções IA',           path: '/fiscal/ia/excecoes',         icon: 'AlertTriangle' },
       IA_PAINEL_DECISOES:    { label: 'Painel de Decisões IA', path: '/fiscal/ia/painel-decisoes',  icon: 'Brain'         },
       CONFIGURACAO_FISCAL: { label: 'Configuração Fiscal', path: '/fiscal/configuracao', icon: 'Scale' },
-      NFE: { label: 'NF-e', path: '/fiscal/notas', icon: 'FileText' },
+      NFE: { label: 'NF-e', path: '/fiscal/nfe', icon: 'FileText' },
       NFSE_EMITIDAS: { label: 'NFS-e Emitidas', path: '/fiscal/nfse', icon: 'FileText' },
       APURACAO: { label: 'Apuração ICMS', path: '/fiscal/apuracao', icon: 'Calculator' },
       APURACAO_PIS_COFINS: { label: 'Apuração PIS/COFINS', path: '/fiscal/apuracao-pis-cofins', icon: 'TrendingDown' },
