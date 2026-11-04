@@ -416,19 +416,24 @@ export class IntegrationService {
             Date.now() + 30 * 24 * 60 * 60 * 1000,
           );
 
-          await this.prisma.financialMovement.create({
-            data: {
-              companyId,
-              type: 'RECEITA',
-              personId: nfe.personId,
-              description: `NF-e ${nfe.numero ?? nfeDocumentId}`,
-              numero,
-              valor: totalValue,
-              dataEmissao: nfe.dataEmissao ?? new Date(),
-              dataVencimento,
-              nfeDocumentId: nfe.id,
-            },
+          const existingMovement = await this.prisma.financialMovement.findFirst({
+            where: { nfeDocumentId: nfe.id },
           });
+          if (!existingMovement) {
+            await this.prisma.financialMovement.create({
+              data: {
+                companyId,
+                type: 'RECEITA',
+                personId: nfe.personId,
+                description: `NF-e ${nfe.numero ?? nfeDocumentId}`,
+                numero,
+                valor: totalValue,
+                dataEmissao: nfe.dataEmissao ?? new Date(),
+                dataVencimento,
+                nfeDocumentId: nfe.id,
+              },
+            });
+          }
         }
       } catch (err) {
         this.logger.error(
