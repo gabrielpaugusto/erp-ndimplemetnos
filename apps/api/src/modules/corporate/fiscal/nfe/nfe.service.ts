@@ -657,9 +657,9 @@ export class NfeService {
    * Enqueues an NF-e for async transmission by the NfeQueueService cron.
    * Returns immediately after marking the NF-e as AGUARDANDO_TRANSMISSAO.
    */
-  async enqueueTransmission(id: string) {
+  async enqueueTransmission(id: string, companyId: string) {
     const nfe = await this.prisma.nFeDocument.findUnique({ where: { id } });
-    if (!nfe) throw new NotFoundException(`NF-e ${id} not found`);
+    if (!nfe || nfe.companyId !== companyId) throw new NotFoundException(`NF-e ${id} not found`);
 
     if (nfe.status !== 'VALIDADA' && nfe.status !== 'RASCUNHO') {
       throw new BadRequestException(
@@ -802,10 +802,10 @@ export class NfeService {
    * Tenta transmitir ao SEFAZ se a empresa possuir certificado digital configurado;
    * caso contrário registra localmente (modo offline/sem certificado).
    */
-  async emitirCce(id: string, descricaoCorrecao: string) {
+  async emitirCce(id: string, companyId: string, descricaoCorrecao: string) {
     const nfe = await this.prisma.nFeDocument.findUnique({ where: { id } });
 
-    if (!nfe) throw new NotFoundException(`NF-e ${id} not found`);
+    if (!nfe || nfe.companyId !== companyId) throw new NotFoundException(`NF-e ${id} not found`);
 
     if (nfe.status !== 'AUTORIZADA') {
       throw new BadRequestException(

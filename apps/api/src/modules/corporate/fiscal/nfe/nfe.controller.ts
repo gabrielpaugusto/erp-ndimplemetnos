@@ -146,8 +146,11 @@ export class NfeController {
   }
 
   @Post(':id/authorize-async')
-  authorizeAsync(@Param('id') id: string) {
-    return this.nfeService.enqueueTransmission(id);
+  authorizeAsync(
+    @Param('id') id: string,
+    @CurrentUser() user: { companyId: string },
+  ) {
+    return this.nfeService.enqueueTransmission(id, user.companyId);
   }
 
   @Get(':id/status')
@@ -215,9 +218,10 @@ export class NfeController {
   @Post(':id/cce')
   emitirCce(
     @Param('id') id: string,
+    @CurrentUser() user: { companyId: string },
     @Body() body: { descricaoCorrecao: string },
   ) {
-    return this.nfeService.emitirCce(id, body.descricaoCorrecao);
+    return this.nfeService.emitirCce(id, user.companyId, body.descricaoCorrecao);
   }
 
   @Post(':id/escriturar')

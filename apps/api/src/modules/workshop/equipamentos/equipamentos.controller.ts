@@ -39,8 +39,8 @@ export class EquipamentosController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: any) {
-    return this.service.update(id, body);
+  update(@Param('id') id: string, @CurrentUser() user: any, @Body() body: any) {
+    return this.service.update(id, user.companyId, body);
   }
 
   // ── Vínculos ──────────────────────────────────────────────────────────────

@@ -121,9 +121,9 @@ export class MaintenanceService {
     });
   }
 
-  async update(id: string, data: any) {
+  async update(id: string, companyId: string, data: any) {
     const m = await this.prisma.fixedAssetMaintenance.findUnique({ where: { id } });
-    if (!m) throw new NotFoundException('Manutenção não encontrada');
+    if (!m || m.companyId !== companyId) throw new NotFoundException('Manutenção não encontrada');
 
     const updateData: any = { ...data };
     if (data.dataEnvio) updateData.dataEnvio = new Date(data.dataEnvio);
@@ -134,13 +134,13 @@ export class MaintenanceService {
     return this.prisma.fixedAssetMaintenance.update({ where: { id }, data: updateData });
   }
 
-  async concluir(id: string, data: {
+  async concluir(id: string, companyId: string, data: {
     descricaoServico: string; valorServico?: number; valorPecas?: number;
     notaFiscalServico?: string; notaFiscalRetorno?: string;
     dataRetornoReal?: string;
   }) {
     const m = await this.prisma.fixedAssetMaintenance.findUnique({ where: { id } });
-    if (!m) throw new NotFoundException('Manutenção não encontrada');
+    if (!m || m.companyId !== companyId) throw new NotFoundException('Manutenção não encontrada');
     if (m.status === 'CONCLUIDA') throw new BadRequestException('Manutenção já está concluída');
 
     await this.prisma.$transaction([

@@ -37,13 +37,13 @@ export class MaintenanceController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: any) {
-    return this.service.update(id, body);
+  update(@Param('id') id: string, @Request() req: any, @Body() body: any) {
+    return this.service.update(id, req.user.companyId, body);
   }
 
   @Post(':id/concluir')
-  concluir(@Param('id') id: string, @Body() body: any) {
-    return this.service.concluir(id, body);
+  concluir(@Param('id') id: string, @Request() req: any, @Body() body: any) {
+    return this.service.concluir(id, req.user.companyId, body);
   }
 
   @Post(':id/anexos')

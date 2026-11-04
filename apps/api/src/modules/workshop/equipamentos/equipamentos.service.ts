@@ -123,9 +123,9 @@ export class EquipamentosService {
     return this.prisma.equipamento.delete({ where: { id } });
   }
 
-  async update(id: string, data: any) {
+  async update(id: string, companyId: string, data: any) {
     const existing = await this.prisma.equipamento.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException(`Equipamento ${id} não encontrado`);
+    if (!existing || existing.companyId !== companyId) throw new NotFoundException(`Equipamento ${id} não encontrado`);
 
     return this.prisma.equipamento.update({
       where: { id },

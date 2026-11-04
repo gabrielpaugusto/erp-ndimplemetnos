@@ -102,9 +102,9 @@ export class FixedAssetsService {
     });
   }
 
-  async update(id: string, data: any) {
+  async update(id: string, companyId: string, data: any) {
     const asset = await this.prisma.fixedAsset.findUnique({ where: { id } });
-    if (!asset) throw new NotFoundException('Ativo não encontrado');
+    if (!asset || asset.companyId !== companyId) throw new NotFoundException('Ativo não encontrado');
     if (asset.status === 'BAIXADO') throw new BadRequestException('Ativo baixado não pode ser editado');
 
     const updateData: any = { ...data };
@@ -116,9 +116,9 @@ export class FixedAssetsService {
     return this.prisma.fixedAsset.update({ where: { id }, data: updateData });
   }
 
-  async baixar(id: string, data: { dataBaixa: string; motivoBaixa: string }) {
+  async baixar(id: string, companyId: string, data: { dataBaixa: string; motivoBaixa: string }) {
     const asset = await this.prisma.fixedAsset.findUnique({ where: { id } });
-    if (!asset) throw new NotFoundException('Ativo não encontrado');
+    if (!asset || asset.companyId !== companyId) throw new NotFoundException('Ativo não encontrado');
     if (asset.status === 'BAIXADO') throw new BadRequestException('Ativo já está baixado');
 
     return this.prisma.fixedAsset.update({

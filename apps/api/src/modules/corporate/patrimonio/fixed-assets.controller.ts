@@ -55,13 +55,13 @@ export class FixedAssetsController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: any) {
-    return this.service.update(id, body);
+  update(@Param('id') id: string, @Request() req: any, @Body() body: any) {
+    return this.service.update(id, req.user.companyId, body);
   }
 
   @Post(':id/baixar')
-  baixar(@Param('id') id: string, @Body() body: any) {
-    return this.service.baixar(id, body);
+  baixar(@Param('id') id: string, @Request() req: any, @Body() body: any) {
+    return this.service.baixar(id, req.user.companyId, body);
   }
 
   @Post(':id/depreciar')
