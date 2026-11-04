@@ -219,7 +219,7 @@ export class SaleOrdersService {
 
   async approve(id: string, userId: string, companyId: string) {
     const order = await this.prisma.saleOrder.findUnique({ where: { id } });
-    if (!order) {
+    if (!order || order.companyId !== companyId) {
       throw new NotFoundException(`Sale order ${id} not found`);
     }
 
@@ -268,9 +268,9 @@ export class SaleOrdersService {
     });
   }
 
-  async cancel(id: string, userId: string) {
+  async cancel(id: string, companyId: string, userId: string) {
     const order = await this.prisma.saleOrder.findUnique({ where: { id } });
-    if (!order) {
+    if (!order || order.companyId !== companyId) {
       throw new NotFoundException(`Sale order ${id} not found`);
     }
 

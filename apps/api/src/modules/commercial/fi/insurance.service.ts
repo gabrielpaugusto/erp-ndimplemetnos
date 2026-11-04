@@ -87,7 +87,7 @@ export class InsuranceService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, companyId: string) {
     const policy = await this.prisma.insurancePolicy.findUnique({
       where: { id },
       include: {
@@ -106,7 +106,7 @@ export class InsuranceService {
       },
     });
 
-    if (!policy) {
+    if (!policy || policy.companyId !== companyId) {
       throw new NotFoundException(`Insurance policy ${id} not found`);
     }
 
@@ -143,12 +143,12 @@ export class InsuranceService {
     });
   }
 
-  async update(id: string, data: UpdateInsuranceDto) {
+  async update(id: string, companyId: string, data: UpdateInsuranceDto) {
     const existing = await this.prisma.insurancePolicy.findUnique({
       where: { id },
     });
 
-    if (!existing) {
+    if (!existing || existing.companyId !== companyId) {
       throw new NotFoundException(`Insurance policy ${id} not found`);
     }
 

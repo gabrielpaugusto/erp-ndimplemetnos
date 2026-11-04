@@ -186,9 +186,9 @@ export class QuotationsService {
     });
   }
 
-  async update(id: string, data: UpdateQuotationDto) {
+  async update(id: string, companyId: string, data: UpdateQuotationDto) {
     const existing = await this.prisma.quotation.findUnique({ where: { id } });
-    if (!existing) {
+    if (!existing || existing.companyId !== companyId) {
       throw new NotFoundException(`Quotation ${id} not found`);
     }
 

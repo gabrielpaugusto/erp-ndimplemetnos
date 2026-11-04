@@ -83,7 +83,7 @@ export class ConsortiumService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, companyId: string) {
     const quota = await this.prisma.consortiumQuota.findUnique({
       where: { id },
       include: {
@@ -105,7 +105,7 @@ export class ConsortiumService {
       },
     });
 
-    if (!quota) {
+    if (!quota || quota.companyId !== companyId) {
       throw new NotFoundException(`Consortium quota ${id} not found`);
     }
 
@@ -138,12 +138,12 @@ export class ConsortiumService {
     });
   }
 
-  async update(id: string, data: UpdateConsortiumDto) {
+  async update(id: string, companyId: string, data: UpdateConsortiumDto) {
     const existing = await this.prisma.consortiumQuota.findUnique({
       where: { id },
     });
 
-    if (!existing) {
+    if (!existing || existing.companyId !== companyId) {
       throw new NotFoundException(`Consortium quota ${id} not found`);
     }
 
@@ -159,12 +159,12 @@ export class ConsortiumService {
     });
   }
 
-  async addPayment(quotaId: string, data: CreateConsortiumPaymentDto) {
+  async addPayment(quotaId: string, companyId: string, data: CreateConsortiumPaymentDto) {
     const quota = await this.prisma.consortiumQuota.findUnique({
       where: { id: quotaId },
     });
 
-    if (!quota) {
+    if (!quota || quota.companyId !== companyId) {
       throw new NotFoundException(`Consortium quota ${quotaId} not found`);
     }
 
@@ -222,13 +222,14 @@ export class ConsortiumService {
 
   async contemplate(
     id: string,
+    companyId: string,
     data: { tipoContemplacao: string; valorLance?: number; dataContemplacao?: string },
   ) {
     const quota = await this.prisma.consortiumQuota.findUnique({
       where: { id },
     });
 
-    if (!quota) {
+    if (!quota || quota.companyId !== companyId) {
       throw new NotFoundException(`Consortium quota ${id} not found`);
     }
 

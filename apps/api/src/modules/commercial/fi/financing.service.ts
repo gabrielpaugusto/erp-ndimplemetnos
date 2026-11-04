@@ -88,7 +88,7 @@ export class FinancingService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, companyId: string) {
     const financing = await this.prisma.financing.findUnique({
       where: { id },
       include: {
@@ -107,7 +107,7 @@ export class FinancingService {
       },
     });
 
-    if (!financing) {
+    if (!financing || financing.companyId !== companyId) {
       throw new NotFoundException(`Financing ${id} not found`);
     }
 
@@ -144,12 +144,12 @@ export class FinancingService {
     });
   }
 
-  async update(id: string, data: UpdateFinancingDto) {
+  async update(id: string, companyId: string, data: UpdateFinancingDto) {
     const existing = await this.prisma.financing.findUnique({
       where: { id },
     });
 
-    if (!existing) {
+    if (!existing || existing.companyId !== companyId) {
       throw new NotFoundException(`Financing ${id} not found`);
     }
 

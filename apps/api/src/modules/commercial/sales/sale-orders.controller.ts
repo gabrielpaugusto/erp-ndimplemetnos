@@ -90,7 +90,7 @@ export class SaleOrdersController {
     @Param('id') id: string,
     @CurrentUser() user: { id: string; companyId: string },
   ) {
-    return this.saleOrdersService.cancel(id, user.id);
+    return this.saleOrdersService.cancel(id, user.companyId, user.id);
   }
 
   @Post(':id/items')
