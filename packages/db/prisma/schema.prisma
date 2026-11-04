@@ -2034,6 +2034,7 @@ model Quotation {
 
   @@unique([companyId, numero])
   @@index([personId])
+  @@index([companyId, status])
   @@map("quotations")
 }
 
@@ -2494,6 +2495,7 @@ model ProductionOrder {
   bomOverride         OrderBomOverride?  @relation("OpBomOverride")
 
   @@unique([companyId, numero])
+  @@index([companyId, status])
   @@map("production_orders")
 }
 
@@ -2913,33 +2915,33 @@ model NFeDocument {
   naturezaOperacao        String          @db.VarChar(200)
 
   // Valores dos produtos/serviços
-  valorProdutos           Float           @default(0)
-  valorFrete              Float           @default(0)
-  valorSeguro             Float           @default(0)
-  valorDesconto           Float           @default(0)
-  valorOutros             Float           @default(0)
-  valorTotal              Float           @default(0)
+  valorProdutos           Decimal         @default(0) @db.Decimal(15,2)
+  valorFrete              Decimal         @default(0) @db.Decimal(15,2)
+  valorSeguro             Decimal         @default(0) @db.Decimal(15,2)
+  valorDesconto           Decimal         @default(0) @db.Decimal(15,2)
+  valorOutros             Decimal         @default(0) @db.Decimal(15,2)
+  valorTotal              Decimal         @default(0) @db.Decimal(15,2)
 
   // Impostos — sistema atual
-  valorIcms               Float           @default(0)
-  valorIcmsSt             Float           @default(0)
-  valorIpi                Float           @default(0)
-  valorPis                Float           @default(0)
-  valorCofins             Float           @default(0)
+  valorIcms               Decimal         @default(0) @db.Decimal(15,2)
+  valorIcmsSt             Decimal         @default(0) @db.Decimal(15,2)
+  valorIpi                Decimal         @default(0) @db.Decimal(15,2)
+  valorPis                Decimal         @default(0) @db.Decimal(15,2)
+  valorCofins             Decimal         @default(0) @db.Decimal(15,2)
 
   // Impostos — Reforma Tributária (EC 132/2023)
-  valorIbs                Float           @default(0) // Imposto sobre Bens e Serviços
-  valorCbs                Float           @default(0) // Contribuição sobre Bens e Serviços
-  valorIs                 Float           @default(0) // Imposto Seletivo
+  valorIbs                Decimal         @default(0) @db.Decimal(15,2) // Imposto sobre Bens e Serviços
+  valorCbs                Decimal         @default(0) @db.Decimal(15,2) // Contribuição sobre Bens e Serviços
+  valorIs                 Decimal         @default(0) @db.Decimal(15,2) // Imposto Seletivo
 
   // DIFAL — Diferencial de Alíquota (operações interestaduais para consumidor final)
-  valorDifal              Float           @default(0) // ICMS DIFAL total
-  valorDifalDestino       Float           @default(0) // parte do DIFAL devida ao estado destino
-  valorDifalOrigem        Float           @default(0) // parte do DIFAL devida ao estado origem
-  valorFcp                Float           @default(0) // Fundo de Combate à Pobreza
+  valorDifal              Decimal         @default(0) @db.Decimal(15,2) // ICMS DIFAL total
+  valorDifalDestino       Decimal         @default(0) @db.Decimal(15,2) // parte do DIFAL devida ao estado destino
+  valorDifalOrigem        Decimal         @default(0) @db.Decimal(15,2) // parte do DIFAL devida ao estado origem
+  valorFcp                Decimal         @default(0) @db.Decimal(15,2) // Fundo de Combate à Pobreza
   ufDestino               String?         @db.VarChar(2)
-  aliqInterestadual       Float?                      // alíquota interestadual aplicada
-  aliqInternaDestino      Float?                      // alíquota interna do estado destino
+  aliqInterestadual       Decimal?        @db.Decimal(8,4)              // alíquota interestadual aplicada
+  aliqInternaDestino      Decimal?        @db.Decimal(8,4)              // alíquota interna do estado destino
 
   // Carta de Correção (CC-e)
   cceNumero               Int?
@@ -2962,7 +2964,7 @@ model NFeDocument {
   motivoCancelamento      String?         @db.Text
 
   // Pagamento (NT 2013.005 / grupo YA)
-  vTroco                  Float?                      // troco (só para tPag=01 dinheiro)
+  vTroco                  Decimal?        @db.Decimal(15,2)              // troco (só para tPag=01 dinheiro)
 
   createdAt               DateTime        @default(now())
   updatedAt               DateTime        @updatedAt
@@ -3045,58 +3047,58 @@ model NFeItem {
   cest                    String?      @db.VarChar(7) // Código Especificador da Substituição Tributária
 
   // Quantidades e valores
-  quantity                Float
-  unitPrice               Float
-  totalPrice              Float
+  quantity                Decimal      @db.Decimal(15,4)
+  unitPrice               Decimal      @db.Decimal(15,4)
+  totalPrice              Decimal      @db.Decimal(15,2)
   unit                    String       @db.VarChar(20)
 
   // ICMS
-  bcIcms                  Float        @default(0)
-  aliqIcms                Float        @default(0)
-  valorIcms               Float        @default(0)
+  bcIcms                  Decimal      @default(0) @db.Decimal(15,2)
+  aliqIcms                Decimal      @default(0) @db.Decimal(8,4)
+  valorIcms               Decimal      @default(0) @db.Decimal(15,2)
   cstIcms                 String?      @db.VarChar(3) // CST/CSOSN
 
   // ICMS-ST
-  bcIcmsSt                Float        @default(0)
-  aliqIcmsSt              Float        @default(0)
-  valorIcmsSt             Float        @default(0)
+  bcIcmsSt                Decimal      @default(0) @db.Decimal(15,2)
+  aliqIcmsSt              Decimal      @default(0) @db.Decimal(8,4)
+  valorIcmsSt             Decimal      @default(0) @db.Decimal(15,2)
 
   // IPI
-  bcIpi                   Float        @default(0)
-  aliqIpi                 Float        @default(0)
-  valorIpi                Float        @default(0)
+  bcIpi                   Decimal      @default(0) @db.Decimal(15,2)
+  aliqIpi                 Decimal      @default(0) @db.Decimal(8,4)
+  valorIpi                Decimal      @default(0) @db.Decimal(15,2)
   cstIpi                  String?      @db.VarChar(2)
 
   // PIS
-  bcPis                   Float        @default(0)
-  aliqPis                 Float        @default(0)
-  valorPis                Float        @default(0)
+  bcPis                   Decimal      @default(0) @db.Decimal(15,2)
+  aliqPis                 Decimal      @default(0) @db.Decimal(8,4)
+  valorPis                Decimal      @default(0) @db.Decimal(15,2)
   cstPis                  String?      @db.VarChar(2)
 
   // COFINS
-  bcCofins                Float        @default(0)
-  aliqCofins              Float        @default(0)
-  valorCofins             Float        @default(0)
+  bcCofins                Decimal      @default(0) @db.Decimal(15,2)
+  aliqCofins              Decimal      @default(0) @db.Decimal(8,4)
+  valorCofins             Decimal      @default(0) @db.Decimal(15,2)
   cstCofins               String?      @db.VarChar(2)
 
   // IBS — Reforma Tributária (EC 132/2023) — split UF + Municipal (NT 2025.002)
-  bcIbs                   Float        @default(0)
-  aliqIbs                 Float        @default(0)  // total (retrocompatibilidade)
-  valorIbs                Float        @default(0)  // total (retrocompatibilidade)
-  aliqIbsUf               Float        @default(0)  // alíquota IBS estadual
-  valorIbsUf              Float        @default(0)  // valor IBS estadual
-  aliqIbsMun              Float        @default(0)  // alíquota IBS municipal
-  valorIbsMun             Float        @default(0)  // valor IBS municipal
+  bcIbs                   Decimal      @default(0) @db.Decimal(15,2)
+  aliqIbs                 Decimal      @default(0) @db.Decimal(8,4)  // total (retrocompatibilidade)
+  valorIbs                Decimal      @default(0) @db.Decimal(15,2) // total (retrocompatibilidade)
+  aliqIbsUf               Decimal      @default(0) @db.Decimal(8,4)  // alíquota IBS estadual
+  valorIbsUf              Decimal      @default(0) @db.Decimal(15,2) // valor IBS estadual
+  aliqIbsMun              Decimal      @default(0) @db.Decimal(8,4)  // alíquota IBS municipal
+  valorIbsMun             Decimal      @default(0) @db.Decimal(15,2) // valor IBS municipal
 
   // CBS — Reforma Tributária
-  bcCbs                   Float        @default(0)
-  aliqCbs                 Float        @default(0)
-  valorCbs                Float        @default(0)
+  bcCbs                   Decimal      @default(0) @db.Decimal(15,2)
+  aliqCbs                 Decimal      @default(0) @db.Decimal(8,4)
+  valorCbs                Decimal      @default(0) @db.Decimal(15,2)
 
   // IS — Imposto Seletivo (LC 214/2025, Art. 263 — produtos prejudiciais à saúde/ambiente)
-  bcIs                    Float        @default(0)
-  aliqIs                  Float        @default(0)
-  valorIs                 Float        @default(0)
+  bcIs                    Decimal      @default(0) @db.Decimal(15,2)
+  aliqIs                  Decimal      @default(0) @db.Decimal(8,4)
+  valorIs                 Decimal      @default(0) @db.Decimal(15,2)
   // CST IS (3 dígitos, NT 2025.002): 000=tributado, 010=monofásico, 400=não tributado, 410=imunidade
   cstIs                   String?      @default("400") @db.VarChar(3)
 
@@ -3194,14 +3196,14 @@ model FiscalApuracao {
   taxType                 String    @db.VarChar(10) // ICMS, IPI, PIS, COFINS, IBS, CBS
 
   // Valores da apuração
-  totalDebitos            Float     @default(0)
-  totalCreditos           Float     @default(0)
-  saldoAnterior           Float     @default(0)
-  deducoesLegais          Float     @default(0)
-  ajustesDebito           Float     @default(0)
-  ajustesCredito          Float     @default(0)
-  impostoAPagar           Float     @default(0)
-  saldoCredor             Float     @default(0)
+  totalDebitos            Decimal   @default(0) @db.Decimal(15,2)
+  totalCreditos           Decimal   @default(0) @db.Decimal(15,2)
+  saldoAnterior           Decimal   @default(0) @db.Decimal(15,2)
+  deducoesLegais          Decimal   @default(0) @db.Decimal(15,2)
+  ajustesDebito           Decimal   @default(0) @db.Decimal(15,2)
+  ajustesCredito          Decimal   @default(0) @db.Decimal(15,2)
+  impostoAPagar           Decimal   @default(0) @db.Decimal(15,2)
+  saldoCredor             Decimal   @default(0) @db.Decimal(15,2)
 
   // Status
   status                  String    @default("ABERTA") @db.VarChar(20) // ABERTA, FECHADA, RETIFICADA
@@ -3809,6 +3811,7 @@ model PurchaseOrder {
   cteDocuments          CteDocument[]
 
   @@unique([companyId, numero])
+  @@index([companyId, status])
   @@map("purchase_orders")
 }
 
@@ -4961,6 +4964,7 @@ model NfseEmitida {
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
+  @@index([companyId, status])
   @@map("nfse_emitidas")
 }
 
@@ -5017,6 +5021,7 @@ model NfseRecebida {
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
+  @@index([companyId, status])
   @@map("nfse_recebidas")
 }
 

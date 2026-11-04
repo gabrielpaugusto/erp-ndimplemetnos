@@ -179,4 +179,82 @@ export class ChartAccountsService {
       throw error;
     }
   }
+
+  async seedDefaults(companyId: string) {
+    const defaults: Array<{
+      code: string;
+      name: string;
+      type: string;
+      nature: string;
+      level: number;
+      parentCode?: string;
+    }> = [
+      { code: '1',         name: 'ATIVO',                              type: 'PATRIMONIAL',  nature: 'DEVEDORA', level: 1 },
+      { code: '1.1',       name: 'ATIVO CIRCULANTE',                   type: 'PATRIMONIAL',  nature: 'DEVEDORA', level: 2, parentCode: '1' },
+      { code: '1.1.1',     name: 'Disponibilidades',                   type: 'PATRIMONIAL',  nature: 'DEVEDORA', level: 3, parentCode: '1.1' },
+      { code: '1.1.1.001', name: 'Caixa e equivalentes',               type: 'PATRIMONIAL',  nature: 'DEVEDORA', level: 4, parentCode: '1.1.1' },
+      { code: '1.1.1.002', name: 'Banco conta corrente',               type: 'PATRIMONIAL',  nature: 'DEVEDORA', level: 4, parentCode: '1.1.1' },
+      { code: '1.1.2',     name: 'Créditos',                           type: 'PATRIMONIAL',  nature: 'DEVEDORA', level: 3, parentCode: '1.1' },
+      { code: '1.1.2.001', name: 'Clientes (duplicatas a receber)',     type: 'PATRIMONIAL',  nature: 'DEVEDORA', level: 4, parentCode: '1.1.2' },
+      { code: '1.1.4',     name: 'Estoques',                           type: 'PATRIMONIAL',  nature: 'DEVEDORA', level: 3, parentCode: '1.1' },
+      { code: '1.1.4.001', name: 'Estoque matéria-prima',              type: 'PATRIMONIAL',  nature: 'DEVEDORA', level: 4, parentCode: '1.1.4' },
+      { code: '1.1.4.002', name: 'Estoque produtos acabados',          type: 'PATRIMONIAL',  nature: 'DEVEDORA', level: 4, parentCode: '1.1.4' },
+      { code: '1.1.4.003', name: 'Estoque mercadorias',                type: 'PATRIMONIAL',  nature: 'DEVEDORA', level: 4, parentCode: '1.1.4' },
+      { code: '2',         name: 'PASSIVO',                            type: 'PATRIMONIAL',  nature: 'CREDORA',  level: 1 },
+      { code: '2.1',       name: 'PASSIVO CIRCULANTE',                 type: 'PATRIMONIAL',  nature: 'CREDORA',  level: 2, parentCode: '2' },
+      { code: '2.1.1',     name: 'Obrigações comerciais',              type: 'PATRIMONIAL',  nature: 'CREDORA',  level: 3, parentCode: '2.1' },
+      { code: '2.1.1.001', name: 'Fornecedores (duplicatas a pagar)',  type: 'PATRIMONIAL',  nature: 'CREDORA',  level: 4, parentCode: '2.1.1' },
+      { code: '2.1.2',     name: 'Obrigações trabalhistas',            type: 'PATRIMONIAL',  nature: 'CREDORA',  level: 3, parentCode: '2.1' },
+      { code: '2.1.2.001', name: 'Salários a pagar',                   type: 'PATRIMONIAL',  nature: 'CREDORA',  level: 4, parentCode: '2.1.2' },
+      { code: '2.1.2.002', name: 'FGTS a recolher',                    type: 'PATRIMONIAL',  nature: 'CREDORA',  level: 4, parentCode: '2.1.2' },
+      { code: '2.1.2.003', name: 'INSS a recolher',                    type: 'PATRIMONIAL',  nature: 'CREDORA',  level: 4, parentCode: '2.1.2' },
+      { code: '3',         name: 'RECEITAS',                           type: 'RESULTADO',    nature: 'CREDORA',  level: 1 },
+      { code: '3.1',       name: 'Receitas operacionais',              type: 'RESULTADO',    nature: 'CREDORA',  level: 2, parentCode: '3' },
+      { code: '3.1.1',     name: 'Receita de vendas',                  type: 'RESULTADO',    nature: 'CREDORA',  level: 3, parentCode: '3.1' },
+      { code: '3.1.1.001', name: 'Receita de vendas de mercadorias',   type: 'RESULTADO',    nature: 'CREDORA',  level: 4, parentCode: '3.1.1' },
+      { code: '3.1.2',     name: 'Receita de serviços',                type: 'RESULTADO',    nature: 'CREDORA',  level: 3, parentCode: '3.1' },
+      { code: '3.1.2.001', name: 'Receita de prestação de serviços',   type: 'RESULTADO',    nature: 'CREDORA',  level: 4, parentCode: '3.1.2' },
+      { code: '4',         name: 'DESPESAS E CUSTOS',                  type: 'RESULTADO',    nature: 'DEVEDORA', level: 1 },
+      { code: '4.1',       name: 'Custos operacionais',                type: 'RESULTADO',    nature: 'DEVEDORA', level: 2, parentCode: '4' },
+      { code: '4.1.1',     name: 'Custo das mercadorias vendidas',     type: 'RESULTADO',    nature: 'DEVEDORA', level: 3, parentCode: '4.1' },
+      { code: '4.1.1.001', name: 'CMV — custo das mercadorias vendidas', type: 'RESULTADO',  nature: 'DEVEDORA', level: 4, parentCode: '4.1.1' },
+      { code: '4.2',       name: 'Despesas administrativas',           type: 'RESULTADO',    nature: 'DEVEDORA', level: 2, parentCode: '4' },
+      { code: '4.2.1',     name: 'Despesas com pessoal',               type: 'RESULTADO',    nature: 'DEVEDORA', level: 3, parentCode: '4.2' },
+      { code: '4.2.1.001', name: 'Despesa com salários',               type: 'RESULTADO',    nature: 'DEVEDORA', level: 4, parentCode: '4.2.1' },
+      { code: '4.2.1.002', name: 'Despesa FGTS',                       type: 'RESULTADO',    nature: 'DEVEDORA', level: 4, parentCode: '4.2.1' },
+      { code: '4.2.1.003', name: 'Despesa INSS patronal',              type: 'RESULTADO',    nature: 'DEVEDORA', level: 4, parentCode: '4.2.1' },
+    ];
+
+    const idMap = new Map<string, string>();
+    let created = 0;
+    let skipped = 0;
+
+    for (const entry of defaults) {
+      const existing = await this.prisma.chartOfAccount.findFirst({
+        where: { companyId, code: entry.code },
+      });
+      if (existing) {
+        idMap.set(entry.code, existing.id);
+        skipped++;
+        continue;
+      }
+      const parentId = entry.parentCode ? idMap.get(entry.parentCode) ?? null : null;
+      const account = await this.prisma.chartOfAccount.create({
+        data: {
+          companyId,
+          code: entry.code,
+          name: entry.name,
+          type: entry.type as any,
+          nature: entry.nature as any,
+          level: entry.level,
+          parentId,
+          acceptsEntries: entry.level === 4,
+        },
+      });
+      idMap.set(entry.code, account.id);
+      created++;
+    }
+
+    return { created, skipped, total: defaults.length };
+  }
 }

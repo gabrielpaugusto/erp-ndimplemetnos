@@ -75,4 +75,9 @@ export class ChartAccountsController {
   remove(@Param('id') id: string) {
     return this.chartAccountsService.remove(id);
   }
+
+  @Post('seed-defaults')
+  seedDefaults(@CurrentUser() user: { companyId: string }) {
+    return this.chartAccountsService.seedDefaults(user.companyId);
+  }
 }
