@@ -874,6 +874,68 @@ export class NfeService {
   }
 
   /**
+   * Cria uma cópia em RASCUNHO de uma NF-e DENEGADA ou REJEITADA,
+   * permitindo correção e reenvio.
+   */
+  async copiarParaRascunho(id: string) {
+    const nfe = await this.prisma.nFeDocument.findUnique({
+      where: { id },
+      include: { items: true },
+    });
+
+    if (!nfe) throw new NotFoundException(`NF-e ${id} not found`);
+
+    if (nfe.status !== 'DENEGADA' && nfe.status !== 'REJEITADA') {
+      throw new BadRequestException(
+        `Só é possível copiar NF-e com status DENEGADA ou REJEITADA. Status atual: ${nfe.status}`,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const nova = await tx.nFeDocument.create({
+        data: {
+          companyId: nfe.companyId,
+          type: nfe.type,
+          finality: nfe.finality,
+          operation: nfe.operation,
+          status: 'RASCUNHO' as any,
+          personId: nfe.personId,
+          saleOrderId: nfe.saleOrderId,
+          serviceOrderId: nfe.serviceOrderId,
+          naturezaOperacao: nfe.naturezaOperacao,
+          dataEmissao: new Date(),
+          valorProdutos: nfe.valorProdutos,
+          valorFrete: nfe.valorFrete,
+          valorSeguro: nfe.valorSeguro,
+          valorDesconto: nfe.valorDesconto,
+          valorOutros: nfe.valorOutros,
+          valorTotal: nfe.valorTotal,
+          informacoesComplementares: nfe.informacoesComplementares,
+          items: {
+            create: nfe.items.map((item) => ({
+              itemNumber: item.itemNumber,
+              productId: item.productId,
+              description: item.description,
+              ncmCode: item.ncmCode,
+              cfopCode: item.cfopCode,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              totalPrice: item.totalPrice,
+              unit: item.unit,
+            })),
+          },
+        },
+        include: {
+          person: { select: { id: true, razaoSocial: true, cpfCnpj: true } },
+          items: { orderBy: { itemNumber: 'asc' } },
+        },
+      });
+
+      return nova;
+    });
+  }
+
+  /**
    * Generate a mock 44-digit chaveAcesso for NF-e.
    */
   private generateChaveAcesso(

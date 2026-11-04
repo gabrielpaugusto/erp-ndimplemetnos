@@ -346,6 +346,18 @@ export default function NFeDetailPage() {
     finally { setActionLoading(false); }
   }
 
+  async function handleCopiarRascunho() {
+    setActionLoading(true); setActionError(''); setActionSuccess('');
+    try {
+      const res = await apiFetch(`/api/fiscal/nfe/${id}/copiar-rascunho`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) { setActionError(data.message || 'Erro ao criar cópia da NF-e'); return; }
+      setActionSuccess(`Nova NF-e criada como rascunho. Redirecionando...`);
+      setTimeout(() => { window.location.href = `/fiscal/nfe/${data.id}`; }, 1500);
+    } catch { setActionError('Erro de conexão ao copiar NF-e'); }
+    finally { setActionLoading(false); }
+  }
+
   async function handleCce(descricao: string) {
     setActionLoading(true); setActionError(''); setActionSuccess('');
     try {
@@ -550,6 +562,13 @@ export default function NFeDetailPage() {
                   <PenLine className="w-4 h-4" />CC-e
                 </button>
               </>
+            )}
+            {(nfe.status === 'DENEGADA' || nfe.status === 'REJEITADA') && (
+              <button onClick={handleCopiarRascunho} disabled={actionLoading}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-medium transition-colors disabled:opacity-50"
+                title="Cria uma nova NF-e em rascunho com os mesmos dados para correção e reenvio">
+                <ArrowRightLeft className="w-4 h-4" />{actionLoading ? 'Copiando...' : 'Corrigir como nova NF-e'}
+              </button>
             )}
             {isCancelable && (
               <button onClick={() => setShowCancelModal(true)} disabled={actionLoading}

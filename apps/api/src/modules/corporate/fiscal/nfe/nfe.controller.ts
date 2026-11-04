@@ -123,6 +123,11 @@ export class NfeController {
     return this.nfeService.cancel(id, cancelDto.motivo);
   }
 
+  @Post(':id/copiar-rascunho')
+  copiarParaRascunho(@Param('id') id: string) {
+    return this.nfeService.copiarParaRascunho(id);
+  }
+
   /**
    * Inutilizar faixa de numeração de NF-e junto à SEFAZ.
    * DEVE ficar antes de @Post(':id/...') para não ser capturado como id.

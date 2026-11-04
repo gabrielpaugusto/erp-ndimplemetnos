@@ -118,7 +118,7 @@ export class SefazClientService extends GovernmentTransmissionService {
         SOAPAction: soapAction,
       },
       httpsAgent,
-      timeout: 30000,
+      timeout: 60000,
     });
 
     return response.data as string;
