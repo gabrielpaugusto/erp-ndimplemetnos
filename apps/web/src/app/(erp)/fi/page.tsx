@@ -111,9 +111,11 @@ export default function FIDashboardPage() {
   const [expiringInsurances, setExpiringInsurances] = useState(0);
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     async function loadAll() {
+      setError('');
       try {
         const [
           financingsRes,
@@ -235,7 +237,7 @@ export default function FIDashboardPage() {
           setExpiringInsurances(expCount);
         }
       } catch (err) {
-        console.error('Erro ao carregar dashboard F&I', err);
+        setError('Erro ao carregar dados. Tente novamente.');
       } finally {
         setLoading(false);
       }
@@ -246,6 +248,12 @@ export default function FIDashboardPage() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          {error}
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

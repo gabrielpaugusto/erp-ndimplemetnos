@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '@/lib/api';
 import { fmtPercent, fmtCurrency } from '@/lib/format';
-import { BarChart3, Info } from 'lucide-react';
+import { BarChart3, Info, AlertTriangle } from 'lucide-react';
 
 interface RelatorioPeriodo {
   ano: number;
@@ -65,15 +65,17 @@ export default function RelatorioDepreciacaoPage() {
   const [mes, setMes] = useState(agora.getMonth() + 1);
   const [data, setData] = useState<RelatorioData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
       const res = await apiFetch(`/api/patrimonio/relatorio-depreciacao?ano=${ano}&mes=${mes}`);
       const result = await (res as any).json();
       setData(result);
     } catch (err) {
-      console.error(err);
+      setError('Erro ao carregar dados. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -85,6 +87,12 @@ export default function RelatorioDepreciacaoPage() {
 
   return (
     <div className="p-6 space-y-6">
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          {error}
+        </div>
+      )}
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Relatório de Depreciação</h1>

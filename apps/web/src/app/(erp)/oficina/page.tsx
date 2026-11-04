@@ -103,9 +103,11 @@ export default function OficinaDashboardPage() {
   const [osAguardandoPecas, setOsAguardandoPecas] = useState(0);
   const [osConcluidasHoje, setOsConcluidasHoje] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     async function load() {
+      setError('');
       try {
         const [recentRes, urgentRes, statsRes] = await Promise.all([
           apiFetch('/api/service-orders?limit=5&page=1'),
@@ -189,7 +191,7 @@ export default function OficinaDashboardPage() {
           setOsConcluidasHoje(getCount('CONCLUIDA'));
         }
       } catch (err) {
-        console.error('Erro ao carregar painel oficina:', err);
+        setError('Erro ao carregar dados. Tente novamente.');
       } finally {
         setLoading(false);
       }
@@ -200,6 +202,12 @@ export default function OficinaDashboardPage() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          {error}
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

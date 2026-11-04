@@ -13,6 +13,7 @@ import {
   Truck,
   User,
   AlertCircle,
+  AlertTriangle,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { fmtPercent } from '@/lib/format';
@@ -103,10 +104,12 @@ export default function RequisicaoDetailPage() {
   const [notFound, setNotFound] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [error, setError] = useState('');
 
   const loadRequisition = useCallback(async () => {
     if (!id) return;
     setLoading(true);
+    setError('');
     try {
       const res = await apiFetch(`/api/requisitions/${id}`);
       if (res.status === 404) { setNotFound(true); return; }
@@ -178,7 +181,7 @@ export default function RequisicaoDetailPage() {
         }))
       );
     } catch (err) {
-      console.error('Erro ao carregar requisicao:', err);
+      setError('Erro ao carregar dados. Tente novamente.');
       setNotFound(true);
     } finally {
       setLoading(false);
@@ -293,6 +296,12 @@ export default function RequisicaoDetailPage() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          {error}
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center gap-4">
         <Link

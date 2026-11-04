@@ -207,6 +207,7 @@ export default function OrdemProducaoDetailPage() {
   const [order, setOrder] = useState<ProductionOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [error, setError] = useState('');
   const [necessidades, setNecessidades] = useState<NecessidadesData | null>(null);
   const [necessidadesLoading, setNecessidadesLoading] = useState(false);
   const [consumoData, setConsumoData] = useState<ConsumoData | null>(null);
@@ -226,6 +227,7 @@ export default function OrdemProducaoDetailPage() {
   const fetchOrder = useCallback(async () => {
     if (!id) return;
     setLoading(true);
+    setError('');
     try {
       const res = await apiFetch(`/api/production/orders/${id}`);
       if (res.ok) {
@@ -233,7 +235,7 @@ export default function OrdemProducaoDetailPage() {
         setOrder(data);
       }
     } catch (err) {
-      console.error('Erro ao carregar ordem de produção:', err);
+      setError('Erro ao carregar dados. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -249,7 +251,7 @@ export default function OrdemProducaoDetailPage() {
         setConsumoData(data);
       }
     } catch (err) {
-      console.error('Erro ao carregar consumo:', err);
+      setError('Erro ao carregar dados. Tente novamente.');
     } finally {
       setConsumoLoading(false);
     }
@@ -265,7 +267,7 @@ export default function OrdemProducaoDetailPage() {
         setNecessidades(data);
       }
     } catch (err) {
-      console.error('Erro ao carregar necessidades:', err);
+      setError('Erro ao carregar dados. Tente novamente.');
     } finally {
       setNecessidadesLoading(false);
     }
@@ -280,7 +282,7 @@ export default function OrdemProducaoDetailPage() {
         setWorkCenters(data.data ?? data);
       }
     } catch (err) {
-      console.error('Erro ao carregar centros de trabalho:', err);
+      setError('Erro ao carregar dados. Tente novamente.');
     } finally {
       setWorkCentersLoading(false);
     }
@@ -468,6 +470,12 @@ export default function OrdemProducaoDetailPage() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          {error}
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center gap-4">
         <Link

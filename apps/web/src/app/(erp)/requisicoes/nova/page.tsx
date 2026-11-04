@@ -140,7 +140,7 @@ export default function NovaRequisicaoPage() {
           );
         }
       } catch (err) {
-        console.error('Erro ao carregar dados:', err);
+        setError('Erro ao carregar dados. Tente novamente.');
       } finally {
         setLoadingData(false);
       }

@@ -14,6 +14,7 @@ import {
   Calendar,
   Award,
   XCircle,
+  AlertTriangle,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
@@ -102,6 +103,7 @@ export default function ConsorcioDetailPage() {
   const [consortium, setConsortium] = useState<ConsortiumDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [error, setError] = useState('');
   const [payingId, setPayingId] = useState<string | null>(null);
   const [showContemplacao, setShowContemplacao] = useState(false);
   const [contemplacao, setContemplacao] = useState({
@@ -114,6 +116,7 @@ export default function ConsorcioDetailPage() {
     if (!id) return;
 
     async function load() {
+      setError('');
       try {
         const res = await apiFetch(`/api/fi/consortium/${id}`);
         if (res.status === 404) {
@@ -124,7 +127,7 @@ export default function ConsorcioDetailPage() {
         const data = await res.json();
         setConsortium(data);
       } catch (err) {
-        console.error(err);
+        setError('Erro ao carregar dados. Tente novamente.');
         setNotFound(true);
       } finally {
         setLoading(false);
@@ -193,6 +196,12 @@ export default function ConsorcioDetailPage() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          {error}
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center gap-4">
         <Link

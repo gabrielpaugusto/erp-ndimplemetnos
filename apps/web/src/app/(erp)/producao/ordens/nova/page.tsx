@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Save, X, ClipboardList, Package, Calendar, Settings } from 'lucide-react';
+import { ChevronLeft, Save, X, ClipboardList, Package, Calendar, Settings, AlertTriangle } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
 
@@ -62,6 +62,7 @@ export default function NovaOrdemProducaoPage() {
   const [routings, setRoutings] = useState<RoutingOption[]>([]);
   const [saleOrders, setSaleOrders] = useState<SaleOrderOption[]>([]);
   const [loadingDropdowns, setLoadingDropdowns] = useState(true);
+  const [error, setError] = useState('');
 
   const [form, setForm] = useState<OrderForm>({
     productId: '',
@@ -79,6 +80,7 @@ export default function NovaOrdemProducaoPage() {
   useEffect(() => {
     const fetchDropdowns = async () => {
       setLoadingDropdowns(true);
+      setError('');
       try {
         const [productsRes, routingsRes, saleOrdersRes] = await Promise.all([
           apiFetch('/api/products?limit=200'),
@@ -101,7 +103,7 @@ export default function NovaOrdemProducaoPage() {
           setSaleOrders(data.data || []);
         }
       } catch (err) {
-        console.error('Erro ao carregar dropdowns:', err);
+        setError('Erro ao carregar dados. Tente novamente.');
       } finally {
         setLoadingDropdowns(false);
       }
@@ -157,6 +159,12 @@ export default function NovaOrdemProducaoPage() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          {error}
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center gap-4">
         <Link
