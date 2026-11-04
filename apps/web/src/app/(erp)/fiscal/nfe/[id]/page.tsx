@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -303,6 +303,38 @@ export default function NFeDetailPage() {
 
   useEffect(() => { fetchNfe(); }, [fetchNfe]);
 
+  // Auto-polling while NF-e is queued for async transmission
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    if (!nfe) return;
+    if (nfe.status === 'AGUARDANDO_TRANSMISSAO') {
+      if (pollingRef.current) return; // already polling
+      pollingRef.current = setInterval(async () => {
+        try {
+          const res = await apiFetch(`/api/fiscal/nfe/${id}/status`);
+          if (!res.ok) return;
+          const snap = await res.json();
+          if (snap.status !== 'AGUARDANDO_TRANSMISSAO') {
+            clearInterval(pollingRef.current!);
+            pollingRef.current = null;
+            await fetchNfe(); // reload full document
+          }
+        } catch { /* ignore */ }
+      }, 5_000);
+    } else {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    }
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [nfe?.status, id, fetchNfe]); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function handleValidate() {
     setActionLoading(true); setActionError(''); setActionSuccess('');
     try {
@@ -551,10 +583,17 @@ export default function NFeDetailPage() {
               </button>
             )}
             {canTransmit && (
-              <button onClick={handleAuthorize} disabled={actionLoading}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium transition-colors disabled:opacity-50">
-                <Send className="w-4 h-4" />{actionLoading ? 'Transmitindo...' : 'Transmitir SEFAZ'}
-              </button>
+              <>
+                <button onClick={handleAuthorize} disabled={actionLoading}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium transition-colors disabled:opacity-50">
+                  <Send className="w-4 h-4" />{actionLoading ? 'Transmitindo...' : 'Transmitir SEFAZ'}
+                </button>
+                <button onClick={handleAuthorizeAsync} disabled={actionLoading}
+                  title="Enfileira a transmissão — retorna imediatamente e processa em background"
+                  className="inline-flex items-center gap-2 px-3 py-2 bg-purple-100 text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-200 text-sm font-medium transition-colors disabled:opacity-50">
+                  <Clock className="w-4 h-4" />Fila Async
+                </button>
+              </>
             )}
             {nfe.status === 'AGUARDANDO_TRANSMISSAO' && (
               <span className="inline-flex items-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 rounded-lg text-sm font-medium">

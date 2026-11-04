@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Menu, Brain, Bell, User, Info, AlertTriangle, AlertCircle, CheckCircle, Clock, Check, ExternalLink, HelpCircle, Search, Building2, ChevronDown, ArrowLeftRight } from 'lucide-react';
+import { Menu, Brain, Bell, User, Info, AlertTriangle, AlertCircle, CheckCircle, Clock, Check, ExternalLink, HelpCircle, Search, Building2, ChevronDown, ArrowLeftRight, ClipboardCheck } from 'lucide-react';
 import { useUiStore } from '@/stores/ui-store';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -97,6 +97,7 @@ export function Header() {
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [govAmbiente, setGovAmbiente] = useState<string | null>(null);
@@ -179,6 +180,21 @@ export function Header() {
     fetchCompanyAmbientes();
     fetchNotifications();
   }, [fetchNotifications, fetchCompanyAmbientes]);
+
+  useEffect(() => {
+    async function fetchPendingApprovals() {
+      try {
+        const res = await apiFetch('/api/approvals/pending');
+        if (res.ok) {
+          const data = await res.json();
+          setPendingApprovalsCount(Array.isArray(data) ? data.length : 0);
+        }
+      } catch { /* ignore */ }
+    }
+    fetchPendingApprovals();
+    const interval = setInterval(fetchPendingApprovals, 60_000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Recarrega ambientes quando a empresa é salva (evento disparado pela página de configurações)
   useEffect(() => {
@@ -422,6 +438,16 @@ export function Header() {
             </div>
           )}
         </div>
+
+        {/* Approvals badge */}
+        {pendingApprovalsCount > 0 && (
+          <a href="/aprovacoes" className="relative p-2 text-slate-500 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors" title={`${pendingApprovalsCount} aprovação(ões) pendente(s)`}>
+            <ClipboardCheck className="w-5 h-5" />
+            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-amber-500 text-white text-xs rounded-full flex items-center justify-center font-bold px-1">
+              {pendingApprovalsCount > 9 ? '9+' : pendingApprovalsCount}
+            </span>
+          </a>
+        )}
 
         {/* Empresa ativa */}
         <div className="relative ml-2 pl-3 border-l border-slate-200" ref={empresaMenuRef}>
