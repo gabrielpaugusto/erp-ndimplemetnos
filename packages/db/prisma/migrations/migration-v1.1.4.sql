@@ -245,4 +245,24 @@ ALTER TABLE fiscal_apuracoes
 ALTER TABLE fiscal_entries
   ALTER COLUMN "taxType" TYPE "TaxType" USING "taxType"::"TaxType";
 
+-- ── 11. Índices adicionais em tabelas de itens e NFS-e ────────────────────────
+
+CREATE INDEX IF NOT EXISTS idx_sale_order_items_sale_order
+  ON sale_order_items ("saleOrderId");
+
+CREATE INDEX IF NOT EXISTS idx_sale_order_items_product
+  ON sale_order_items ("productId");
+
+CREATE INDEX IF NOT EXISTS idx_purchase_order_items_purchase_order
+  ON purchase_order_items ("purchaseOrderId");
+
+CREATE INDEX IF NOT EXISTS idx_purchase_order_items_product
+  ON purchase_order_items ("productId");
+
+CREATE INDEX IF NOT EXISTS idx_nfse_emitidas_company_created
+  ON nfse_emitidas ("companyId", "createdAt");
+
+CREATE INDEX IF NOT EXISTS idx_nfse_recebidas_company_data_emissao
+  ON nfse_recebidas ("companyId", "dataEmissao");
+
 COMMIT;

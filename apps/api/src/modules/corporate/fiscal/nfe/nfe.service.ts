@@ -120,11 +120,9 @@ export class NfeService {
     };
   }
 
-  async findOne(id: string, companyId?: string) {
-    const where: any = { id };
-    if (companyId) where.companyId = companyId;
+  async findOne(id: string, companyId: string) {
     const nfe = await this.prisma.nFeDocument.findUnique({
-      where,
+      where: { id, companyId },
       include: {
         person: {
           select: {

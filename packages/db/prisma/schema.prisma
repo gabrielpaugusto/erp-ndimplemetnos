@@ -2172,6 +2172,8 @@ model SaleOrderItem {
 
   observacoes     String?   @db.VarChar(300)
 
+  @@index([saleOrderId])
+  @@index([productId])
   @@map("sale_order_items")
 }
 
@@ -3863,6 +3865,8 @@ model PurchaseOrderItem {
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 
+  @@index([purchaseOrderId])
+  @@index([productId])
   @@map("purchase_order_items")
 }
 
@@ -4990,6 +4994,7 @@ model NfseEmitida {
   updatedAt          DateTime   @updatedAt
 
   @@index([companyId, status])
+  @@index([companyId, createdAt])
   @@map("nfse_emitidas")
 }
 
@@ -5047,6 +5052,7 @@ model NfseRecebida {
   updatedAt          DateTime   @updatedAt
 
   @@index([companyId, status])
+  @@index([companyId, dataEmissao])
   @@map("nfse_recebidas")
 }
 

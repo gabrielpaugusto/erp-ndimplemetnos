@@ -169,8 +169,13 @@ export const ERP_MODULES = {
     label: 'Configurações',
     icon: 'Settings',
     children: {
-      NBS:      { label: 'NBS',      path: '/configuracoes/nbs',      icon: 'Tag'       },
-      EMPRESAS: { label: 'Empresas', path: '/configuracoes/empresas', icon: 'Building2' },
+      EMPRESA:         { label: 'Dados da Empresa',    path: '/configuracoes/empresa',         icon: 'Building2'  },
+      EMPRESAS:        { label: 'Empresas',            path: '/configuracoes/empresas',        icon: 'Building2'  },
+      USUARIOS:        { label: 'Usuários do Sistema', path: '/configuracoes/usuarios',        icon: 'Users'      },
+      PERFIS:          { label: 'Perfis de Acesso',    path: '/configuracoes/perfis',          icon: 'Shield'     },
+      TABELAS_DOMINIO: { label: 'Tabelas de Domínio',  path: '/configuracoes/tabelas-dominio', icon: 'ListTree'   },
+      NBS:             { label: 'NBS',                 path: '/configuracoes/nbs',             icon: 'Tag'        },
+      BACKUP:          { label: 'Backup do Banco',     path: '/configuracoes/backup',          icon: 'FileCheck'  },
     },
   },
 

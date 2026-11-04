@@ -98,11 +98,9 @@ export class SaleOrdersService {
     };
   }
 
-  async findOne(id: string, companyId?: string) {
-    const where: any = { id };
-    if (companyId) where.companyId = companyId;
+  async findOne(id: string, companyId: string) {
     const order = await this.prisma.saleOrder.findUnique({
-      where,
+      where: { id, companyId },
       include: {
         person: true,
         vendedor: {

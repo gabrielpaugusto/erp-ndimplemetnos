@@ -271,7 +271,7 @@ export class OperacoesFiscaisService {
     };
 
     // ── 1ª tentativa: regras customizadas da empresa no BD ───────────────────
-    const dbRegras = await (this.prisma as any).operacaoFiscal.findMany({
+    const dbRegras = await this.prisma.operacaoFiscal.findMany({
       where: { companyId, ativo: true },
       orderBy: { prioridade: 'desc' },
     });
@@ -335,12 +335,12 @@ export class OperacoesFiscaisService {
           const sfx = [dest?.slice(0,4), tipoForn?.slice(0,4), tcliente?.slice(0,4)].filter(Boolean).join('-');
           const codigoFinal = sfx ? `${rest.codigo}-${sfx}` : rest.codigo;
 
-          const existing = await (this.prisma as any).operacaoFiscal.findFirst({
+          const existing = await this.prisma.operacaoFiscal.findFirst({
             where: { companyId, codigo: codigoFinal },
           });
           if (existing) { existentes++; continue; }
 
-          await (this.prisma as any).operacaoFiscal.create({
+          await this.prisma.operacaoFiscal.create({
             data: {
               companyId,
               codigo:                  codigoFinal,
@@ -386,34 +386,34 @@ export class OperacoesFiscaisService {
   // CRUD
   // ──────────────────────────────────────────────────────────────────────────
   async findAll(companyId: string) {
-    return (this.prisma as any).operacaoFiscal.findMany({
+    return this.prisma.operacaoFiscal.findMany({
       where: { companyId },
       orderBy: [{ tipo: 'asc' }, { prioridade: 'desc' }, { codigo: 'asc' }],
     });
   }
 
   async findOne(companyId: string, id: string) {
-    const reg = await (this.prisma as any).operacaoFiscal.findFirst({ where: { id, companyId } });
+    const reg = await this.prisma.operacaoFiscal.findFirst({ where: { id, companyId } });
     if (!reg) throw new NotFoundException(`Operação fiscal ${id} não encontrada`);
     return reg;
   }
 
   async create(companyId: string, data: any) {
-    const existing = await (this.prisma as any).operacaoFiscal.findFirst({
+    const existing = await this.prisma.operacaoFiscal.findFirst({
       where: { companyId, codigo: data.codigo },
     });
     if (existing) throw new ConflictException(`Código ${data.codigo} já existe`);
-    return (this.prisma as any).operacaoFiscal.create({ data: { ...data, companyId } });
+    return this.prisma.operacaoFiscal.create({ data: { ...data, companyId } });
   }
 
   async update(companyId: string, id: string, data: any) {
     await this.findOne(companyId, id);
-    return (this.prisma as any).operacaoFiscal.update({ where: { id }, data });
+    return this.prisma.operacaoFiscal.update({ where: { id }, data });
   }
 
   async remove(companyId: string, id: string) {
     const reg = await this.findOne(companyId, id);
     if (reg.isDefault) throw new ConflictException('Regras padrão do sistema não podem ser excluídas');
-    return (this.prisma as any).operacaoFiscal.delete({ where: { id } });
+    return this.prisma.operacaoFiscal.delete({ where: { id } });
   }
 }
