@@ -98,6 +98,20 @@ export class NfeController {
     res.end(pdfBuffer);
   }
 
+  @Get(':id/xml')
+  async getXml(
+    @Param('id') id: string,
+    @CurrentUser() user: { companyId: string },
+    @Res() res: Response,
+  ) {
+    const { xml, filename } = await this.nfeService.getXml(id, user.companyId);
+    res.set({
+      'Content-Type': 'application/xml; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    });
+    res.send(xml);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUser() user: { companyId: string }) {
     return this.nfeService.findOne(id, user.companyId);

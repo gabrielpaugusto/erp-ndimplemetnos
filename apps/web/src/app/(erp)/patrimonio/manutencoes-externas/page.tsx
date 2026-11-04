@@ -75,10 +75,12 @@ function RegistrarRetornoModal({
     descricaoServico: '',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const handleSubmit = async () => {
     if (!form.descricaoServico) return;
     setSubmitting(true);
+    setSubmitError('');
     try {
       await apiFetch(`/api/patrimonio/manutencoes/${maintenance.id}/concluir`, {
         method: 'POST',
@@ -89,8 +91,8 @@ function RegistrarRetornoModal({
       });
       onSaved();
       onClose();
-    } catch (err) {
-      console.error(err);
+    } catch {
+      setSubmitError('Erro ao registrar retorno. Tente novamente.');
     } finally {
       setSubmitting(false);
     }
@@ -171,6 +173,10 @@ function RegistrarRetornoModal({
           </div>
         </div>
 
+        {submitError && (
+          <p className="text-sm text-red-600">{submitError}</p>
+        )}
+
         <div className="flex gap-3 pt-2">
           <button
             onClick={onClose}
@@ -196,11 +202,13 @@ export default function ManutencoesExternasPage() {
   const [manutencoes, setManutencoes] = useState<ExternalMaintenance[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedMaintenance, setSelectedMaintenance] = useState<ExternalMaintenance | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
       const [externasRes, statsRes] = await Promise.all([
         apiFetch('/api/patrimonio/manutencoes/externas-em-aberto'),
@@ -212,8 +220,8 @@ export default function ManutencoesExternasPage() {
       ]);
       setManutencoes(externasData);
       setStats(statsData);
-    } catch (err) {
-      console.error(err);
+    } catch {
+      setError('Erro ao carregar dados. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -239,6 +247,13 @@ export default function ManutencoesExternasPage() {
           Ativos enviados para manutenção externa aguardando retorno
         </p>
       </div>
+
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          {error}
+        </div>
+      )}
 
       {/* Cards de Resumo */}
       {stats && (

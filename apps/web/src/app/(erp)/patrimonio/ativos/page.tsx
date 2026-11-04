@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
 import { fmtPercent, fmtCurrency } from '@/lib/format';
-import { Plus, Search, Filter } from 'lucide-react';
+import { Plus, Search, Filter, AlertTriangle } from 'lucide-react';
 
 interface FixedAsset {
   id: string;
@@ -56,6 +56,7 @@ function formatCurrency(value: number) { return fmtCurrency(value); }
 export default function AtivosPage() {
   const [data, setData] = useState<PaginatedResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -64,6 +65,7 @@ export default function AtivosPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
       const params = new URLSearchParams({ page: String(page), limit: '20' });
       if (search) params.set('search', search);
@@ -73,8 +75,8 @@ export default function AtivosPage() {
       const res = await apiFetch(`/api/patrimonio?${params}`);
       const result = await (res as any).json();
       setData(result);
-    } catch (err) {
-      console.error(err);
+    } catch {
+      setError('Erro ao carregar dados. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -100,6 +102,13 @@ export default function AtivosPage() {
           Novo Ativo
         </Link>
       </div>
+
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          {error}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white rounded-lg border p-4 flex flex-wrap gap-3">

@@ -157,6 +157,24 @@ export class NfeService {
     return nfe;
   }
 
+  async getXml(id: string, companyId: string): Promise<{ xml: string; filename: string }> {
+    const nfe = await this.prisma.nFeDocument.findUnique({
+      where: { id, companyId },
+      select: { id: true, xmlRetorno: true, chaveAcesso: true },
+    });
+
+    if (!nfe) {
+      throw new NotFoundException(`NF-e ${id} not found`);
+    }
+
+    if (!nfe.xmlRetorno) {
+      throw new BadRequestException('XML não disponível — NF-e ainda não foi autorizada pela SEFAZ');
+    }
+
+    const filename = nfe.chaveAcesso ? `${nfe.chaveAcesso}.xml` : `nfe-${id}.xml`;
+    return { xml: nfe.xmlRetorno, filename };
+  }
+
   async create(companyId: string, data: CreateNfeDto) {
     return this.prisma.$transaction(async (tx) => {
       const items = data.items || [];
