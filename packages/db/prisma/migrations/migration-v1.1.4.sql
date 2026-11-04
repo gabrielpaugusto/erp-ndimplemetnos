@@ -158,7 +158,27 @@ ALTER TABLE production_orders ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP;
 -- MinIO backup key para NF-e XML
 ALTER TABLE nfe_documents ADD COLUMN IF NOT EXISTS "xmlBackupKey" VARCHAR(200);
 
--- ── 7. Novo valor no enum NFeStatus para transmissão assíncrona ───────────────
+-- ── 7. Índices adicionais de alta prioridade ─────────────────────────────────
+
+CREATE INDEX IF NOT EXISTS idx_persons_company_type
+  ON persons ("companyId", type);
+
+CREATE INDEX IF NOT EXISTS idx_service_orders_company_status
+  ON service_orders ("companyId", status);
+
+CREATE INDEX IF NOT EXISTS idx_bank_accounts_company_active
+  ON bank_accounts ("companyId", active);
+
+CREATE INDEX IF NOT EXISTS idx_purchase_requests_company_status
+  ON purchase_requests ("companyId", status);
+
+CREATE INDEX IF NOT EXISTS idx_fiscal_apuracoes_company_taxtype
+  ON fiscal_apuracoes ("companyId", "taxType");
+
+CREATE INDEX IF NOT EXISTS idx_employees_company_status
+  ON employees ("companyId", status);
+
+-- ── 8. Novo valor no enum NFeStatus para transmissão assíncrona ───────────────
 -- ALTER TYPE ... ADD VALUE não pode rodar dentro de uma transação em versões
 -- antigas do PostgreSQL. Executar fora do BEGIN/COMMIT quando necessário.
 -- No PostgreSQL 12+ é seguro dentro de transação com IF NOT EXISTS.

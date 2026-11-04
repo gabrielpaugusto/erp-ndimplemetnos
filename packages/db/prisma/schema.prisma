@@ -1396,6 +1396,7 @@ model Person {
   equipamentos            Equipamento[]   @relation("EquipamentoProprietario")
 
   @@unique([companyId, cpfCnpj])
+  @@index([companyId, type])
   @@index([razaoSocial])
   @@map("persons")
 }
@@ -2645,6 +2646,7 @@ model ServiceOrder {
   portalDocuments   PortalDocument[]
 
   @@unique([companyId, numero])
+  @@index([companyId, status])
   @@index([personId])
   @@index([status])
   @@index([equipamentoId])
@@ -3222,6 +3224,7 @@ model FiscalApuracao {
   updatedAt               DateTime  @updatedAt
 
   @@unique([companyId, periodoReferencia, taxType])
+  @@index([companyId, taxType])
   @@map("fiscal_apuracoes")
 }
 
@@ -3439,6 +3442,7 @@ model BankAccount {
   adiantamentoMovimentos  AdiantamentoMovimento[]
 
   @@unique([companyId, banco, agencia, conta])
+  @@index([companyId, active])
   @@map("bank_accounts")
 }
 
@@ -3623,6 +3627,7 @@ model Employee {
   cargaMensalOverrides CargaMensalOverride[]
 
   @@unique([companyId, matricula])
+  @@index([companyId, status])
   @@map("employees")
 }
 
@@ -3722,6 +3727,7 @@ model PurchaseRequest {
   purchaseOrders      PurchaseOrder[]
 
   @@unique([companyId, numero])
+  @@index([companyId, status])
   @@map("purchase_requests")
 }
 

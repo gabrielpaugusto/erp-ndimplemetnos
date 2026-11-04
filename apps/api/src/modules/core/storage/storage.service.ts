@@ -61,6 +61,15 @@ export class StorageService implements OnModuleInit {
     return this.bucket;
   }
 
+  async ping(): Promise<boolean> {
+    try {
+      await this.client.bucketExists(this.bucket);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async uploadNfeXml(nfeId: string, chaveAcesso: string, xml: string): Promise<string | null> {
     const key = `nfe/${chaveAcesso}.xml`;
     try {
