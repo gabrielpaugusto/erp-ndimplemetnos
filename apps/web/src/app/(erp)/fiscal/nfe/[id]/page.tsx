@@ -35,11 +35,12 @@ import { fmtCurrency as formatCurrency, fmtPercent } from '@/lib/format';
 const formatPct = (v: number | null | undefined) =>
   v != null ? fmtPercent(v) : '—';
 
-type NFeStatus = 'RASCUNHO' | 'VALIDADA' | 'ASSINADA' | 'ENVIADA' | 'AUTORIZADA' | 'CANCELADA' | 'DENEGADA' | 'REJEITADA';
+type NFeStatus = 'RASCUNHO' | 'VALIDADA' | 'AGUARDANDO_TRANSMISSAO' | 'ASSINADA' | 'ENVIADA' | 'AUTORIZADA' | 'CANCELADA' | 'DENEGADA' | 'INUTILIZADA' | 'ESCRITURADA' | 'REJEITADA';
 
 const statusLabels: Record<string, string> = {
   RASCUNHO: 'Rascunho',
   VALIDADA: 'Validada',
+  AGUARDANDO_TRANSMISSAO: 'Aguard. Transmissão',
   ASSINADA: 'Assinada',
   ENVIADA: 'Enviada',
   AUTORIZADA: 'Autorizada',
@@ -51,6 +52,7 @@ const statusLabels: Record<string, string> = {
 const statusColors: Record<string, string> = {
   RASCUNHO: 'bg-slate-100 text-slate-600',
   VALIDADA: 'bg-amber-100 text-amber-700',
+  AGUARDANDO_TRANSMISSAO: 'bg-purple-100 text-purple-700',
   ASSINADA: 'bg-indigo-100 text-indigo-700',
   ENVIADA: 'bg-blue-100 text-blue-700',
   AUTORIZADA: 'bg-emerald-100 text-emerald-700',
@@ -223,7 +225,7 @@ function CceModal({ onConfirm, onClose, loading, cceNumero }: {
 
 const statusSteps: NFeStatus[] = ['RASCUNHO', 'VALIDADA', 'AUTORIZADA'];
 const statusOrder: Record<string, number> = {
-  RASCUNHO: 0, VALIDADA: 1, AUTORIZADA: 2,
+  RASCUNHO: 0, VALIDADA: 1, AGUARDANDO_TRANSMISSAO: 3, AUTORIZADA: 4,
   CANCELADA: -1, DENEGADA: -1, REJEITADA: -1, ASSINADA: 1, ENVIADA: 1,
 };
 
@@ -320,6 +322,18 @@ export default function NFeDetailPage() {
       if (!res.ok) { setActionError(data.message || 'Erro ao autorizar NF-e junto ao SEFAZ'); return; }
       setNfe(data);
     } catch { setActionError('Erro de conexão ao transmitir NF-e'); }
+    finally { setActionLoading(false); }
+  }
+
+  async function handleAuthorizeAsync() {
+    setActionLoading(true); setActionError(''); setActionSuccess('');
+    try {
+      const res = await apiFetch(`/api/fiscal/nfe/${id}/authorize-async`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) { setActionError(data.message || 'Erro ao enfileirar transmissão'); return; }
+      setActionSuccess('NF-e enfileirada para transmissão. Status atualizado em instantes.');
+      await fetchNfe();
+    } catch { setActionError('Erro de conexão'); }
     finally { setActionLoading(false); }
   }
 
@@ -541,6 +555,11 @@ export default function NFeDetailPage() {
                 className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium transition-colors disabled:opacity-50">
                 <Send className="w-4 h-4" />{actionLoading ? 'Transmitindo...' : 'Transmitir SEFAZ'}
               </button>
+            )}
+            {nfe.status === 'AGUARDANDO_TRANSMISSAO' && (
+              <span className="inline-flex items-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 rounded-lg text-sm font-medium">
+                <Clock className="w-4 h-4 animate-pulse" />Aguardando Transmissão
+              </span>
             )}
 
             {/* DANFE — disponível para qualquer status (rascunho: marca d'água "SEM VALOR FISCAL") */}

@@ -9,7 +9,7 @@ import {
 import { apiFetch } from '@/lib/api';
 import { fmtCurrency } from '@/lib/format';
 
-type NFeStatus = 'RASCUNHO' | 'VALIDADA' | 'TRANSMITIDA' | 'AUTORIZADA' | 'CANCELADA' | 'DENEGADA' | 'REJEITADA';
+type NFeStatus = 'RASCUNHO' | 'VALIDADA' | 'AGUARDANDO_TRANSMISSAO' | 'TRANSMITIDA' | 'AUTORIZADA' | 'CANCELADA' | 'DENEGADA' | 'INUTILIZADA' | 'ESCRITURADA' | 'REJEITADA';
 type NFeTipo  = 'ENTRADA' | 'SAIDA';
 
 interface NFe {
@@ -30,6 +30,7 @@ interface NFe {
 const statusLabels: Record<string, string> = {
   RASCUNHO:    'Rascunho',
   VALIDADA:    'Validada',
+  AGUARDANDO_TRANSMISSAO: 'Aguard. Transmissão',
   TRANSMITIDA: 'Transmitida',
   AUTORIZADA:  'Autorizada',
   CANCELADA:   'Cancelada',
@@ -40,6 +41,7 @@ const statusLabels: Record<string, string> = {
 const statusColors: Record<string, string> = {
   RASCUNHO:    'bg-slate-100 text-slate-600',
   VALIDADA:    'bg-amber-100 text-amber-700',
+  AGUARDANDO_TRANSMISSAO: 'bg-purple-100 text-purple-700',
   TRANSMITIDA: 'bg-blue-100 text-blue-700',
   AUTORIZADA:  'bg-emerald-100 text-emerald-700',
   CANCELADA:   'bg-red-100 text-red-700',

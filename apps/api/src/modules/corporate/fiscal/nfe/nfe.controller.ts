@@ -123,6 +123,11 @@ export class NfeController {
     return this.nfeService.enqueueTransmission(id);
   }
 
+  @Get(':id/status')
+  async getStatus(@Param('id') id: string, @CurrentUser() user: { companyId: string }) {
+    return this.nfeService.getStatus(id, user.companyId);
+  }
+
   @Post(':id/cancel')
   cancel(@Param('id') id: string, @Body() cancelDto: CancelNfeDto) {
     return this.nfeService.cancel(id, cancelDto.motivo);

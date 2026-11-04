@@ -626,6 +626,18 @@ export class NfeService {
   }
 
   /**
+   * Returns lightweight status snapshot — used by frontend polling after authorize-async.
+   */
+  async getStatus(id: string, companyId: string) {
+    const nfe = await this.prisma.nFeDocument.findFirst({
+      where: { id, companyId },
+      select: { id: true, status: true, chaveAcesso: true, protocoloAutorizacao: true, dataAutorizacao: true, motivoCancelamento: true },
+    });
+    if (!nfe) throw new NotFoundException(`NF-e ${id} not found`);
+    return nfe;
+  }
+
+  /**
    * Enqueues an NF-e for async transmission by the NfeQueueService cron.
    * Returns immediately after marking the NF-e as AGUARDANDO_TRANSMISSAO.
    */
