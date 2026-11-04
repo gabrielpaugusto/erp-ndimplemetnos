@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import {
   Search,
   Building2,
@@ -274,7 +275,8 @@ export default function CatalogoFornecedoresPage() {
                 rows.map((row) => (
                   <tr
                     key={row.id}
-                    className="hover:bg-slate-50 transition-colors"
+                    className="hover:bg-slate-50 transition-colors cursor-pointer"
+                    onClick={() => { window.location.href = `/compras/catalogo-fornecedores/${row.id}`; }}
                   >
                     {/* Fornecedor */}
                     <td className="px-4 py-3">
