@@ -159,6 +159,15 @@ export const ERP_MODULES = {
       TICKETS: { label: 'Chamados', path: '/chamados', icon: 'MessageSquare' },
     },
   },
+
+  // TODO: Módulo em desenvolvimento — reabilitar quando implementado
+  // QUALITY: {
+  //   label: 'Qualidade',
+  //   icon: 'ShieldCheck',
+  //   children: {
+  //     QMS_DASHBOARD: { label: 'Dashboard QMS', path: '/qualidade', icon: 'BarChart3' },
+  //   },
+  // },
 } as const;
 
 export type ModuleGroup = keyof typeof ERP_MODULES;
