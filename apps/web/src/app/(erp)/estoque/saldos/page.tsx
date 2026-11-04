@@ -38,18 +38,26 @@ export default function SaldosEstoquePage() {
   const [search, setSearch] = useState('');
   const [belowMin, setBelowMin] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
-    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
-    if (search) params.set('search', search);
-    if (belowMin) params.set('belowMinStock', 'true');
+    setError('');
+    try {
+      const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+      if (search) params.set('search', search);
+      if (belowMin) params.set('belowMinStock', 'true');
 
-    const res = await apiFetch(`/api/inventory/balances?${params}`);
-    if (res.ok) {
-      const data = await res.json();
-      setItems(data.data ?? data);
-      setTotal(data.meta?.total ?? data.total ?? (data.data ?? data).length);
+      const res = await apiFetch(`/api/inventory/balances?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setItems(data.data ?? data);
+        setTotal(data.meta?.total ?? data.total ?? (data.data ?? data).length);
+      } else {
+        setError('Erro ao carregar dados. Tente novamente.');
+      }
+    } catch {
+      setError('Erro ao carregar dados. Tente novamente.');
     }
     setLoading(false);
   }, [page, search, belowMin]);
@@ -71,6 +79,12 @@ export default function SaldosEstoquePage() {
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
+
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          {error}
+        </div>
+      )}
 
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-4">
         <div className="flex items-center gap-3">

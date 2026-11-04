@@ -987,6 +987,9 @@ model Company {
   equipamentos             Equipamento[]
   tarefasCatalogo          TarefaCatalogo[]
 
+  // Controle de Qualidade
+  qualityInspections       QualityInspection[]
+
   @@map("companies")
 }
 
@@ -1178,6 +1181,12 @@ model User {
   ecosSolicitados             EngineeringChange[]   @relation("EcoSolicitante")
   ecosAprovados               EngineeringChange[]   @relation("EcoAprovador")
 
+  // Controle de Qualidade
+  qualityInspectionsResponsavel QualityInspection[] @relation("QualityInspectionResponsavel")
+
+  // Cadastro de Pessoas — vendedor responsável
+  personsVendedor               Person[]            @relation("PersonVendedor")
+
   @@map("users")
 }
 
@@ -1269,7 +1278,9 @@ model RefreshToken {
 model AuditLog {
   id         String   @id @default(cuid())
   userId     String?
-  user       User?    @relation(fields: [userId], references: [id])
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  companyId  String?
+  company    Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
   module     Module
   action     String   @db.VarChar(50)
   entityType String   @db.VarChar(100)
@@ -1282,6 +1293,7 @@ model AuditLog {
 
   @@index([module, createdAt])
   @@index([entityType, entityId])
+  @@index([companyId, createdAt])
   @@map("audit_logs")
 }
 
@@ -1332,7 +1344,8 @@ model Person {
   limiteCredito       Decimal?     @db.Decimal(15, 2)
   condicaoPagamento   String?      @db.VarChar(100)  // ex: "30/60/90"
   tabelaPreco         String?      @db.VarChar(50)
-  vendedorId          String?      // referência ao User vendedor responsável
+  vendedorId          String?
+  vendedor            User?        @relation("PersonVendedor", fields: [vendedorId], references: [id], onDelete: SetNull)
   comissaoPercent     Decimal?     @db.Decimal(5, 2)
 
   // Observações
@@ -1392,7 +1405,11 @@ model Person {
   // Sprint 7 — Equipamentos (proprietário do veículo/implemento)
   equipamentos            Equipamento[]   @relation("EquipamentoProprietario")
 
+  // Manutenção de Ativos Fixos (fornecedor externo)
+  maintenances            FixedAssetMaintenance[] @relation("MaintenanceFornecedor")
+
   @@unique([companyId, cpfCnpj])
+  @@index([companyId, type])
   @@index([razaoSocial])
   @@map("persons")
 }
@@ -1899,6 +1916,9 @@ model Product {
   // Sprint 4 — MRP
   mrpSuggestions          MrpSuggestion[]
 
+  // Controle de Qualidade
+  qualityInspections      QualityInspection[]
+
   @@unique([companyId, code])
   @@index([description])
   @@index([type])
@@ -1949,7 +1969,7 @@ model Lead {
 
   // Responsável
   vendedorId      String?
-  vendedor        User?       @relation("LeadVendedor", fields: [vendedorId], references: [id])
+  vendedor        User?       @relation("LeadVendedor", fields: [vendedorId], references: [id], onDelete: SetNull)
 
   // Datas
   dataPrevisaoFechamento DateTime?
@@ -2016,7 +2036,7 @@ model Quotation {
 
   // Vendedor e comissão
   vendedorId      String?
-  vendedor        User?           @relation("QuotationVendedor", fields: [vendedorId], references: [id])
+  vendedor        User?           @relation("QuotationVendedor", fields: [vendedorId], references: [id], onDelete: SetNull)
   comissaoPercent Decimal?        @db.Decimal(5, 2)
 
   // Sprint 3.3 — Versões de Orçamento
@@ -2024,6 +2044,7 @@ model Quotation {
   versaoAnteriorId  String?
   versaoAnterior    Quotation? @relation("QuotationVersions", fields: [versaoAnteriorId], references: [id])
 
+  deletedAt       DateTime?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
@@ -2034,6 +2055,7 @@ model Quotation {
 
   @@unique([companyId, numero])
   @@index([personId])
+  @@index([companyId, status])
   @@map("quotations")
 }
 
@@ -2093,7 +2115,7 @@ model SaleOrder {
 
   // Vendedor e comissão
   vendedorId      String?
-  vendedor        User?       @relation("SaleOrderVendedor", fields: [vendedorId], references: [id])
+  vendedor        User?       @relation("SaleOrderVendedor", fields: [vendedorId], references: [id], onDelete: SetNull)
   comissaoPercent Decimal?    @db.Decimal(5, 2)
   comissaoValor   Decimal?    @db.Decimal(15, 2)
 
@@ -2111,6 +2133,7 @@ model SaleOrder {
   dataEntrega     DateTime?
   dataCancelamento DateTime?
 
+  deletedAt       DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
@@ -2140,6 +2163,7 @@ model SaleOrder {
   @@unique([companyId, numero])
   @@index([personId])
   @@index([status])
+  @@index([companyId, status])
   @@map("sale_orders")
 }
 
@@ -2164,6 +2188,8 @@ model SaleOrderItem {
 
   observacoes     String?   @db.VarChar(300)
 
+  @@index([saleOrderId])
+  @@index([productId])
   @@map("sale_order_items")
 }
 
@@ -2284,7 +2310,7 @@ model ConsortiumPayment {
   dataPagamento   DateTime?
   valor           Decimal         @db.Decimal(15, 2)
   valorPago       Decimal?        @db.Decimal(15, 2)
-  status          String          @db.VarChar(20) // PENDENTE, PAGO, ATRASADO
+  status          ConsortiumPaymentStatus @default(PENDENTE)
   createdAt       DateTime        @default(now())
 
   @@index([quotaId])
@@ -2398,7 +2424,11 @@ model BomItem {
   unit           String          @db.VarChar(20)
   wastagePercent Float           @default(0) // % perda
   observations   String?         @db.VarChar(500)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
+  @@index([bomId])
+  @@index([productId])
   @@map("bom_items")
 }
 
@@ -2434,6 +2464,8 @@ model RoutingStep {
   tempoExecucao Float             // minutos por unidade
   tempoEspera   Float             @default(0) // minutos de espera
   instructions  String?           @db.Text
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
   apontamentos  Apontamento[]
 
@@ -2469,6 +2501,7 @@ model ProductionOrder {
   // Finalidade dos insumos comprados para esta OP (define ST nas entradas)
   // Default: INDUSTRIALIZACAO — insumos incorporados ao produto final (Art. 264 I afasta ST)
   finalidadeCompra    FinalidadeOperacao    @default(INDUSTRIALIZACAO)
+  deletedAt           DateTime?
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
 
@@ -2493,7 +2526,11 @@ model ProductionOrder {
   // Sprint 3 — BOM customizada
   bomOverride         OrderBomOverride?  @relation("OpBomOverride")
 
+  // Controle de Qualidade
+  qualityInspections  QualityInspection[]
+
   @@unique([companyId, numero])
+  @@index([companyId, status])
   @@map("production_orders")
 }
 
@@ -2506,7 +2543,11 @@ model ProductionOrderItem {
   quantityRequired  Float
   quantityConsumed  Float           @default(0)
   unit              String          @db.VarChar(20)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
+  @@index([productionOrderId])
+  @@index([productId])
   @@map("production_order_items")
 }
 
@@ -2611,7 +2652,7 @@ model ServiceOrder {
 
   // Responsável (técnico atribuído)
   responsavelId     String?
-  responsavel       User?                @relation("ServiceOrderResponsavel", fields: [responsavelId], references: [id])
+  responsavel       User?                @relation("ServiceOrderResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
 
   observations      String?              @db.Text
 
@@ -2636,6 +2677,7 @@ model ServiceOrder {
   portalDocuments   PortalDocument[]
 
   @@unique([companyId, numero])
+  @@index([companyId, status])
   @@index([personId])
   @@index([status])
   @@index([equipamentoId])
@@ -2699,7 +2741,7 @@ model CalderariaOrder {
 
   // Responsável (soldador/operador)
   responsavelId           String?
-  responsavel             User?                 @relation("CalderariaOrderResponsavel", fields: [responsavelId], references: [id])
+  responsavel             User?                 @relation("CalderariaOrderResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
 
   observations            String?               @db.Text
   especificacoesTecnicas  String?               @db.Text // espessura, tipo material, tipo solda etc.
@@ -2752,7 +2794,7 @@ model Requisition {
   solicitanteId       String
   solicitante         User              @relation("RequisitionSolicitante", fields: [solicitanteId], references: [id])
   aprovadorId         String?
-  aprovador           User?             @relation("RequisitionAprovador", fields: [aprovadorId], references: [id])
+  aprovador           User?             @relation("RequisitionAprovador", fields: [aprovadorId], references: [id], onDelete: SetNull)
 
   // Vínculos opcionais
   serviceOrderId      String?
@@ -2814,6 +2856,7 @@ enum NFeStatus {
   RASCUNHO
   VALIDADA
   ASSINADA
+  AGUARDANDO_TRANSMISSAO
   TRANSMITIDA
   AUTORIZADA
   CANCELADA
@@ -2913,33 +2956,33 @@ model NFeDocument {
   naturezaOperacao        String          @db.VarChar(200)
 
   // Valores dos produtos/serviços
-  valorProdutos           Float           @default(0)
-  valorFrete              Float           @default(0)
-  valorSeguro             Float           @default(0)
-  valorDesconto           Float           @default(0)
-  valorOutros             Float           @default(0)
-  valorTotal              Float           @default(0)
+  valorProdutos           Decimal         @default(0) @db.Decimal(15,2)
+  valorFrete              Decimal         @default(0) @db.Decimal(15,2)
+  valorSeguro             Decimal         @default(0) @db.Decimal(15,2)
+  valorDesconto           Decimal         @default(0) @db.Decimal(15,2)
+  valorOutros             Decimal         @default(0) @db.Decimal(15,2)
+  valorTotal              Decimal         @default(0) @db.Decimal(15,2)
 
   // Impostos — sistema atual
-  valorIcms               Float           @default(0)
-  valorIcmsSt             Float           @default(0)
-  valorIpi                Float           @default(0)
-  valorPis                Float           @default(0)
-  valorCofins             Float           @default(0)
+  valorIcms               Decimal         @default(0) @db.Decimal(15,2)
+  valorIcmsSt             Decimal         @default(0) @db.Decimal(15,2)
+  valorIpi                Decimal         @default(0) @db.Decimal(15,2)
+  valorPis                Decimal         @default(0) @db.Decimal(15,2)
+  valorCofins             Decimal         @default(0) @db.Decimal(15,2)
 
   // Impostos — Reforma Tributária (EC 132/2023)
-  valorIbs                Float           @default(0) // Imposto sobre Bens e Serviços
-  valorCbs                Float           @default(0) // Contribuição sobre Bens e Serviços
-  valorIs                 Float           @default(0) // Imposto Seletivo
+  valorIbs                Decimal         @default(0) @db.Decimal(15,2) // Imposto sobre Bens e Serviços
+  valorCbs                Decimal         @default(0) @db.Decimal(15,2) // Contribuição sobre Bens e Serviços
+  valorIs                 Decimal         @default(0) @db.Decimal(15,2) // Imposto Seletivo
 
   // DIFAL — Diferencial de Alíquota (operações interestaduais para consumidor final)
-  valorDifal              Float           @default(0) // ICMS DIFAL total
-  valorDifalDestino       Float           @default(0) // parte do DIFAL devida ao estado destino
-  valorDifalOrigem        Float           @default(0) // parte do DIFAL devida ao estado origem
-  valorFcp                Float           @default(0) // Fundo de Combate à Pobreza
+  valorDifal              Decimal         @default(0) @db.Decimal(15,2) // ICMS DIFAL total
+  valorDifalDestino       Decimal         @default(0) @db.Decimal(15,2) // parte do DIFAL devida ao estado destino
+  valorDifalOrigem        Decimal         @default(0) @db.Decimal(15,2) // parte do DIFAL devida ao estado origem
+  valorFcp                Decimal         @default(0) @db.Decimal(15,2) // Fundo de Combate à Pobreza
   ufDestino               String?         @db.VarChar(2)
-  aliqInterestadual       Float?                      // alíquota interestadual aplicada
-  aliqInternaDestino      Float?                      // alíquota interna do estado destino
+  aliqInterestadual       Decimal?        @db.Decimal(8,4)              // alíquota interestadual aplicada
+  aliqInternaDestino      Decimal?        @db.Decimal(8,4)              // alíquota interna do estado destino
 
   // Carta de Correção (CC-e)
   cceNumero               Int?
@@ -2959,10 +3002,11 @@ model NFeDocument {
   // XML
   xmlEnvio                String?         @db.Text
   xmlRetorno              String?         @db.Text
+  xmlBackupKey            String?         @db.VarChar(200) // MinIO object key após backup
   motivoCancelamento      String?         @db.Text
 
   // Pagamento (NT 2013.005 / grupo YA)
-  vTroco                  Float?                      // troco (só para tPag=01 dinheiro)
+  vTroco                  Decimal?        @db.Decimal(15,2)              // troco (só para tPag=01 dinheiro)
 
   createdAt               DateTime        @default(now())
   updatedAt               DateTime        @updatedAt
@@ -3045,58 +3089,58 @@ model NFeItem {
   cest                    String?      @db.VarChar(7) // Código Especificador da Substituição Tributária
 
   // Quantidades e valores
-  quantity                Float
-  unitPrice               Float
-  totalPrice              Float
+  quantity                Decimal      @db.Decimal(15,4)
+  unitPrice               Decimal      @db.Decimal(15,4)
+  totalPrice              Decimal      @db.Decimal(15,2)
   unit                    String       @db.VarChar(20)
 
   // ICMS
-  bcIcms                  Float        @default(0)
-  aliqIcms                Float        @default(0)
-  valorIcms               Float        @default(0)
+  bcIcms                  Decimal      @default(0) @db.Decimal(15,2)
+  aliqIcms                Decimal      @default(0) @db.Decimal(8,4)
+  valorIcms               Decimal      @default(0) @db.Decimal(15,2)
   cstIcms                 String?      @db.VarChar(3) // CST/CSOSN
 
   // ICMS-ST
-  bcIcmsSt                Float        @default(0)
-  aliqIcmsSt              Float        @default(0)
-  valorIcmsSt             Float        @default(0)
+  bcIcmsSt                Decimal      @default(0) @db.Decimal(15,2)
+  aliqIcmsSt              Decimal      @default(0) @db.Decimal(8,4)
+  valorIcmsSt             Decimal      @default(0) @db.Decimal(15,2)
 
   // IPI
-  bcIpi                   Float        @default(0)
-  aliqIpi                 Float        @default(0)
-  valorIpi                Float        @default(0)
+  bcIpi                   Decimal      @default(0) @db.Decimal(15,2)
+  aliqIpi                 Decimal      @default(0) @db.Decimal(8,4)
+  valorIpi                Decimal      @default(0) @db.Decimal(15,2)
   cstIpi                  String?      @db.VarChar(2)
 
   // PIS
-  bcPis                   Float        @default(0)
-  aliqPis                 Float        @default(0)
-  valorPis                Float        @default(0)
+  bcPis                   Decimal      @default(0) @db.Decimal(15,2)
+  aliqPis                 Decimal      @default(0) @db.Decimal(8,4)
+  valorPis                Decimal      @default(0) @db.Decimal(15,2)
   cstPis                  String?      @db.VarChar(2)
 
   // COFINS
-  bcCofins                Float        @default(0)
-  aliqCofins              Float        @default(0)
-  valorCofins             Float        @default(0)
+  bcCofins                Decimal      @default(0) @db.Decimal(15,2)
+  aliqCofins              Decimal      @default(0) @db.Decimal(8,4)
+  valorCofins             Decimal      @default(0) @db.Decimal(15,2)
   cstCofins               String?      @db.VarChar(2)
 
   // IBS — Reforma Tributária (EC 132/2023) — split UF + Municipal (NT 2025.002)
-  bcIbs                   Float        @default(0)
-  aliqIbs                 Float        @default(0)  // total (retrocompatibilidade)
-  valorIbs                Float        @default(0)  // total (retrocompatibilidade)
-  aliqIbsUf               Float        @default(0)  // alíquota IBS estadual
-  valorIbsUf              Float        @default(0)  // valor IBS estadual
-  aliqIbsMun              Float        @default(0)  // alíquota IBS municipal
-  valorIbsMun             Float        @default(0)  // valor IBS municipal
+  bcIbs                   Decimal      @default(0) @db.Decimal(15,2)
+  aliqIbs                 Decimal      @default(0) @db.Decimal(8,4)  // total (retrocompatibilidade)
+  valorIbs                Decimal      @default(0) @db.Decimal(15,2) // total (retrocompatibilidade)
+  aliqIbsUf               Decimal      @default(0) @db.Decimal(8,4)  // alíquota IBS estadual
+  valorIbsUf              Decimal      @default(0) @db.Decimal(15,2) // valor IBS estadual
+  aliqIbsMun              Decimal      @default(0) @db.Decimal(8,4)  // alíquota IBS municipal
+  valorIbsMun             Decimal      @default(0) @db.Decimal(15,2) // valor IBS municipal
 
   // CBS — Reforma Tributária
-  bcCbs                   Float        @default(0)
-  aliqCbs                 Float        @default(0)
-  valorCbs                Float        @default(0)
+  bcCbs                   Decimal      @default(0) @db.Decimal(15,2)
+  aliqCbs                 Decimal      @default(0) @db.Decimal(8,4)
+  valorCbs                Decimal      @default(0) @db.Decimal(15,2)
 
   // IS — Imposto Seletivo (LC 214/2025, Art. 263 — produtos prejudiciais à saúde/ambiente)
-  bcIs                    Float        @default(0)
-  aliqIs                  Float        @default(0)
-  valorIs                 Float        @default(0)
+  bcIs                    Decimal      @default(0) @db.Decimal(15,2)
+  aliqIs                  Decimal      @default(0) @db.Decimal(8,4)
+  valorIs                 Decimal      @default(0) @db.Decimal(15,2)
   // CST IS (3 dígitos, NT 2025.002): 000=tributado, 010=monofásico, 400=não tributado, 410=imunidade
   cstIs                   String?      @default("400") @db.VarChar(3)
 
@@ -3160,7 +3204,7 @@ model FiscalEntry {
   valorImposto            Float
 
   // Tipo de imposto
-  taxType                 String          @db.VarChar(10) // ICMS, IPI, PIS, COFINS, IBS, CBS, IS
+  taxType                 TaxType
 
   // SPED — código do ajuste (Tabela 5.3 EFD ICMS/IPI)
   // Usado para gerar registros C197 (item) e E111 (período)
@@ -3191,26 +3235,27 @@ model FiscalApuracao {
 
   // Período e tipo
   periodoReferencia       String    @db.VarChar(7) // YYYY-MM
-  taxType                 String    @db.VarChar(10) // ICMS, IPI, PIS, COFINS, IBS, CBS
+  taxType                 TaxType
 
   // Valores da apuração
-  totalDebitos            Float     @default(0)
-  totalCreditos           Float     @default(0)
-  saldoAnterior           Float     @default(0)
-  deducoesLegais          Float     @default(0)
-  ajustesDebito           Float     @default(0)
-  ajustesCredito          Float     @default(0)
-  impostoAPagar           Float     @default(0)
-  saldoCredor             Float     @default(0)
+  totalDebitos            Decimal   @default(0) @db.Decimal(15,2)
+  totalCreditos           Decimal   @default(0) @db.Decimal(15,2)
+  saldoAnterior           Decimal   @default(0) @db.Decimal(15,2)
+  deducoesLegais          Decimal   @default(0) @db.Decimal(15,2)
+  ajustesDebito           Decimal   @default(0) @db.Decimal(15,2)
+  ajustesCredito          Decimal   @default(0) @db.Decimal(15,2)
+  impostoAPagar           Decimal   @default(0) @db.Decimal(15,2)
+  saldoCredor             Decimal   @default(0) @db.Decimal(15,2)
 
   // Status
-  status                  String    @default("ABERTA") @db.VarChar(20) // ABERTA, FECHADA, RETIFICADA
+  status                  FiscalApuracaoStatus @default(ABERTA)
   dataFechamento          DateTime?
 
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 
   @@unique([companyId, periodoReferencia, taxType])
+  @@index([companyId, taxType])
   @@map("fiscal_apuracoes")
 }
 
@@ -3382,6 +3427,7 @@ model JournalEntry {
   adiantamentoMovimentos AdiantamentoMovimento[] @relation("AdiantamentoMovJournal")
 
   @@unique([companyId, numero])
+  @@index([companyId, status])
   @@map("journal_entries")
 }
 
@@ -3397,6 +3443,7 @@ model JournalEntryItem {
   costCenter      CostCenter?    @relation(fields: [costCenterId], references: [id])
   description     String?        @db.Text
   createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   @@map("journal_entry_items")
 }
@@ -3427,6 +3474,7 @@ model BankAccount {
   adiantamentoMovimentos  AdiantamentoMovimento[]
 
   @@unique([companyId, banco, agencia, conta])
+  @@index([companyId, active])
   @@map("bank_accounts")
 }
 
@@ -3576,7 +3624,7 @@ model Employee {
   personId        String
   person          Person         @relation(fields: [personId], references: [id])
   userId          String?
-  user            User?          @relation("EmployeeUser", fields: [userId], references: [id])
+  user            User?          @relation("EmployeeUser", fields: [userId], references: [id], onDelete: SetNull)
   matricula       String         @db.VarChar(50)
   cargo           String         @db.VarChar(200)
   departamento    String         @db.VarChar(200)
@@ -3611,6 +3659,7 @@ model Employee {
   cargaMensalOverrides CargaMensalOverride[]
 
   @@unique([companyId, matricula])
+  @@index([companyId, status])
   @@map("employees")
 }
 
@@ -3663,6 +3712,8 @@ model PayrollItem {
   inssPatronal      Decimal   @default(0) @db.Decimal(15, 2)
   createdAt         DateTime  @default(now())
 
+  @@index([payrollId])
+  @@index([employeeId])
   @@map("payroll_items")
 }
 
@@ -3693,7 +3744,7 @@ model PurchaseRequest {
   solicitanteId   String
   solicitante     User                  @relation("PurchaseRequestSolicitante", fields: [solicitanteId], references: [id])
   aprovadorId     String?
-  aprovador       User?                 @relation("PurchaseRequestAprovador", fields: [aprovadorId], references: [id])
+  aprovador       User?                 @relation("PurchaseRequestAprovador", fields: [aprovadorId], references: [id], onDelete: SetNull)
   description     String                @db.Text
   justificativa   String?               @db.Text
   dataSolicitacao DateTime              @default(now())
@@ -3710,6 +3761,7 @@ model PurchaseRequest {
   purchaseOrders      PurchaseOrder[]
 
   @@unique([companyId, numero])
+  @@index([companyId, status])
   @@map("purchase_requests")
 }
 
@@ -3796,6 +3848,7 @@ model PurchaseOrder {
   observations          String?             @db.Text
   motivoAlteracao       String?             @db.Text  // Motivo de alterações pós-envio
   finalidadeOperacao    FinalidadeOperacao  @default(INDUSTRIALIZACAO) // Impacta CFOP e créditos fiscais
+  deletedAt             DateTime?
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
 
@@ -3809,6 +3862,7 @@ model PurchaseOrder {
   cteDocuments          CteDocument[]
 
   @@unique([companyId, numero])
+  @@index([companyId, status])
   @@map("purchase_orders")
 }
 
@@ -3834,7 +3888,10 @@ model PurchaseOrderItem {
   motivoRejeicao    String?            @db.Text
 
   createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
+  @@index([purchaseOrderId])
+  @@index([productId])
   @@map("purchase_order_items")
 }
 
@@ -3849,7 +3906,7 @@ model StockLocation {
   code        String    @db.VarChar(50)
   name        String    @db.VarChar(200)
   description String?   @db.Text
-  type        String    @db.VarChar(20) // ALMOXARIFADO, PRODUCAO, EXPEDICAO, QUARENTENA
+  type        StockLocationType
   active      Boolean   @default(true)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -4035,7 +4092,7 @@ model AiInsight {
   companyId   String
   company     Company   @relation(fields: [companyId], references: [id])
   userId      String?
-  user        User?     @relation(fields: [userId], references: [id])
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   title       String    @db.VarChar(300)
   description String    @db.Text
   category    String    @db.VarChar(100) // e.g. "financeiro", "estoque", "producao"
@@ -4087,7 +4144,7 @@ model PortalTicket {
   portalUserId  String
   portalUser    PortalUser           @relation(fields: [portalUserId], references: [id])
   assignedToId  String?
-  assignedTo    User?                @relation("PortalTicketAssigned", fields: [assignedToId], references: [id])
+  assignedTo    User?                @relation("PortalTicketAssigned", fields: [assignedToId], references: [id], onDelete: SetNull)
   subject       String               @db.VarChar(300)
   description   String               @db.Text
   status        PortalTicketStatus   @default(ABERTO)
@@ -4109,9 +4166,9 @@ model PortalTicketMessage {
   ticketId      String
   ticket        PortalTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   portalUserId  String?
-  portalUser    PortalUser?  @relation(fields: [portalUserId], references: [id])
+  portalUser    PortalUser?  @relation(fields: [portalUserId], references: [id], onDelete: SetNull)
   userId        String?
-  user          User?        @relation("PortalTicketMessageUser", fields: [userId], references: [id])
+  user          User?        @relation("PortalTicketMessageUser", fields: [userId], references: [id], onDelete: SetNull)
   content       String       @db.Text
   isInternal    Boolean      @default(false) // internal notes not visible to client
   createdAt     DateTime     @default(now())
@@ -4124,7 +4181,7 @@ model PortalDocument {
   companyId       String
   company         Company       @relation(fields: [companyId], references: [id])
   portalUserId    String?
-  portalUser      PortalUser?   @relation(fields: [portalUserId], references: [id])
+  portalUser      PortalUser?   @relation(fields: [portalUserId], references: [id], onDelete: SetNull)
   personId        String
   person          Person        @relation(fields: [personId], references: [id])
   title           String        @db.VarChar(300)
@@ -4156,9 +4213,9 @@ model Notification {
   companyId     String
   company       Company          @relation(fields: [companyId], references: [id])
   userId        String?
-  user          User?            @relation(fields: [userId], references: [id])
+  user          User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
   portalUserId  String?
-  portalUser    PortalUser?      @relation(fields: [portalUserId], references: [id])
+  portalUser    PortalUser?      @relation(fields: [portalUserId], references: [id], onDelete: SetNull)
   type          NotificationType @default(INFO)
   title         String           @db.VarChar(300)
   message       String           @db.Text
@@ -4483,7 +4540,7 @@ model MdfeInbox {
   ufFim               String?   @db.VarChar(2)
   modal               String?   @db.VarChar(10) // 01=Rodoviário, 02=Aéreo, 03=Aquaviário, 04=Ferroviário
 
-  status              String    @default("RECEBIDO") @db.VarChar(20) // RECEBIDO | ENCERRADO | CANCELADO
+  status              MdfeInboxStatus @default(RECEBIDO)
 
   nsu                 String?   @db.VarChar(15)
   xmlContent          String?   @db.Text
@@ -4534,7 +4591,7 @@ model PurchaseReceipt {
   nfeInboxId        String?
   nfeInbox          NFeInbox?      @relation("NFeInboxReceiptLink", fields: [nfeInboxId], references: [id])
   responsavelId     String?
-  responsavel       User?          @relation("PurchaseReceiptResponsavel", fields: [responsavelId], references: [id])
+  responsavel       User?          @relation("PurchaseReceiptResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
 
   status            ReceiptStatus  @default(PENDENTE)
   dataRecebimento   DateTime       @default(now())
@@ -4961,6 +5018,8 @@ model NfseEmitida {
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
+  @@index([companyId, status])
+  @@index([companyId, createdAt])
   @@map("nfse_emitidas")
 }
 
@@ -5017,6 +5076,8 @@ model NfseRecebida {
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
+  @@index([companyId, status])
+  @@index([companyId, dataEmissao])
   @@map("nfse_recebidas")
 }
 
@@ -5255,6 +5316,7 @@ model FixedAssetMaintenance {
 
   // Fornecedor
   fornecedorId        String?             // FK para Person
+  fornecedor          Person?             @relation("MaintenanceFornecedor", fields: [fornecedorId], references: [id])
   fornecedorNome      String?             @db.VarChar(100) // fallback se não cadastrado
 
   // Fiscal
@@ -5532,7 +5594,7 @@ model DocumentEvent {
   description     String?           @db.Text          // texto livre opcional
 
   userId          String?
-  user            User?             @relation(fields: [userId], references: [id])
+  user            User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
   ipAddress       String?           @db.VarChar(50)
 
   createdAt       DateTime          @default(now())
@@ -5619,7 +5681,7 @@ model OrderBomOverride {
 
   motivoCustomizacao  String          @db.Text
   aprovadoPorId       String?
-  aprovadoPor         User?           @relation("BomOverrideAprovador", fields: [aprovadoPorId], references: [id])
+  aprovadoPor         User?           @relation("BomOverrideAprovador", fields: [aprovadoPorId], references: [id], onDelete: SetNull)
 
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
@@ -5667,9 +5729,9 @@ model EngineeringChange {
   anexos          Json      @default("[]")  // [{ nome, url, tipo }]
 
   solicitanteId   String?
-  solicitante     User?     @relation("EcoSolicitante", fields: [solicitanteId], references: [id])
+  solicitante     User?     @relation("EcoSolicitante", fields: [solicitanteId], references: [id], onDelete: SetNull)
   aprovadorId     String?
-  aprovador       User?     @relation("EcoAprovador", fields: [aprovadorId], references: [id])
+  aprovador       User?     @relation("EcoAprovador", fields: [aprovadorId], references: [id], onDelete: SetNull)
 
   implementadoEm  DateTime?
   createdAt       DateTime  @default(now())
@@ -6302,4 +6364,98 @@ model CargaMensalOverride {
 
   @@unique([employeeId, ano, mes])
   @@map("carga_mensal_overrides")
+}
+
+// ── Wave 8 enums ─────────────────────────────────────────────────────────────
+
+enum ConsortiumPaymentStatus {
+  PENDENTE
+  PAGO
+  ATRASADO
+}
+
+enum StockLocationType {
+  ALMOXARIFADO
+  PRODUCAO
+  EXPEDICAO
+  QUARENTENA
+}
+
+enum MdfeInboxStatus {
+  RECEBIDO
+  ENCERRADO
+  CANCELADO
+}
+
+enum TaxType {
+  ICMS
+  IPI
+  PIS
+  COFINS
+  IBS
+  CBS
+  IS
+}
+
+enum FiscalApuracaoStatus {
+  ABERTA
+  FECHADA
+  RETIFICADA
+}
+
+
+// ============================================================================
+// CONTROLE DE QUALIDADE — INSPEÇÕES
+// ============================================================================
+
+enum QualityInspectionStatus {
+  PENDENTE
+  APROVADA
+  REPROVADA
+  APROVADA_COM_RESSALVA
+}
+
+enum QualityInspectionType {
+  RECEBIMENTO
+  PROCESSO
+  PRODUTO_ACABADO
+  AUDITORIA
+}
+
+model QualityInspection {
+  id                  String                   @id @default(cuid())
+  companyId           String
+  company             Company                  @relation(fields: [companyId], references: [id])
+
+  numero              String                   @db.VarChar(30)
+  type                QualityInspectionType
+  status              QualityInspectionStatus  @default(PENDENTE)
+
+  // Vínculo opcional com OP ou OS
+  productionOrderId   String?
+  productionOrder     ProductionOrder?         @relation(fields: [productionOrderId], references: [id])
+
+  productId           String?
+  product             Product?                 @relation(fields: [productId], references: [id])
+
+  // Resultado
+  quantidadeInspecionada Decimal               @db.Decimal(15, 4) @default(0)
+  quantidadeAprovada     Decimal               @db.Decimal(15, 4) @default(0)
+  quantidadeReprovada    Decimal               @db.Decimal(15, 4) @default(0)
+
+  observacoes         String?                  @db.Text
+  acaoCorretiva       String?                  @db.Text
+
+  responsavelId       String?
+  responsavel         User?                    @relation("QualityInspectionResponsavel", fields: [responsavelId], references: [id])
+
+  dataInspecao        DateTime                 @default(now())
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+
+  @@unique([companyId, numero])
+  @@index([companyId, status])
+  @@index([companyId, type])
+  @@index([productionOrderId])
+  @@map("quality_inspections")
 }

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '@/modules/core/database/prisma.service';
 
 export interface CreateCbenefDto {
@@ -130,6 +130,13 @@ export class CbenefService {
 
   async remove(id: string) {
     await this.findOne(id);
-    return this.prisma.cbenef.delete({ where: { id } });
+    try {
+      return await this.prisma.cbenef.delete({ where: { id } });
+    } catch (error) {
+      if (error?.code === 'P2003' || error?.code === 'P2014') {
+        throw new ConflictException('Registro em uso e não pode ser excluído');
+      }
+      throw error;
+    }
   }
 }

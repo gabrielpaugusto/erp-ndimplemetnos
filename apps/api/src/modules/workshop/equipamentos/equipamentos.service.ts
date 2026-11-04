@@ -64,7 +64,7 @@ export class EquipamentosService {
     return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, companyId: string) {
     const eq = await this.prisma.equipamento.findUnique({
       where: { id },
       include: {
@@ -93,7 +93,7 @@ export class EquipamentosService {
       },
     });
 
-    if (!eq) throw new NotFoundException(`Equipamento ${id} não encontrado`);
+    if (!eq || eq.companyId !== companyId) throw new NotFoundException(`Equipamento ${id} não encontrado`);
     return eq;
   }
 
@@ -115,9 +115,17 @@ export class EquipamentosService {
     });
   }
 
-  async update(id: string, data: any) {
+  async remove(id: string, companyId: string) {
+    const eq = await this.prisma.equipamento.findUnique({ where: { id } });
+    if (!eq || eq.companyId !== companyId) {
+      throw new NotFoundException(`Equipamento ${id} não encontrado`);
+    }
+    return this.prisma.equipamento.delete({ where: { id } });
+  }
+
+  async update(id: string, companyId: string, data: any) {
     const existing = await this.prisma.equipamento.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException(`Equipamento ${id} não encontrado`);
+    if (!existing || existing.companyId !== companyId) throw new NotFoundException(`Equipamento ${id} não encontrado`);
 
     return this.prisma.equipamento.update({
       where: { id },
@@ -132,16 +140,16 @@ export class EquipamentosService {
 
   // ── Vínculo Carroceria ↔ Veículo ──────────────────────────────────────────
 
-  async vincular(carroceriaId: string, veiculoId: string, observations?: string) {
+  async vincular(carroceriaId: string, veiculoId: string, companyId: string, observations?: string) {
     const [carroceria, veiculo] = await Promise.all([
       this.prisma.equipamento.findUnique({ where: { id: carroceriaId } }),
       this.prisma.equipamento.findUnique({ where: { id: veiculoId } }),
     ]);
 
-    if (!carroceria || carroceria.tipo !== 'CARROCERIA')
+    if (!carroceria || carroceria.companyId !== companyId || carroceria.tipo !== 'CARROCERIA')
       throw new BadRequestException('carroceriaId deve referenciar um equipamento do tipo CARROCERIA');
 
-    if (!veiculo || !['REBOQUE', 'SEMIRREBOQUE'].includes(veiculo.tipo))
+    if (!veiculo || veiculo.companyId !== companyId || !['REBOQUE', 'SEMIRREBOQUE'].includes(veiculo.tipo))
       throw new BadRequestException('veiculoId deve referenciar REBOQUE ou SEMIRREBOQUE');
 
     // Desativa vínculos ativos anteriores
@@ -167,9 +175,13 @@ export class EquipamentosService {
     return vinculo;
   }
 
-  async desvincular(vinculoId: string) {
-    const vinculo = await this.prisma.equipamentoVinculo.findUnique({ where: { id: vinculoId } });
-    if (!vinculo) throw new NotFoundException(`Vínculo ${vinculoId} não encontrado`);
+  async desvincular(vinculoId: string, companyId: string) {
+    const vinculo = await this.prisma.equipamentoVinculo.findUnique({
+      where: { id: vinculoId },
+      include: { carroceria: { select: { companyId: true } } },
+    });
+    if (!vinculo || vinculo.carroceria.companyId !== companyId)
+      throw new NotFoundException(`Vínculo ${vinculoId} não encontrado`);
 
     await this.prisma.equipamentoVinculo.update({
       where: { id: vinculoId },

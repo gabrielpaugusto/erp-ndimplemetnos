@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '@/modules/core/database/prisma.service';
 import { IntegrationService } from '@/modules/core/integration/integration.service';
@@ -12,6 +13,8 @@ import { ApprovalEngineService } from '@/modules/corporate/approvals/approval-en
 
 @Injectable()
 export class PurchaseOrdersService {
+  private readonly logger = new Logger(PurchaseOrdersService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly integration: IntegrationService,
@@ -34,7 +37,7 @@ export class PurchaseOrdersService {
     const limit = parseInt(query.limit || '20', 10);
     const skip = (page - 1) * limit;
 
-    const where: any = { companyId };
+    const where: any = { companyId, deletedAt: null };
 
     if (query.search) {
       where.OR = [
@@ -452,7 +455,7 @@ export class PurchaseOrdersService {
     });
 
     // Fire integration (non-blocking)
-    this.integration.onPurchaseOrderReceived(id, order.companyId, userId).catch(err => console.error('Integration error:', err));
+    this.integration.onPurchaseOrderReceived(id, order.companyId, userId).catch(err => this.logger.error('Integration error', err?.message ?? err));
 
     return result;
   }

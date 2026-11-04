@@ -11,8 +11,8 @@ export class ApontamentosOsService {
   // Se tem outro apontamento aberto (qualquer) → BLOQUEIA.
 
   async start(osSubtarefaId: string, employeeId: string, companyId: string) {
-    const subtarefa = await this.prisma.osSubtarefa.findUnique({
-      where: { id: osSubtarefaId },
+    const subtarefa = await this.prisma.osSubtarefa.findFirst({
+      where: { id: osSubtarefaId, osTarefa: { serviceOrder: { companyId } } },
       include: { osTarefa: { select: { serviceOrderId: true } } },
     });
     if (!subtarefa) throw new NotFoundException('Subtarefa não encontrada');

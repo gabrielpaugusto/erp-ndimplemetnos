@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '@/modules/core/database/prisma.service';
 import { DocumentEventService } from '@/modules/core/audit/document-event.service';
@@ -30,7 +31,7 @@ export class QuotationsService {
     const limit = parseInt(query.limit || '20', 10);
     const skip = (page - 1) * limit;
 
-    const where: any = { companyId };
+    const where: any = { companyId, deletedAt: null };
 
     if (query.search) {
       where.OR = [
@@ -91,9 +92,11 @@ export class QuotationsService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, companyId?: string) {
+    const where: any = { id };
+    if (companyId) where.companyId = companyId;
     const quotation = await this.prisma.quotation.findUnique({
-      where: { id },
+      where,
       include: {
         person: true,
         vendedor: {
@@ -183,9 +186,9 @@ export class QuotationsService {
     });
   }
 
-  async update(id: string, data: UpdateQuotationDto) {
+  async update(id: string, companyId: string, data: UpdateQuotationDto) {
     const existing = await this.prisma.quotation.findUnique({ where: { id } });
-    if (!existing) {
+    if (!existing || existing.companyId !== companyId) {
       throw new NotFoundException(`Quotation ${id} not found`);
     }
 
@@ -245,7 +248,14 @@ export class QuotationsService {
       throw new NotFoundException(`Quotation item ${itemId} not found`);
     }
 
-    await this.prisma.quotationItem.delete({ where: { id: itemId } });
+    try {
+      await this.prisma.quotationItem.delete({ where: { id: itemId } });
+    } catch (error) {
+      if (error?.code === 'P2003' || error?.code === 'P2014') {
+        throw new ConflictException('Registro em uso e não pode ser excluído');
+      }
+      throw error;
+    }
     await this.recalculate(item.quotationId);
 
     return { deleted: true };

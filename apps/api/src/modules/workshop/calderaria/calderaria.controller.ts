@@ -38,8 +38,8 @@ export class CalderariaController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.calderariaService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: { id: string; companyId: string }) {
+    return this.calderariaService.findOne(id, user.companyId);
   }
 
   @Post()
@@ -51,8 +51,8 @@ export class CalderariaController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateCalderariaOrderDto) {
-    return this.calderariaService.update(id, dto);
+  update(@Param('id') id: string, @CurrentUser() user: { id: string; companyId: string }, @Body() dto: UpdateCalderariaOrderDto) {
+    return this.calderariaService.update(id, user.companyId, dto);
   }
 
   // ── Desenho Excalidraw ────────────────────────────────────────────────────
@@ -60,35 +60,36 @@ export class CalderariaController {
   @Patch(':id/desenho')
   saveDesenho(
     @Param('id') id: string,
+    @CurrentUser() user: { id: string; companyId: string },
     @Body() body: { desenhoData: any; desenhoPng?: string },
   ) {
-    return this.calderariaService.saveDesenho(id, body.desenhoData, body.desenhoPng ?? null);
+    return this.calderariaService.saveDesenho(id, user.companyId, body.desenhoData, body.desenhoPng ?? null);
   }
 
   // ── Status ────────────────────────────────────────────────────────────────
 
   @Post(':id/start')
-  start(@Param('id') id: string) {
-    return this.calderariaService.start(id);
+  start(@Param('id') id: string, @CurrentUser() user: { id: string; companyId: string }) {
+    return this.calderariaService.start(id, user.companyId);
   }
 
   @Post(':id/complete')
-  complete(@Param('id') id: string) {
-    return this.calderariaService.complete(id);
+  complete(@Param('id') id: string, @CurrentUser() user: { id: string; companyId: string }) {
+    return this.calderariaService.complete(id, user.companyId);
   }
 
   @Post(':id/cancel')
-  cancel(@Param('id') id: string) {
-    return this.calderariaService.cancel(id);
+  cancel(@Param('id') id: string, @CurrentUser() user: { id: string; companyId: string }) {
+    return this.calderariaService.cancel(id, user.companyId);
   }
 
   @Post(':id/aguardar-material')
-  aguardarMaterial(@Param('id') id: string) {
-    return this.calderariaService.aguardarMaterial(id);
+  aguardarMaterial(@Param('id') id: string, @CurrentUser() user: { id: string; companyId: string }) {
+    return this.calderariaService.aguardarMaterial(id, user.companyId);
   }
 
   @Post(':id/retomar')
-  retomar(@Param('id') id: string) {
-    return this.calderariaService.retomar(id);
+  retomar(@Param('id') id: string, @CurrentUser() user: { id: string; companyId: string }) {
+    return this.calderariaService.retomar(id, user.companyId);
   }
 }

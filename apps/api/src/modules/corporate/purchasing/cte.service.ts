@@ -75,7 +75,7 @@ export class CteService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, companyId: string) {
     const cte = await this.prisma.cteDocument.findUnique({
       where: { id },
       include: {
@@ -93,7 +93,7 @@ export class CteService {
       },
     });
 
-    if (!cte) throw new NotFoundException(`CT-e ${id} não encontrado`);
+    if (!cte || cte.companyId !== companyId) throw new NotFoundException(`CT-e ${id} não encontrado`);
     return cte;
   }
 
@@ -164,9 +164,9 @@ export class CteService {
     return cte;
   }
 
-  async update(id: string, dto: Partial<CreateCteDto>) {
+  async update(id: string, companyId: string, dto: Partial<CreateCteDto>) {
     const existing = await this.prisma.cteDocument.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException(`CT-e ${id} não encontrado`);
+    if (!existing || existing.companyId !== companyId) throw new NotFoundException(`CT-e ${id} não encontrado`);
 
     if (existing.status === 'ESCRITURADO') {
       throw new BadRequestException('CT-e já escriturado não pode ser editado.');
@@ -189,9 +189,9 @@ export class CteService {
 
   // ─── MANIFESTAÇÃO ────────────────────────────────────────────────────────────
 
-  async manifestar(id: string, tipo: 'CIENCIA' | 'CONFIRMACAO' | 'DESCONHECIMENTO' | 'NAO_REALIZADO') {
+  async manifestar(id: string, companyId: string, tipo: 'CIENCIA' | 'CONFIRMACAO' | 'DESCONHECIMENTO' | 'NAO_REALIZADO') {
     const cte = await this.prisma.cteDocument.findUnique({ where: { id } });
-    if (!cte) throw new NotFoundException(`CT-e ${id} não encontrado`);
+    if (!cte || cte.companyId !== companyId) throw new NotFoundException(`CT-e ${id} não encontrado`);
 
     if (cte.status === 'CANCELADO') {
       throw new BadRequestException('CT-e cancelado não pode ser manifestado.');
@@ -216,7 +216,7 @@ export class CteService {
    *  4. Gera lançamento contábil automático
    *  5. Marca status como ESCRITURADO
    */
-  async escriturar(id: string, userId: string) {
+  async escriturar(id: string, userId: string, companyId: string) {
     const cte = await this.prisma.cteDocument.findUnique({
       where: { id },
       include: {
@@ -227,7 +227,7 @@ export class CteService {
       },
     });
 
-    if (!cte) throw new NotFoundException(`CT-e ${id} não encontrado`);
+    if (!cte || cte.companyId !== companyId) throw new NotFoundException(`CT-e ${id} não encontrado`);
     if (cte.status === 'ESCRITURADO') throw new BadRequestException('CT-e já foi escriturado.');
     if (cte.status === 'CANCELADO')   throw new BadRequestException('CT-e cancelado não pode ser escriturado.');
 
@@ -428,9 +428,9 @@ export class CteService {
 
   // ─── CANCELAMENTO ────────────────────────────────────────────────────────────
 
-  async cancelar(id: string, motivo: string) {
+  async cancelar(id: string, companyId: string, motivo: string) {
     const cte = await this.prisma.cteDocument.findUnique({ where: { id } });
-    if (!cte) throw new NotFoundException(`CT-e ${id} não encontrado`);
+    if (!cte || cte.companyId !== companyId) throw new NotFoundException(`CT-e ${id} não encontrado`);
 
     if (cte.status === 'ESCRITURADO') {
       throw new BadRequestException(

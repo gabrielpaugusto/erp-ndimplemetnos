@@ -144,7 +144,7 @@ export default function PainelDecisoesPage() {
               {/* Detalhe expandido */}
               {expanded === d.id && (
                 <div className="px-4 pb-4 space-y-3 border-t border-inherit">
-                  <div className="grid grid-cols-2 gap-4 mt-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
                     {/* Classificação */}
                     <div className="space-y-1 text-sm">
                       <p className="font-medium text-gray-700 mb-1">Classificação</p>

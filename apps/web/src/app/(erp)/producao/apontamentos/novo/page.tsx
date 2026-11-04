@@ -59,6 +59,7 @@ export default function NovoApontamentoPage() {
   const [orders, setOrders] = useState<OrderOption[]>([]);
   const [workCenters, setWorkCenters] = useState<WorkCenterOption[]>([]);
   const [loadingDropdowns, setLoadingDropdowns] = useState(true);
+  const [error, setError] = useState('');
 
   const [form, setForm] = useState<PointingForm>({
     productionOrderId: '',
@@ -75,6 +76,7 @@ export default function NovoApontamentoPage() {
   useEffect(() => {
     const fetchDropdowns = async () => {
       setLoadingDropdowns(true);
+      setError('');
       try {
         const [ordersRes, wcRes] = await Promise.all([
           apiFetch('/api/production/orders?status=EM_PRODUCAO&limit=100'),
@@ -91,7 +93,7 @@ export default function NovoApontamentoPage() {
           setWorkCenters(data.data || []);
         }
       } catch (err) {
-        console.error('Erro ao carregar dropdowns:', err);
+        setError('Erro ao carregar dados. Tente novamente.');
       } finally {
         setLoadingDropdowns(false);
       }
@@ -170,6 +172,12 @@ export default function NovoApontamentoPage() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          {error}
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center gap-4">
         <Link

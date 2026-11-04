@@ -424,6 +424,7 @@ function NovaOrdemServicoPageContent() {
   // Load all reference data in parallel
   useEffect(() => {
     async function loadData() {
+      setError(null);
       try {
         const [personsRes, productsRes, equipsRes, tarefasRes] = await Promise.all([
           apiFetch('/api/persons?limit=500'),
@@ -484,7 +485,7 @@ function NovaOrdemServicoPageContent() {
           setTarefasCatalogo(d.data || d || []);
         }
       } catch (err) {
-        console.error('Erro ao carregar dados:', err);
+        setError('Erro ao carregar dados. Tente novamente.');
       } finally {
         setLoadingData(false);
       }

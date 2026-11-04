@@ -43,8 +43,8 @@ export class FinancingController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.financingService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: { id: string; companyId: string }) {
+    return this.financingService.findOne(id, user.companyId);
   }
 
   @Post()
@@ -58,8 +58,9 @@ export class FinancingController {
   @Patch(':id')
   update(
     @Param('id') id: string,
+    @CurrentUser() user: { id: string; companyId: string },
     @Body() updateFinancingDto: UpdateFinancingDto,
   ) {
-    return this.financingService.update(id, updateFinancingDto);
+    return this.financingService.update(id, user.companyId, updateFinancingDto);
   }
 }

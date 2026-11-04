@@ -73,10 +73,27 @@ export class NfeController {
     });
   }
 
+  // export/csv deve vir antes de :id para não ser capturado como id
+  @Get('export/csv')
+  async exportCsv(
+    @CurrentUser() user: { companyId: string },
+    @Query() query: any,
+    @Res() res: Response,
+  ) {
+    const csv = await this.nfeService.exportCsv(user.companyId, query);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="nfe-export.csv"');
+    res.send('﻿' + csv); // BOM for Excel UTF-8
+  }
+
   // DANFE deve vir antes de :id para não ser capturado como id
   @Get(':id/danfe')
-  async getDanfe(@Param('id') id: string, @Res() res: Response) {
-    const pdfBuffer = await this.danfeService.generateDanfe(id);
+  async getDanfe(
+    @Param('id') id: string,
+    @CurrentUser() user: { companyId: string },
+    @Res() res: Response,
+  ) {
+    const pdfBuffer = await this.danfeService.generateDanfe(id, user.companyId);
     res.set({
       'Content-Type': 'application/pdf',
       'Content-Disposition': `inline; filename="DANFE-${id}.pdf"`,
@@ -85,9 +102,23 @@ export class NfeController {
     res.end(pdfBuffer);
   }
 
+  @Get(':id/xml')
+  async getXml(
+    @Param('id') id: string,
+    @CurrentUser() user: { companyId: string },
+    @Res() res: Response,
+  ) {
+    const { xml, filename } = await this.nfeService.getXml(id, user.companyId);
+    res.set({
+      'Content-Type': 'application/xml; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    });
+    res.send(xml);
+  }
+
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.nfeService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: { companyId: string }) {
+    return this.nfeService.findOne(id, user.companyId);
   }
 
   @Post()
@@ -118,9 +149,34 @@ export class NfeController {
     return this.nfeService.transmit(id);
   }
 
+  @Post(':id/authorize-async')
+  authorizeAsync(
+    @Param('id') id: string,
+    @CurrentUser() user: { companyId: string },
+  ) {
+    return this.nfeService.enqueueTransmission(id, user.companyId);
+  }
+
+  @Get(':id/status')
+  async getStatus(@Param('id') id: string, @CurrentUser() user: { companyId: string }) {
+    return this.nfeService.getStatus(id, user.companyId);
+  }
+
   @Post(':id/cancel')
-  cancel(@Param('id') id: string, @Body() cancelDto: CancelNfeDto) {
-    return this.nfeService.cancel(id, cancelDto.motivo);
+  cancel(
+    @Param('id') id: string,
+    @CurrentUser() user: { companyId: string },
+    @Body() cancelDto: CancelNfeDto,
+  ) {
+    return this.nfeService.cancel(id, user.companyId, cancelDto.motivo);
+  }
+
+  @Post(':id/copiar-rascunho')
+  copiarParaRascunho(
+    @Param('id') id: string,
+    @CurrentUser() user: { companyId: string },
+  ) {
+    return this.nfeService.copiarParaRascunho(id, user.companyId);
   }
 
   /**
@@ -173,9 +229,10 @@ export class NfeController {
   @Post(':id/cce')
   emitirCce(
     @Param('id') id: string,
+    @CurrentUser() user: { companyId: string },
     @Body() body: { descricaoCorrecao: string },
   ) {
-    return this.nfeService.emitirCce(id, body.descricaoCorrecao);
+    return this.nfeService.emitirCce(id, user.companyId, body.descricaoCorrecao);
   }
 
   @Post(':id/escriturar')

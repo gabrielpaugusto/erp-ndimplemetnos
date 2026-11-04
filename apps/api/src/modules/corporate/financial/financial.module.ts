@@ -31,5 +31,11 @@ import { DashboardController } from './dashboard.controller';
     AdiantamentosService,
     DashboardService,      // Sprint 4.1
   ],
+  exports: [
+    BankAccountsService,
+    FinancialMovementsService,
+    BankTransactionsService,
+    CashFlowService,
+  ],
 })
 export class FinancialModule {}

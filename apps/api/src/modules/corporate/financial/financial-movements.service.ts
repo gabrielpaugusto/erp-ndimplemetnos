@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '@/modules/core/database/prisma.service';
 import { IntegrationService } from '@/modules/core/integration/integration.service';
@@ -12,6 +13,8 @@ import { PayMovementDto } from './dto/pay-movement.dto';
 
 @Injectable()
 export class FinancialMovementsService {
+  private readonly logger = new Logger(FinancialMovementsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly integration: IntegrationService,
@@ -125,9 +128,84 @@ export class FinancialMovementsService {
     };
   }
 
-  async findOne(id: string) {
+  async exportCsv(
+    companyId: string,
+    query: {
+      type?: string;
+      status?: string;
+      dateFrom?: string;
+      dateTo?: string;
+      personId?: string;
+      search?: string;
+    },
+  ): Promise<string> {
+    const where: any = { companyId };
+
+    if (query.type) where.type = query.type;
+    if (query.status) where.status = query.status;
+    if (query.personId) where.personId = query.personId;
+
+    if (query.dateFrom || query.dateTo) {
+      where.dataVencimento = {};
+      if (query.dateFrom) where.dataVencimento.gte = new Date(query.dateFrom);
+      if (query.dateTo) where.dataVencimento.lte = new Date(query.dateTo);
+    }
+
+    if (query.search) {
+      where.OR = [
+        { numero: { contains: query.search, mode: 'insensitive' } },
+        { description: { contains: query.search, mode: 'insensitive' } },
+        { person: { razaoSocial: { contains: query.search, mode: 'insensitive' } } },
+      ];
+    }
+
+    const rows = await this.prisma.financialMovement.findMany({
+      where,
+      orderBy: { dataVencimento: 'asc' },
+      select: {
+        numero: true,
+        type: true,
+        description: true,
+        status: true,
+        dataVencimento: true,
+        dataPagamento: true,
+        valor: true,
+        person: { select: { razaoSocial: true } },
+      },
+    });
+
+    const fmt = (d: Date | null) =>
+      d
+        ? `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`
+        : '';
+
+    const esc = (v: string) =>
+      v.includes(';') || v.includes('"') || v.includes('\n')
+        ? `"${v.replace(/"/g, '""')}"`
+        : v;
+
+    const header = 'Número;Tipo;Descrição;Pessoa;Status;Vencimento;Pagamento;Valor';
+    const lines = rows.map((r) =>
+      [
+        esc(r.numero ?? ''),
+        esc(r.type ?? ''),
+        esc(r.description ?? ''),
+        esc(r.person?.razaoSocial ?? ''),
+        esc(r.status ?? ''),
+        fmt(r.dataVencimento),
+        fmt(r.dataPagamento),
+        Number(r.valor).toFixed(2).replace('.', ','),
+      ].join(';'),
+    );
+
+    return [header, ...lines].join('\r\n');
+  }
+
+  async findOne(id: string, companyId?: string) {
+    const where: any = { id };
+    if (companyId) where.companyId = companyId;
     const movement = await this.prisma.financialMovement.findUnique({
-      where: { id },
+      where,
       include: {
         person: { select: { id: true, razaoSocial: true, cpfCnpj: true } },
         bankAccount: { select: { id: true, name: true } },
@@ -305,7 +383,7 @@ export class FinancialMovementsService {
     });
 
     // Fire integration (non-blocking)
-    this.integration.onFinancialMovementPaid(id, movement.companyId, 'system').catch(err => console.error('Integration error:', err));
+    this.integration.onFinancialMovementPaid(id, movement.companyId, 'system').catch(err => this.logger.error('Integration error', err?.message ?? err));
 
     return result;
   }

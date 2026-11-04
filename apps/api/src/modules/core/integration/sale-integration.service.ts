@@ -53,7 +53,11 @@ export class SaleIntegrationService {
       // =====================================================================
       const instalments = this.buildInstalments(order.condicaoPagamento, totalValue, today);
 
-      for (const inst of instalments) {
+      const alreadyHasMovement = await (tx as any).financialMovement.findFirst({
+        where: { saleOrderId: order.id },
+      });
+
+      if (!alreadyHasMovement) for (const inst of instalments) {
         const numero = await this.genFinancialNumber(companyId, 'RECEITA', tx);
         await (tx as any).financialMovement.create({
           data: {

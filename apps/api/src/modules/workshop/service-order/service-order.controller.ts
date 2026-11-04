@@ -22,8 +22,8 @@ export class ServiceOrderController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.serviceOrderService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.serviceOrderService.findOne(id, user.companyId);
   }
 
   @Post()
@@ -32,55 +32,55 @@ export class ServiceOrderController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateServiceOrderDto) {
-    return this.serviceOrderService.update(id, dto);
+  update(@Param('id') id: string, @CurrentUser() user: any, @Body() dto: UpdateServiceOrderDto) {
+    return this.serviceOrderService.update(id, user.companyId, dto);
   }
 
   // ── Fluxo de Status ───────────────────────────────────────────────────────
 
   @Post(':id/enviar-aprovacao')
-  enviarParaAprovacao(@Param('id') id: string) {
-    return this.serviceOrderService.enviarParaAprovacao(id);
+  enviarParaAprovacao(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.serviceOrderService.enviarParaAprovacao(id, user.companyId);
   }
 
   @Post(':id/aprovar')
-  aprovar(@Param('id') id: string) {
-    return this.serviceOrderService.aprovar(id);
+  aprovar(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.serviceOrderService.aprovar(id, user.companyId);
   }
 
   @Post(':id/iniciar')
-  iniciar(@Param('id') id: string) {
-    return this.serviceOrderService.iniciar(id);
+  iniciar(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.serviceOrderService.iniciar(id, user.companyId);
   }
 
   @Post(':id/aguardar-pecas')
-  aguardarPecas(@Param('id') id: string) {
-    return this.serviceOrderService.aguardarPecas(id);
+  aguardarPecas(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.serviceOrderService.aguardarPecas(id, user.companyId);
   }
 
   @Post(':id/retornar-execucao')
-  retornarExecucao(@Param('id') id: string) {
-    return this.serviceOrderService.retornarExecucao(id);
+  retornarExecucao(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.serviceOrderService.retornarExecucao(id, user.companyId);
   }
 
   @Post(':id/concluir')
-  concluir(@Param('id') id: string) {
-    return this.serviceOrderService.concluir(id);
+  concluir(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.serviceOrderService.concluir(id, user.companyId);
   }
 
   @Post(':id/faturar')
-  faturar(@Param('id') id: string, @Body() dto: FaturarOsDto) {
-    return this.serviceOrderService.faturar(id, dto);
+  faturar(@Param('id') id: string, @CurrentUser() user: any, @Body() dto: FaturarOsDto) {
+    return this.serviceOrderService.faturar(id, user.companyId, dto);
   }
 
   @Post(':id/venda-perdida')
-  vendaPerdida(@Param('id') id: string, @Body('motivo') motivo: string) {
-    return this.serviceOrderService.vendaPerdida(id, motivo);
+  vendaPerdida(@Param('id') id: string, @CurrentUser() user: any, @Body('motivo') motivo: string) {
+    return this.serviceOrderService.vendaPerdida(id, user.companyId, motivo);
   }
 
   @Post(':id/cancelar')
-  cancelar(@Param('id') id: string) {
-    return this.serviceOrderService.cancelar(id);
+  cancelar(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.serviceOrderService.cancelar(id, user.companyId);
   }
 
   // ── Timeline e Reservas ───────────────────────────────────────────────────

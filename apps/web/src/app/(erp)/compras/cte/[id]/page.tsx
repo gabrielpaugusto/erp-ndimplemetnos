@@ -137,7 +137,7 @@ function EscriturarModal({ cte, onConfirm, onClose, loading }: { cte: CteDetail;
           <button
             onClick={onConfirm}
             disabled={loading}
-            className="inline-flex items-center gap-2 px-5 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-5 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
           >
             <BookOpen className="w-4 h-4" />
             {loading ? 'Escriturando...' : 'Confirmar Escrituração'}
@@ -318,7 +318,7 @@ export default function CteDetailPage() {
             <button
               onClick={() => setShowEscriturarModal(true)}
               disabled={actionLoading}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium transition-colors disabled:opacity-50"
             >
               <BookOpen className="w-4 h-4" />
               Escriturar
@@ -388,7 +388,7 @@ export default function CteDetailPage() {
             <h2 className="text-base font-semibold text-slate-900 mb-4 flex items-center gap-2">
               <Truck className="w-4 h-4 text-slate-500" /> Transportadora
             </h2>
-            <dl className="grid grid-cols-2 gap-3 text-sm">
+            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
               <div>
                 <dt className="text-slate-500">CNPJ</dt>
                 <dd className="font-mono font-medium text-slate-900">{cte.transportadoraCnpj}</dd>
@@ -421,7 +421,7 @@ export default function CteDetailPage() {
           {/* Transporte */}
           <div className="bg-white rounded-lg border border-slate-200 p-6">
             <h2 className="text-base font-semibold text-slate-900 mb-4">Dados do Transporte</h2>
-            <dl className="grid grid-cols-3 gap-3 text-sm">
+            <dl className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
               <div>
                 <dt className="text-slate-500">Modalidade</dt>
                 <dd>

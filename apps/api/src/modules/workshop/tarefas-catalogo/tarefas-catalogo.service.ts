@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '@/modules/core/database/prisma.service';
 
 @Injectable()
@@ -29,12 +29,12 @@ export class TarefasCatalogoService {
     }));
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, companyId: string) {
     const tarefa = await this.prisma.tarefaCatalogo.findUnique({
       where: { id },
       include: { subtarefas: { orderBy: { ordem: 'asc' } } },
     });
-    if (!tarefa) throw new NotFoundException(`Tarefa ${id} não encontrada`);
+    if (!tarefa || tarefa.companyId !== companyId) throw new NotFoundException(`Tarefa ${id} não encontrada`);
     return tarefa;
   }
 
@@ -51,8 +51,8 @@ export class TarefasCatalogoService {
     });
   }
 
-  async update(id: string, data: any) {
-    await this.findOne(id);
+  async update(id: string, companyId: string, data: any) {
+    await this.findOne(id, companyId);
     return this.prisma.tarefaCatalogo.update({
       where: { id },
       data,
@@ -62,13 +62,13 @@ export class TarefasCatalogoService {
 
   // ── Subtarefas ────────────────────────────────────────────────────────────
 
-  async createSubtarefa(tarefaCatalogoId: string, data: {
+  async createSubtarefa(tarefaCatalogoId: string, companyId: string, data: {
     nome: string;
     tempoPadraoH: number;
     ordem?: number;
     observations?: string;
   }) {
-    await this.findOne(tarefaCatalogoId);
+    await this.findOne(tarefaCatalogoId, companyId);
 
     // Ordem automática se não informada
     if (data.ordem === undefined) {
@@ -89,17 +89,24 @@ export class TarefasCatalogoService {
   }
 
   async deleteSubtarefa(id: string) {
-    return this.prisma.subtarefaCatalogo.delete({ where: { id } });
+    try {
+      return await this.prisma.subtarefaCatalogo.delete({ where: { id } });
+    } catch (error) {
+      if (error?.code === 'P2003' || error?.code === 'P2014') {
+        throw new ConflictException('Registro em uso e não pode ser excluído');
+      }
+      throw error;
+    }
   }
 
   // ── Adicionar tarefas do catálogo a uma OS (cria snapshots) ───────────────
 
-  async adicionarNaOS(serviceOrderId: string, tarefaCatalogoId: string) {
+  async adicionarNaOS(serviceOrderId: string, tarefaCatalogoId: string, companyId: string) {
     const tarefa = await this.prisma.tarefaCatalogo.findUnique({
       where: { id: tarefaCatalogoId },
       include: { subtarefas: { orderBy: { ordem: 'asc' } } },
     });
-    if (!tarefa) throw new NotFoundException('Tarefa não encontrada no catálogo');
+    if (!tarefa || tarefa.companyId !== companyId) throw new NotFoundException('Tarefa não encontrada no catálogo');
 
     const tempoPadraoH = tarefa.subtarefas.length > 0
       ? tarefa.subtarefas.reduce((s, sub) => s + sub.tempoPadraoH, 0)
@@ -132,12 +139,12 @@ export class TarefasCatalogoService {
     });
   }
 
-  async adicionarNaOP(productionOrderId: string, tarefaCatalogoId: string) {
+  async adicionarNaOP(productionOrderId: string, tarefaCatalogoId: string, companyId: string) {
     const tarefa = await this.prisma.tarefaCatalogo.findUnique({
       where: { id: tarefaCatalogoId },
       include: { subtarefas: { orderBy: { ordem: 'asc' } } },
     });
-    if (!tarefa) throw new NotFoundException('Tarefa não encontrada no catálogo');
+    if (!tarefa || tarefa.companyId !== companyId) throw new NotFoundException('Tarefa não encontrada no catálogo');
 
     const tempoPadraoH = tarefa.subtarefas.length > 0
       ? tarefa.subtarefas.reduce((s, sub) => s + sub.tempoPadraoH, 0)

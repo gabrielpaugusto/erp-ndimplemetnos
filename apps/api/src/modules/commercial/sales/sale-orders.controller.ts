@@ -7,10 +7,12 @@ import {
   Body,
   Param,
   Query,
+  Res,
   UseGuards,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { JwtAuthGuard } from '@/modules/core/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '@/modules/core/auth/decorators/current-user.decorator';
 import { SaleOrdersService } from './sale-orders.service';
@@ -41,9 +43,22 @@ export class SaleOrdersController {
     });
   }
 
+  // export/csv deve vir antes de :id para não ser capturado como id
+  @Get('export/csv')
+  async exportCsv(
+    @CurrentUser() user: { companyId: string },
+    @Query() query: any,
+    @Res() res: Response,
+  ) {
+    const csv = await this.saleOrdersService.exportCsv(user.companyId, query);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="pedidos-export.csv"');
+    res.send('﻿' + csv); // BOM for Excel UTF-8
+  }
+
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.saleOrdersService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: { id: string; companyId: string }) {
+    return this.saleOrdersService.findOne(id, user.companyId);
   }
 
   @Post()
@@ -75,7 +90,7 @@ export class SaleOrdersController {
     @Param('id') id: string,
     @CurrentUser() user: { id: string; companyId: string },
   ) {
-    return this.saleOrdersService.cancel(id, user.id);
+    return this.saleOrdersService.cancel(id, user.companyId, user.id);
   }
 
   @Post(':id/items')

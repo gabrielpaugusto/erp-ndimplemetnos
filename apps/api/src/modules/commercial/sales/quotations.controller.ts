@@ -40,8 +40,8 @@ export class QuotationsController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.quotationsService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: { id: string; companyId: string }) {
+    return this.quotationsService.findOne(id, user.companyId);
   }
 
   @Post()
@@ -55,9 +55,10 @@ export class QuotationsController {
   @Patch(':id')
   update(
     @Param('id') id: string,
+    @CurrentUser() user: { id: string; companyId: string },
     @Body() updateQuotationDto: UpdateQuotationDto,
   ) {
-    return this.quotationsService.update(id, updateQuotationDto);
+    return this.quotationsService.update(id, user.companyId, updateQuotationDto);
   }
 
   @Post(':id/items')

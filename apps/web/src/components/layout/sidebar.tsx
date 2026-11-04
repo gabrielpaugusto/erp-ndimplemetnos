@@ -72,6 +72,17 @@ import {
   User,
   ChevronUp,
   BookMarked,
+  BarChart2,
+  Bell,
+  ClipboardCheck,
+  MapPin,
+  AlignLeft,
+  List,
+  Brain,
+  AlertTriangle,
+  Send,
+  FileCheck,
+  Car,
   type LucideIcon,
 } from 'lucide-react';
 import { ERP_MODULES } from '@erp/shared';
@@ -141,6 +152,18 @@ const iconMap: Record<string, LucideIcon> = {
   FileBarChart,
   ListChecks,
   BookMarked,
+  Settings,
+  BarChart2,
+  Bell,
+  ClipboardCheck,
+  MapPin,
+  AlignLeft,
+  List,
+  Brain,
+  AlertTriangle,
+  Send,
+  FileCheck,
+  Car,
 };
 
 function getIcon(name: string): LucideIcon {
@@ -304,55 +327,6 @@ export function Sidebar() {
           );
         })}
 
-        {/* Configuracoes */}
-        <div className="mt-2">
-          <button
-            onClick={() => toggleGroup('_configuracoes')}
-            className={cn(
-              'w-full flex items-center gap-3 px-3 py-2.5 min-h-[44px] rounded-lg text-sm font-medium transition-colors',
-              pathname?.startsWith('/configuracoes')
-                ? 'bg-sidebar-hover text-white'
-                : 'text-slate-300 hover:bg-sidebar-hover hover:text-white'
-            )}
-          >
-            <Settings className="w-5 h-5 shrink-0" />
-            {sidebarOpen && (
-              <>
-                <span className="flex-1 text-left">Configuracoes</span>
-                {expandedGroups['_configuracoes'] ? (
-                  <ChevronDown className="w-4 h-4 shrink-0" />
-                ) : (
-                  <ChevronRight className="w-4 h-4 shrink-0" />
-                )}
-              </>
-            )}
-          </button>
-
-          {sidebarOpen && expandedGroups['_configuracoes'] && (
-            <div className="ml-4 mt-1 space-y-0.5">
-              {[
-                { path: '/configuracoes/empresa',        label: 'Dados da Empresa' },
-                { path: '/configuracoes/usuarios',       label: 'Usuarios do Sistema' },
-                { path: '/configuracoes/perfis',         label: 'Perfis de Acesso' },
-                { path: '/configuracoes/tabelas-dominio',label: 'Tabelas de Domínio' },
-                { path: '/configuracoes/backup',         label: 'Backup do Banco' },
-              ].map((item) => (
-                <Link
-                  key={item.path}
-                  href={item.path}
-                  className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 min-h-[44px] rounded-lg text-sm transition-colors',
-                    pathname === item.path
-                      ? 'bg-sidebar-active text-white font-medium'
-                      : 'text-slate-400 hover:bg-sidebar-hover hover:text-white'
-                  )}
-                >
-                  <span className="truncate">{item.label}</span>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
       </nav>
 
       {/* Versão do sistema */}

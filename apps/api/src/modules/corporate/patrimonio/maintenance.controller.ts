@@ -27,8 +27,8 @@ export class MaintenanceController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.service.findOne(id);
+  findOne(@Param('id') id: string, @Request() req: any) {
+    return this.service.findOne(id, req.user.companyId);
   }
 
   @Post()
@@ -37,13 +37,13 @@ export class MaintenanceController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: any) {
-    return this.service.update(id, body);
+  update(@Param('id') id: string, @Request() req: any, @Body() body: any) {
+    return this.service.update(id, req.user.companyId, body);
   }
 
   @Post(':id/concluir')
-  concluir(@Param('id') id: string, @Body() body: any) {
-    return this.service.concluir(id, body);
+  concluir(@Param('id') id: string, @Request() req: any, @Body() body: any) {
+    return this.service.concluir(id, req.user.companyId, body);
   }
 
   @Post(':id/anexos')
@@ -57,12 +57,12 @@ export class MaintenanceController {
   }
 
   @Get('anexos/:attachmentId/download')
-  getPresignedUrl(@Param('attachmentId') attachmentId: string) {
-    return this.service.getPresignedUrl(attachmentId);
+  getPresignedUrl(@Param('attachmentId') attachmentId: string, @Request() req: any) {
+    return this.service.getPresignedUrl(attachmentId, req.user.companyId);
   }
 
   @Delete('anexos/:attachmentId')
-  deleteAnexo(@Param('attachmentId') attachmentId: string) {
-    return this.service.deleteAnexo(attachmentId);
+  deleteAnexo(@Param('attachmentId') attachmentId: string, @Request() req: any) {
+    return this.service.deleteAnexo(attachmentId, req.user.companyId);
   }
 }

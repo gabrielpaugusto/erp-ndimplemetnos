@@ -197,9 +197,11 @@ function NovaManutencaoModal({
     observacoes: '',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async () => {
     setSubmitting(true);
+    setError('');
     try {
       await apiFetch('/api/patrimonio/manutencoes', {
         method: 'POST',
@@ -208,7 +210,7 @@ function NovaManutencaoModal({
       onCreated();
       onClose();
     } catch (err) {
-      console.error(err);
+      setError('Erro ao salvar. Tente novamente.');
     } finally {
       setSubmitting(false);
     }
@@ -223,6 +225,13 @@ function NovaManutencaoModal({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {error && (
+          <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            {error}
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -520,8 +529,8 @@ function MaintenanceDetailPanel({
       const res = await apiFetch(`/api/patrimonio/manutencoes/${maintenance.id}`);
       const data = await (res as any).json() as Maintenance;
       setDetail(data);
-    } catch (err) {
-      console.error(err);
+    } catch {
+      /* detalhe indisponível momentaneamente */
     } finally {
       setLoadingDetail(false);
     }
@@ -544,8 +553,8 @@ function MaintenanceDetailPanel({
       setShowConcluirForm(false);
       await loadDetail();
       onUpdated();
-    } catch (err) {
-      console.error(err);
+    } catch {
+      /* erro ao concluir — feedback via reload */
     } finally {
       setSubmittingConcluir(false);
     }
@@ -561,8 +570,8 @@ function MaintenanceDetailPanel({
         body: formData,
       });
       await loadDetail();
-    } catch (err) {
-      console.error(err);
+    } catch {
+      /* upload falhou silenciosamente */
     } finally {
       setUploadingAnexo(false);
     }
@@ -572,8 +581,8 @@ function MaintenanceDetailPanel({
     try {
       await apiFetch(`/api/patrimonio/manutencoes/anexos/${attachmentId}`, { method: 'DELETE' });
       await loadDetail();
-    } catch (err) {
-      console.error(err);
+    } catch {
+      /* exclusão falhou */
     }
   };
 
@@ -586,8 +595,8 @@ function MaintenanceDetailPanel({
       a.download = originalName;
       a.target = '_blank';
       a.click();
-    } catch (err) {
-      console.error(err);
+    } catch {
+      /* download indisponível */
     }
   };
 
@@ -905,8 +914,8 @@ function MaintenancesTab({ assetId, assetPlaqueta, assetDescricao }: { assetId: 
       const resMaint = await apiFetch(`/api/patrimonio/manutencoes?assetId=${assetId}&limit=100`);
       const data = await (resMaint as any).json();
       setManutencoes(data.data || []);
-    } catch (err) {
-      console.error(err);
+    } catch {
+      /* lista de manutenções indisponível */
     } finally {
       setLoading(false);
     }
@@ -1029,21 +1038,24 @@ export default function AtivoDetailPage() {
 
   const [asset, setAsset] = useState<FixedAsset | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [activeTab, setActiveTab] = useState<'detalhes' | 'depreciacoes' | 'manutencoes' | 'ciap'>('detalhes');
   const [ciapSaldo, setCiapSaldo] = useState<CiapSaldo | null>(null);
   const [ciapLoading, setCiapLoading] = useState(false);
   const [showBaixaModal, setShowBaixaModal] = useState(false);
   const [baixaData, setBaixaData] = useState({ dataBaixa: '', motivoBaixa: '' });
   const [submittingBaixa, setSubmittingBaixa] = useState(false);
+  const [baixaError, setBaixaError] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError('');
     try {
       const resAsset = await apiFetch(`/api/patrimonio/${id}`);
       const data = await (resAsset as any).json() as FixedAsset;
       setAsset(data);
-    } catch (err) {
-      console.error(err);
+    } catch {
+      setLoadError('Erro ao carregar ativo. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -1057,7 +1069,7 @@ export default function AtivoDetailPage() {
       apiFetch(`/api/patrimonio/${asset.id}/ciap`)
         .then(r => (r as any).json())
         .then((data: CiapSaldo) => setCiapSaldo(data))
-        .catch(console.error)
+        .catch(() => { /* CIAP não disponível */ })
         .finally(() => setCiapLoading(false));
     }
   }, [activeTab, asset?.ciapAtivo, asset?.id, ciapSaldo]);
@@ -1065,6 +1077,7 @@ export default function AtivoDetailPage() {
   const handleBaixar = async () => {
     if (!baixaData.dataBaixa || !baixaData.motivoBaixa) return;
     setSubmittingBaixa(true);
+    setBaixaError('');
     try {
       await apiFetch(`/api/patrimonio/${id}/baixar`, {
         method: 'POST',
@@ -1072,8 +1085,8 @@ export default function AtivoDetailPage() {
       });
       setShowBaixaModal(false);
       await load();
-    } catch (err) {
-      console.error(err);
+    } catch {
+      setBaixaError('Erro ao registrar baixa. Tente novamente.');
     } finally {
       setSubmittingBaixa(false);
     }
@@ -1102,6 +1115,13 @@ export default function AtivoDetailPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
+      {loadError && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          {loadError}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -1406,6 +1426,9 @@ export default function AtivoDetailPage() {
                 />
               </div>
             </div>
+            {baixaError && (
+              <p className="text-sm text-red-600">{baixaError}</p>
+            )}
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => setShowBaixaModal(false)}

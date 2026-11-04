@@ -36,7 +36,10 @@ export class InsightsController {
   }
 
   @Patch(':id/dismiss')
-  dismiss(@Param('id') id: string) {
-    return this.insightsService.dismiss(id);
+  dismiss(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; companyId: string },
+  ) {
+    return this.insightsService.dismiss(id, user.companyId);
   }
 }

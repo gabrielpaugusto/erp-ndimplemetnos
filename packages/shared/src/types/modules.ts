@@ -86,6 +86,7 @@ export const ERP_MODULES = {
       DRE: { label: 'DRE', path: '/contabilidade/dre', icon: 'BarChart3' },
       FINANCIAL: { label: 'Financeiro', path: '/financeiro', icon: 'DollarSign' },
       ADIANTAMENTOS: { label: 'Adiantamentos', path: '/financeiro/adiantamentos', icon: 'Wallet' },
+      APROVACOES: { label: 'Aprovacoes', path: '/aprovacoes', icon: 'ClipboardCheck' },
       HR: { label: 'RH / Folha', path: '/rh', icon: 'UserCog' },
       JORNADA: { label: 'Jornada de Trabalho', path: '/rh/jornada', icon: 'Clock' },
       PURCHASING: { label: 'Compras', path: '/compras', icon: 'PackageSearch' },
@@ -99,7 +100,16 @@ export const ERP_MODULES = {
       INVENTORY: { label: 'Estoque', path: '/estoque', icon: 'Warehouse' },
       PRODUCT_GROUPS: { label: 'Grupos e Subgrupos', path: '/estoque/grupos', icon: 'Layers' },
       PRODUCTS: { label: 'Produtos', path: '/estoque/produtos', icon: 'Package' },
-      STOCK_MOVES: { label: 'Movimentações', path: '/estoque/movimentacoes', icon: 'ArrowUpDown' },
+      STOCK_MOVES:       { label: 'Movimentações',          path: '/estoque/movimentacoes',          icon: 'ArrowUpDown'    },
+      STOCK_SALDOS:      { label: 'Saldos de Estoque',     path: '/estoque/saldos',                 icon: 'BarChart2'      },
+      STOCK_ALERTAS:     { label: 'Alertas de Estoque',    path: '/estoque/alertas',                icon: 'Bell'           },
+      STOCK_INVENTARIO:  { label: 'Inventário',            path: '/estoque/inventario',             icon: 'ClipboardCheck' },
+      STOCK_LOCAIS:      { label: 'Locais de Armazenagem', path: '/estoque/locais',                 icon: 'MapPin'         },
+      STOCK_RELATORIOS:  { label: 'Relatórios de Estoque', path: '/estoque/relatorios',             icon: 'FileBarChart'   },
+      STOCK_ABREVIACOES: { label: 'Abreviações',           path: '/estoque/abreviacoes',            icon: 'AlignLeft'      },
+      EXTRATO:           { label: 'Extrato',               path: '/financeiro/extrato',             icon: 'List'           },
+      FLUXO_CAIXA:       { label: 'Fluxo de Caixa',        path: '/financeiro/fluxo-caixa',         icon: 'TrendingUp'     },
+      CONTAS_BANCARIAS:  { label: 'Contas Bancárias',      path: '/financeiro/contas-bancarias',    icon: 'Landmark'       },
     },
   },
 
@@ -111,9 +121,10 @@ export const ERP_MODULES = {
       FISCAL_DASHBOARD: { label: 'Dashboard Fiscal', path: '/fiscal', icon: 'Receipt' },
       IA_FISCAL: { label: 'IA Fiscal', path: '/fiscal/ia', icon: 'Brain' },
       IA_FISCAL_CHAT: { label: 'Chat FiscalBrain', path: '/fiscal/ia/chat', icon: 'MessageSquare' },
-      IA_FISCAL_EXCECOES: { label: 'Exceções IA', path: '/fiscal/ia/excecoes', icon: 'AlertTriangle' },
+      IA_FISCAL_EXCECOES:    { label: 'Exceções IA',           path: '/fiscal/ia/excecoes',         icon: 'AlertTriangle' },
+      IA_PAINEL_DECISOES:    { label: 'Painel de Decisões IA', path: '/fiscal/ia/painel-decisoes',  icon: 'Brain'         },
       CONFIGURACAO_FISCAL: { label: 'Configuração Fiscal', path: '/fiscal/configuracao', icon: 'Scale' },
-      NFE: { label: 'NF-e', path: '/fiscal/notas', icon: 'FileText' },
+      NFE: { label: 'NF-e', path: '/fiscal/nfe', icon: 'FileText' },
       NFSE_EMITIDAS: { label: 'NFS-e Emitidas', path: '/fiscal/nfse', icon: 'FileText' },
       APURACAO: { label: 'Apuração ICMS', path: '/fiscal/apuracao', icon: 'Calculator' },
       APURACAO_PIS_COFINS: { label: 'Apuração PIS/COFINS', path: '/fiscal/apuracao-pis-cofins', icon: 'TrendingDown' },
@@ -122,6 +133,8 @@ export const ERP_MODULES = {
       BANCOS: { label: 'Bancos', path: '/fiscal/indices/bancos', icon: 'Landmark' },
       PAISES: { label: 'Países', path: '/fiscal/indices/paises', icon: 'Globe' },
       ST_PROTOCOLO: { label: 'Protocolos ST/MVA', path: '/fiscal/indices/st-protocolo', icon: 'FileText' },
+      CBENEF:       { label: 'CBENEF',            path: '/fiscal/indices/cbenef',       icon: 'Tag'      },
+      CEST:         { label: 'CEST',              path: '/fiscal/indices/cest',         icon: 'Tag'      },
       AUDITORIA_NCM: { label: 'Auditoria NCM', path: '/fiscal/auditoria-ncm', icon: 'ShieldAlert' },
       OPERACOES_FISCAIS: { label: 'Operações Fiscais (TES)', path: '/fiscal/operacoes-fiscais', icon: 'ListChecks' },
       SPED: { label: 'SPED / EFD', path: '/fiscal/sped', icon: 'FileSpreadsheet' },
@@ -151,6 +164,21 @@ export const ERP_MODULES = {
     },
   },
 
+  // Configurações
+  CONFIGURACOES: {
+    label: 'Configurações',
+    icon: 'Settings',
+    children: {
+      EMPRESA:         { label: 'Dados da Empresa',    path: '/configuracoes/empresa',         icon: 'Building2'  },
+      EMPRESAS:        { label: 'Empresas',            path: '/configuracoes/empresas',        icon: 'Building2'  },
+      USUARIOS:        { label: 'Usuários do Sistema', path: '/configuracoes/usuarios',        icon: 'Users'      },
+      PERFIS:          { label: 'Perfis de Acesso',    path: '/configuracoes/perfis',          icon: 'Shield'     },
+      TABELAS_DOMINIO: { label: 'Tabelas de Domínio',  path: '/configuracoes/tabelas-dominio', icon: 'ListTree'   },
+      NBS:             { label: 'NBS',                 path: '/configuracoes/nbs',             icon: 'Tag'        },
+      BACKUP:          { label: 'Backup do Banco',     path: '/configuracoes/backup',          icon: 'FileCheck'  },
+    },
+  },
+
   // Chamados
   SUPORTE: {
     label: 'Suporte',
@@ -159,6 +187,15 @@ export const ERP_MODULES = {
       TICKETS: { label: 'Chamados', path: '/chamados', icon: 'MessageSquare' },
     },
   },
+
+  // TODO: Módulo em desenvolvimento — reabilitar quando implementado
+  // QUALITY: {
+  //   label: 'Qualidade',
+  //   icon: 'ShieldCheck',
+  //   children: {
+  //     QMS_DASHBOARD: { label: 'Dashboard QMS', path: '/qualidade', icon: 'BarChart3' },
+  //   },
+  // },
 } as const;
 
 export type ModuleGroup = keyof typeof ERP_MODULES;

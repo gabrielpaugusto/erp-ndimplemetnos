@@ -340,7 +340,7 @@ export default function CotacaoDetailPage() {
             <>
               <button
                 onClick={() => setApproving(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium transition-colors"
               >
                 <CheckCircle className="w-4 h-4" />
                 Aprovar esta Cotacao
@@ -356,7 +356,7 @@ export default function CotacaoDetailPage() {
           ) : (
             <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2">
               <span className="text-sm text-emerald-800 font-medium">Confirmar aprovacao e gerar PO?</span>
-              <button onClick={handleApprove} className="px-3 py-1 bg-emerald-600 text-white rounded text-sm font-semibold hover:bg-emerald-700">
+              <button onClick={handleApprove} className="px-3 py-1 bg-primary-600 text-white rounded text-sm font-semibold hover:bg-primary-700">
                 Sim, Aprovar
               </button>
               <button onClick={() => setApproving(false)} className="px-3 py-1 text-slate-600 hover:text-slate-900 text-sm">

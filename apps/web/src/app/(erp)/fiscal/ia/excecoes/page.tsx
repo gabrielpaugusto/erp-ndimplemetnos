@@ -246,7 +246,7 @@ export default function ExcecoesFiscaisPage() {
               {/* Detalhe expandido */}
               {expanded === ex.id && ex.decision && (
                 <div className="px-4 pb-4 space-y-4 border-t border-inherit">
-                  <div className="grid grid-cols-2 gap-4 mt-3 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3 text-sm">
                     <div>
                       <p className="font-medium text-gray-600 mb-1">Sugestão da IA</p>
                       <Row label="CFOP"       value={ex.decision.cfop ?? '—'} />

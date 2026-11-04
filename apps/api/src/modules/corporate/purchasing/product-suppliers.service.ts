@@ -89,6 +89,20 @@ export class ProductSuppliersService {
     });
   }
 
+  async findOne(companyId: string, id: string) {
+    const record = await this.prisma.productSupplier.findUnique({
+      where: { id },
+      include: {
+        product: { select: { id: true, code: true, description: true, unit: true } },
+        person: { select: { id: true, razaoSocial: true, nomeFantasia: true, cpfCnpj: true } },
+      },
+    });
+    if (!record || record.companyId !== companyId) {
+      throw new NotFoundException(`ProductSupplier ${id} not found`);
+    }
+    return record;
+  }
+
   async findByProduct(companyId: string, productId: string) {
     return this.prisma.productSupplier.findMany({
       where: { companyId, productId },
@@ -189,7 +203,14 @@ export class ProductSuppliersService {
       throw new NotFoundException(`ProductSupplier ${id} not found`);
     }
 
-    await this.prisma.productSupplier.delete({ where: { id } });
+    try {
+      await this.prisma.productSupplier.delete({ where: { id } });
+    } catch (error) {
+      if (error?.code === 'P2003' || error?.code === 'P2014') {
+        throw new ConflictException('Registro em uso e não pode ser excluído');
+      }
+      throw error;
+    }
     return { success: true, id };
   }
 }

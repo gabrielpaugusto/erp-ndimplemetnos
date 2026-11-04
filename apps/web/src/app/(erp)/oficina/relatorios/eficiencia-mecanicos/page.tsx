@@ -115,9 +115,11 @@ export default function EficienciaMecanicosPage() {
   const [data, setData]             = useState<RelatorioData | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [search, setSearch]         = useState('');
+  const [error, setError]           = useState('');
 
   const fetchRelatorio = async () => {
     setLoading(true);
+    setError('');
     try {
       const params = new URLSearchParams({ dataInicio, dataFim });
       const res = await apiFetch(`/api/workshop/apontamentos/relatorios/mecanicos?${params}`);
@@ -126,7 +128,7 @@ export default function EficienciaMecanicosPage() {
         setData(json);
       }
     } catch (err) {
-      console.error('Erro ao carregar relatório:', err);
+      setError('Erro ao carregar dados. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -160,6 +162,12 @@ export default function EficienciaMecanicosPage() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          {error}
+        </div>
+      )}
       {/* ── Header ── */}
       <div className="flex items-center justify-between">
         <div>

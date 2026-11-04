@@ -222,7 +222,7 @@ export default function PedidoDetailPage() {
     return (
       <div className="space-y-4">
         <div className="h-8 bg-slate-200 animate-pulse rounded w-64" />
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[1,2,3,4].map(i => <div key={i} className="h-28 bg-slate-100 animate-pulse rounded" />)}
         </div>
         <div className="h-48 bg-slate-100 animate-pulse rounded" />
@@ -283,7 +283,7 @@ export default function PedidoDetailPage() {
             <button
               onClick={handleApprove}
               disabled={actionLoading}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium transition-colors disabled:opacity-50"
             >
               <CheckCircle className="w-4 h-4" />
               {actionLoading ? 'Aprovando...' : 'Aprovar'}

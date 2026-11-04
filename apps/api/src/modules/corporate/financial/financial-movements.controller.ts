@@ -6,8 +6,10 @@ import {
   Body,
   Param,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { JwtAuthGuard } from '@/modules/core/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '@/modules/core/auth/decorators/current-user.decorator';
 import { FinancialMovementsService } from './financial-movements.service';
@@ -46,6 +48,19 @@ export class FinancialMovementsController {
     });
   }
 
+  // export/csv deve vir antes de :id para não ser capturado como id
+  @Get('export/csv')
+  async exportCsv(
+    @CurrentUser() user: { id: string; companyId: string },
+    @Query() query: any,
+    @Res() res: Response,
+  ) {
+    const csv = await this.movementsService.exportCsv(user.companyId, query);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="movimentos-financeiros.csv"');
+    res.send('﻿' + csv);
+  }
+
   @Get('overdue')
   getOverdue(@CurrentUser() user: { id: string; companyId: string }) {
     return this.movementsService.getOverdue(user.companyId);
@@ -57,8 +72,8 @@ export class FinancialMovementsController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.movementsService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: { id: string; companyId: string }) {
+    return this.movementsService.findOne(id, user.companyId);
   }
 
   @Post()

@@ -39,15 +39,23 @@ export default function InventariosPage() {
   const [inventories, setInventories] = useState<Inventory[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
+  const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await apiFetch('/api/inventory/inventories?limit=50');
-    if (res.ok) {
-      const data = await res.json();
-      const list = data.data ?? data;
-      setInventories(list);
-      setTotal(data.meta?.total ?? list.length);
+    setError('');
+    try {
+      const res = await apiFetch('/api/inventory/inventories?limit=50');
+      if (res.ok) {
+        const data = await res.json();
+        const list = data.data ?? data;
+        setInventories(list);
+        setTotal(data.meta?.total ?? list.length);
+      } else {
+        setError('Erro ao carregar dados. Tente novamente.');
+      }
+    } catch {
+      setError('Erro ao carregar dados. Tente novamente.');
     }
     setLoading(false);
   }, []);
@@ -70,6 +78,12 @@ export default function InventariosPage() {
           </Link>
         </div>
       </div>
+
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          {error}
+        </div>
+      )}
 
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">

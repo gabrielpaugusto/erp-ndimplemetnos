@@ -11,6 +11,7 @@ import { NfeSignerService } from './nfe/nfe-signer.service';
 import { DanfeService } from './nfe/danfe.service';
 import { DifalService } from './nfe/difal.service';
 import { NfeIaPipelineSaidaService } from './nfe/nfe-ia-pipeline-saida.service';
+import { NfeQueueService } from './nfe/nfe-queue.service';
 import { FiscalBooksController } from './books/fiscal-books.controller';
 import { FiscalBooksService } from './books/fiscal-books.service';
 import { FiscalEngineAutomationService } from './fiscal-engine.service';
@@ -54,6 +55,7 @@ import { EncerCreditoPisCofinsService } from './encer-credito-pis-cofins.service
     DanfeService,
     DifalService,
     NfeIaPipelineSaidaService,
+    NfeQueueService,
     FiscalBooksService,
     FiscalEngineAutomationService,
     OperacoesFiscaisService,

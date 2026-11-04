@@ -4,12 +4,13 @@ import {
 import { JwtAuthGuard } from '@/modules/core/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '@/modules/core/auth/decorators/current-user.decorator';
 import { FiscalBrainService } from './fiscal-brain.service';
-import { ContextoOperacao } from './classificador.service';
 import { ExcoesQueueService } from './excecoes-queue.service';
 import { FeedbackLoopService } from './feedback-loop.service';
 import { KnowledgeBaseService } from './knowledge-base.service';
 import { ClassificacaoFiscal } from './classificador.service';
 import { FiscalBrainChatService } from './fiscal-brain-chat.service';
+import { ClassificarDto } from './dto/classificar.dto';
+import { ResolverExcecaoDto } from './dto/resolver-excecao.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('fiscal-brain')
@@ -31,12 +32,7 @@ export class FiscalBrainController {
   @Post('classificar')
   async classificar(
     @CurrentUser() user: any,
-    @Body()
-    body: {
-      documentType: string;
-      documentId: string;
-      contexto: ContextoOperacao;
-    },
+    @Body() body: ClassificarDto,
   ) {
     return this.brain.classificarDocumento({
       companyId: user.companyId,
@@ -76,11 +72,7 @@ export class FiscalBrainController {
   resolverExcecao(
     @CurrentUser() user: any,
     @Param('id') id: string,
-    @Body()
-    body: {
-      aceitar: boolean;
-      resolucao?: Partial<ClassificacaoFiscal>;
-    },
+    @Body() body: ResolverExcecaoDto,
   ) {
     return this.excecoes.resolver({
       excecaoId: id,

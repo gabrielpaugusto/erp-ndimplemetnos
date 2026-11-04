@@ -113,6 +113,7 @@ export default function ProdutividadePage() {
 
       {!loading && dados.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
@@ -160,6 +161,7 @@ export default function ProdutividadePage() {
                 })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

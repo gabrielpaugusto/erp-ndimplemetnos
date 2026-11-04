@@ -91,11 +91,13 @@ export default function SeguroDetailPage() {
   const [insurance, setInsurance] = useState<InsuranceDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!id) return;
 
     async function load() {
+      setError('');
       try {
         const res = await apiFetch(`/api/fi/insurance/${id}`);
         if (res.status === 404) {
@@ -106,7 +108,7 @@ export default function SeguroDetailPage() {
         const data = await res.json();
         setInsurance(data);
       } catch (err) {
-        console.error(err);
+        setError('Erro ao carregar dados. Tente novamente.');
         setNotFound(true);
       } finally {
         setLoading(false);
@@ -172,6 +174,12 @@ export default function SeguroDetailPage() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          {error}
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center gap-4">
         <Link
@@ -199,7 +207,7 @@ export default function SeguroDetailPage() {
         <div className="flex items-center gap-2">
           <Link
             href="/fi/seguro/novo"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium transition-colors"
           >
             <RefreshCw className="w-4 h-4" />
             Renovar Apólice

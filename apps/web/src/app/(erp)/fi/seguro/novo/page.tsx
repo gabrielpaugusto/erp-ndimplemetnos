@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Save, X, Shield, Truck, DollarSign, Calendar, TrendingUp } from 'lucide-react';
+import { ChevronLeft, Save, X, Shield, Truck, DollarSign, Calendar, TrendingUp, AlertTriangle } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useToast } from '@/components/ui/toast';
 
@@ -63,6 +63,7 @@ export default function NovoSeguroPage() {
   const [clients, setClients] = useState<Person[]>([]);
   const [pedidos, setPedidos] = useState<SaleOrder[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [error, setError] = useState('');
 
   const [form, setForm] = useState<InsuranceForm>({
     clientId: '',
@@ -87,6 +88,7 @@ export default function NovoSeguroPage() {
 
   useEffect(() => {
     async function loadFormData() {
+      setError('');
       try {
         const [clientsRes, pedidosRes] = await Promise.all([
           apiFetch('/api/persons?limit=200'),
@@ -103,7 +105,7 @@ export default function NovoSeguroPage() {
           setPedidos(data.data ?? data ?? []);
         }
       } catch (err) {
-        console.error('Erro ao carregar dados do formulário', err);
+        setError('Erro ao carregar dados. Tente novamente.');
       } finally {
         setLoadingData(false);
       }
@@ -172,6 +174,12 @@ export default function NovoSeguroPage() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          {error}
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center gap-4">
         <Link
@@ -461,7 +469,7 @@ export default function NovoSeguroPage() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Save className="w-4 h-4" />
           Salvar Apólice

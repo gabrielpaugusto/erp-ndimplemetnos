@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Plus, Search, Filter, X, Eye, ChevronLeft, ChevronRight,
-  Calendar, ArrowUpRight, RefreshCw, CheckCircle2, Clock, AlertTriangle, Ban,
+  Calendar, ArrowUpRight, RefreshCw, CheckCircle2, Clock, AlertTriangle, Ban, Download,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { fmtCurrency } from '@/lib/format';
@@ -87,6 +87,21 @@ export default function ContasReceberPage() {
   const clearFilters = () => { setSearch(''); setStatusFilter(''); setDateFrom(''); setDateTo(''); };
   const hasActiveFilters = !!(search || statusFilter || dateFrom || dateTo);
 
+  const handleExportCsv = async () => {
+    const params = new URLSearchParams({ type: 'RECEITA' });
+    if (search) params.set('search', search);
+    if (statusFilter) params.set('status', statusFilter);
+    if (dateFrom) params.set('dateFrom', dateFrom);
+    if (dateTo) params.set('dateTo', dateTo);
+    const res = await apiFetch(`/api/financial/movements/export/csv?${params}`);
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'contas-receber.csv'; a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -94,9 +109,19 @@ export default function ContasReceberPage() {
           <h1 className="text-2xl font-bold text-slate-900">Contas a Receber</h1>
           <p className="text-slate-500 mt-1">Gerencie os titulos a receber</p>
         </div>
-        <Link href="/financeiro/contas-receber/novo" className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition-colors">
-          <Plus className="w-4 h-4" /> Novo Titulo
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportCsv}
+            className="inline-flex items-center gap-2 px-3 py-2 border border-slate-300 bg-white text-slate-700 rounded-lg hover:bg-slate-50 text-sm font-medium transition-colors"
+            title="Exportar CSV"
+          >
+            <Download className="w-4 h-4" />
+            CSV
+          </button>
+          <Link href="/financeiro/contas-receber/novo" className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium transition-colors">
+            <Plus className="w-4 h-4" /> Novo Titulo
+          </Link>
+        </div>
       </div>
 
       {/* Stats */}

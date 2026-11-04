@@ -54,8 +54,8 @@ export class InsuranceController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.insuranceService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: { id: string; companyId: string }) {
+    return this.insuranceService.findOne(id, user.companyId);
   }
 
   @Post()
@@ -69,8 +69,9 @@ export class InsuranceController {
   @Patch(':id')
   update(
     @Param('id') id: string,
+    @CurrentUser() user: { id: string; companyId: string },
     @Body() updateInsuranceDto: UpdateInsuranceDto,
   ) {
-    return this.insuranceService.update(id, updateInsuranceDto);
+    return this.insuranceService.update(id, user.companyId, updateInsuranceDto);
   }
 }

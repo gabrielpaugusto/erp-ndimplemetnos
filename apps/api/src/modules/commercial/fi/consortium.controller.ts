@@ -43,8 +43,8 @@ export class ConsortiumController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.consortiumService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: { id: string; companyId: string }) {
+    return this.consortiumService.findOne(id, user.companyId);
   }
 
   @Post()
@@ -58,17 +58,19 @@ export class ConsortiumController {
   @Patch(':id')
   update(
     @Param('id') id: string,
+    @CurrentUser() user: { id: string; companyId: string },
     @Body() updateConsortiumDto: UpdateConsortiumDto,
   ) {
-    return this.consortiumService.update(id, updateConsortiumDto);
+    return this.consortiumService.update(id, user.companyId, updateConsortiumDto);
   }
 
   @Post(':id/payments')
   addPayment(
     @Param('id') id: string,
+    @CurrentUser() user: { id: string; companyId: string },
     @Body() createPaymentDto: CreateConsortiumPaymentDto,
   ) {
-    return this.consortiumService.addPayment(id, createPaymentDto);
+    return this.consortiumService.addPayment(id, user.companyId, createPaymentDto);
   }
 
   @Patch('payments/:paymentId')
@@ -82,8 +84,9 @@ export class ConsortiumController {
   @Post(':id/contemplate')
   contemplate(
     @Param('id') id: string,
+    @CurrentUser() user: { id: string; companyId: string },
     @Body() data: { tipoContemplacao: string; valorLance?: number; dataContemplacao?: string },
   ) {
-    return this.consortiumService.contemplate(id, data);
+    return this.consortiumService.contemplate(id, user.companyId, data);
   }
 }

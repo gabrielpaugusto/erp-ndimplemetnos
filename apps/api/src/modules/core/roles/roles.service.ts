@@ -153,8 +153,15 @@ export class RolesService {
         `Este perfil está atribuído a ${role._count.users} usuário(s). Remova-o dos usuários antes de excluir.`,
       );
 
-    await this.prisma.rolePermission.deleteMany({ where: { roleId } });
-    await this.prisma.role.delete({ where: { id: roleId } });
+    try {
+      await this.prisma.rolePermission.deleteMany({ where: { roleId } });
+      await this.prisma.role.delete({ where: { id: roleId } });
+    } catch (error) {
+      if (error?.code === 'P2003' || error?.code === 'P2014') {
+        throw new ConflictException('Registro em uso e não pode ser excluído');
+      }
+      throw error;
+    }
     return { ok: true };
   }
 }

@@ -4,12 +4,12 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Plus, Search, Filter, X, Eye, Edit,
-  ChevronLeft, ChevronRight, FileText, Calendar, RefreshCw, Hash,
+  ChevronLeft, ChevronRight, FileText, Calendar, RefreshCw, Hash, Download,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { fmtCurrency } from '@/lib/format';
 
-type NFeStatus = 'RASCUNHO' | 'VALIDADA' | 'TRANSMITIDA' | 'AUTORIZADA' | 'CANCELADA' | 'DENEGADA' | 'REJEITADA';
+type NFeStatus = 'RASCUNHO' | 'VALIDADA' | 'AGUARDANDO_TRANSMISSAO' | 'TRANSMITIDA' | 'AUTORIZADA' | 'CANCELADA' | 'DENEGADA' | 'INUTILIZADA' | 'ESCRITURADA' | 'REJEITADA';
 type NFeTipo  = 'ENTRADA' | 'SAIDA';
 
 interface NFe {
@@ -30,6 +30,7 @@ interface NFe {
 const statusLabels: Record<string, string> = {
   RASCUNHO:    'Rascunho',
   VALIDADA:    'Validada',
+  AGUARDANDO_TRANSMISSAO: 'Aguard. Transmissão',
   TRANSMITIDA: 'Transmitida',
   AUTORIZADA:  'Autorizada',
   CANCELADA:   'Cancelada',
@@ -40,6 +41,7 @@ const statusLabels: Record<string, string> = {
 const statusColors: Record<string, string> = {
   RASCUNHO:    'bg-slate-100 text-slate-600',
   VALIDADA:    'bg-amber-100 text-amber-700',
+  AGUARDANDO_TRANSMISSAO: 'bg-purple-100 text-purple-700',
   TRANSMITIDA: 'bg-blue-100 text-blue-700',
   AUTORIZADA:  'bg-emerald-100 text-emerald-700',
   CANCELADA:   'bg-red-100 text-red-700',
@@ -216,6 +218,22 @@ export default function NFeListPage() {
     return chave.substring(0, 8) + '...' + chave.substring(chave.length - 8);
   };
 
+  const handleExportCsv = async () => {
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (statusFilter) params.set('status', statusFilter);
+    if (tipoFilter) params.set('type', tipoFilter);
+    if (dataInicio) params.set('startDate', dataInicio);
+    if (dataFim) params.set('endDate', dataFim);
+    const res = await apiFetch(`/api/fiscal/nfe/export/csv?${params}`);
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'nfe-export.csv'; a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <>
       {showInutilizar && <InutilizarModal onClose={() => setShowInutilizar(false)} />}
@@ -237,6 +255,14 @@ export default function NFeListPage() {
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
           <button
+            onClick={handleExportCsv}
+            className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 text-sm font-medium transition-colors"
+            title="Exportar CSV"
+          >
+            <Download className="w-4 h-4" />
+            CSV
+          </button>
+          <button
             onClick={() => setShowInutilizar(true)}
             className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 text-sm font-medium transition-colors"
             title="Inutilizar faixa de numeração"
@@ -246,7 +272,7 @@ export default function NFeListPage() {
           </button>
           <Link
             href="/fiscal/nfe/nova"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium transition-colors"
           >
             <Plus className="w-4 h-4" />
             Nova NF-e

@@ -80,12 +80,12 @@ export class CalderariaService {
 
   // ── Detalhe ───────────────────────────────────────────────────────────────
 
-  async findOne(id: string) {
+  async findOne(id: string, companyId: string) {
     const order = await this.prisma.calderariaOrder.findUnique({
       where: { id },
       include: WITH_RELATIONS,
     });
-    if (!order) throw new NotFoundException(`Ordem de Calderaria ${id} não encontrada`);
+    if (!order || order.companyId !== companyId) throw new NotFoundException(`Ordem de Calderaria ${id} não encontrada`);
     return order;
   }
 
@@ -127,8 +127,8 @@ export class CalderariaService {
 
   // ── Atualizar ─────────────────────────────────────────────────────────────
 
-  async update(id: string, data: UpdateCalderariaOrderDto) {
-    await this.getOrFail(id);
+  async update(id: string, companyId: string, data: UpdateCalderariaOrderDto) {
+    await this.getOrFail(id, companyId);
 
     const updateData: any = { ...data };
     if (data.dataInicio) updateData.dataInicio = new Date(data.dataInicio);
@@ -147,8 +147,8 @@ export class CalderariaService {
 
   // ── Salvar Desenho Excalidraw ──────────────────────────────────────────────
 
-  async saveDesenho(id: string, desenhoData: any, desenhoPng: string | null) {
-    await this.getOrFail(id);
+  async saveDesenho(id: string, companyId: string, desenhoData: any, desenhoPng: string | null) {
+    await this.getOrFail(id, companyId);
     return this.prisma.calderariaOrder.update({
       where: { id },
       data: { desenhoData, desenhoPng: desenhoPng || null },
@@ -158,8 +158,8 @@ export class CalderariaService {
 
   // ── Iniciar: ABERTA → EM_EXECUCAO ─────────────────────────────────────────
 
-  async start(id: string) {
-    const order = await this.getOrFail(id);
+  async start(id: string, companyId: string) {
+    const order = await this.getOrFail(id, companyId);
     if (order.status !== 'ABERTA') {
       throw new BadRequestException(`Não é possível iniciar uma ordem com status ${order.status}. Esperado: ABERTA.`);
     }
@@ -172,8 +172,8 @@ export class CalderariaService {
 
   // ── Concluir: EM_EXECUCAO → CONCLUIDA ────────────────────────────────────
 
-  async complete(id: string) {
-    const order = await this.getOrFail(id);
+  async complete(id: string, companyId: string) {
+    const order = await this.getOrFail(id, companyId);
     if (order.status !== 'EM_EXECUCAO') {
       throw new BadRequestException(`Não é possível concluir uma ordem com status ${order.status}. Esperado: EM_EXECUCAO.`);
     }
@@ -202,8 +202,8 @@ export class CalderariaService {
 
   // ── Aguardar Material: EM_EXECUCAO → AGUARDANDO_MATERIAL ─────────────────
 
-  async aguardarMaterial(id: string) {
-    const order = await this.getOrFail(id);
+  async aguardarMaterial(id: string, companyId: string) {
+    const order = await this.getOrFail(id, companyId);
     if (order.status !== 'EM_EXECUCAO') {
       throw new BadRequestException(`Somente ordens EM_EXECUCAO podem aguardar material. Status atual: ${order.status}`);
     }
@@ -216,8 +216,8 @@ export class CalderariaService {
 
   // ── Retomar: AGUARDANDO_MATERIAL → EM_EXECUCAO ───────────────────────────
 
-  async retomar(id: string) {
-    const order = await this.getOrFail(id);
+  async retomar(id: string, companyId: string) {
+    const order = await this.getOrFail(id, companyId);
     if (order.status !== 'AGUARDANDO_MATERIAL') {
       throw new BadRequestException(`Somente ordens AGUARDANDO_MATERIAL podem ser retomadas. Status atual: ${order.status}`);
     }
@@ -230,8 +230,8 @@ export class CalderariaService {
 
   // ── Cancelar ─────────────────────────────────────────────────────────────
 
-  async cancel(id: string) {
-    const order = await this.getOrFail(id);
+  async cancel(id: string, companyId: string) {
+    const order = await this.getOrFail(id, companyId);
     if (order.status === 'CONCLUIDA' || order.status === 'CANCELADA') {
       throw new BadRequestException(`Não é possível cancelar uma ordem com status ${order.status}.`);
     }
@@ -272,9 +272,9 @@ export class CalderariaService {
 
   // ── Helpers privados ──────────────────────────────────────────────────────
 
-  private async getOrFail(id: string) {
+  private async getOrFail(id: string, companyId: string) {
     const order = await this.prisma.calderariaOrder.findUnique({ where: { id } });
-    if (!order) throw new NotFoundException(`Ordem de Calderaria ${id} não encontrada`);
+    if (!order || order.companyId !== companyId) throw new NotFoundException(`Ordem de Calderaria ${id} não encontrada`);
     return order;
   }
 

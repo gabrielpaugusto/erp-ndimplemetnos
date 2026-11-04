@@ -267,7 +267,7 @@ export default function PedidoCompraDetailPage() {
             <button onClick={() => handleAction('send')} disabled={actionLoading} className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"><Send className="w-4 h-4" /> Enviar</button>
           )}
           {order.status === 'ENVIADA' && (
-            <button onClick={() => handleAction('confirm')} disabled={actionLoading} className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"><CheckCircle className="w-4 h-4" /> Confirmar</button>
+            <button onClick={() => handleAction('confirm')} disabled={actionLoading} className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"><CheckCircle className="w-4 h-4" /> Confirmar</button>
           )}
           {(order.status === 'CONFIRMADA' || order.status === 'PARCIAL_RECEBIDA') && (
             <button onClick={() => handleAction('receive')} disabled={actionLoading} className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"><Package className="w-4 h-4" /> Registrar Recebimento</button>

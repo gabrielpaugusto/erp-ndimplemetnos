@@ -37,17 +37,20 @@ function formatCurrency(value: number) { return fmtCurrency(value); }
 export default function PatrimonioDashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [processing, setProcessing] = useState(false);
   const [processResult, setProcessResult] = useState<ProcessResult | null>(null);
+  const [processError, setProcessError] = useState('');
 
   const loadStats = useCallback(async () => {
     setLoading(true);
+    setLoadError('');
     try {
       const res = await apiFetch('/api/patrimonio/stats');
       const data = await (res as any).json();
       setStats(data);
-    } catch (err) {
-      console.error('Erro ao carregar stats:', err);
+    } catch {
+      setLoadError('Erro ao carregar dados. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -58,6 +61,7 @@ export default function PatrimonioDashboardPage() {
   const handleProcessarDepreciacao = async () => {
     setProcessing(true);
     setProcessResult(null);
+    setProcessError('');
     try {
       const agora = new Date();
       const resDeprec = await apiFetch('/api/patrimonio/processar-depreciacao', {
@@ -67,8 +71,8 @@ export default function PatrimonioDashboardPage() {
       const result = await (resDeprec as any).json();
       setProcessResult(result);
       await loadStats();
-    } catch (err) {
-      console.error('Erro ao processar depreciação:', err);
+    } catch {
+      setProcessError('Erro ao processar depreciação. Tente novamente.');
     } finally {
       setProcessing(false);
     }
@@ -99,6 +103,20 @@ export default function PatrimonioDashboardPage() {
           {processing ? 'Processando...' : 'Processar Depreciação do Mês'}
         </button>
       </div>
+
+      {loadError && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          {loadError}
+        </div>
+      )}
+
+      {processError && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          {processError}
+        </div>
+      )}
 
       {/* Process result */}
       {processResult && (

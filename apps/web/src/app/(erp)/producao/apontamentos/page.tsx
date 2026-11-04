@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Calendar,
+  AlertTriangle,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 
@@ -71,9 +72,11 @@ export default function ApontamentosListPage() {
   const [typeFilter, setTypeFilter] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
+  const [error, setError] = useState('');
 
   const fetchPointings = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
       const params = new URLSearchParams();
       if (typeFilter) params.set('type', typeFilter);
@@ -100,7 +103,7 @@ export default function ApontamentosListPage() {
         setMeta(data.meta || { total: items.length, page, limit: 20, totalPages: 1 });
       }
     } catch (err) {
-      console.error('Erro ao carregar apontamentos:', err);
+      setError('Erro ao carregar dados. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -120,6 +123,12 @@ export default function ApontamentosListPage() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          {error}
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

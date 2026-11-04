@@ -42,7 +42,7 @@ export class ProductionOrdersService {
     const limit = parseInt(query.limit || '20', 10);
     const skip = (page - 1) * limit;
 
-    const where: any = { companyId };
+    const where: any = { companyId, deletedAt: null };
 
     if (query.search) {
       where.OR = [
@@ -110,7 +110,7 @@ export class ProductionOrdersService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, companyId: string) {
     const order = await this.prisma.productionOrder.findUnique({
       where: { id },
       include: {
@@ -141,7 +141,7 @@ export class ProductionOrdersService {
       },
     });
 
-    if (!order) {
+    if (!order || order.companyId !== companyId) {
       throw new NotFoundException(`Production Order ${id} not found`);
     }
 
@@ -179,12 +179,12 @@ export class ProductionOrdersService {
     });
   }
 
-  async update(id: string, data: UpdateProductionOrderDto) {
+  async update(id: string, companyId: string, data: UpdateProductionOrderDto) {
     const existing = await this.prisma.productionOrder.findUnique({
       where: { id },
     });
 
-    if (!existing) {
+    if (!existing || existing.companyId !== companyId) {
       throw new NotFoundException(`Production Order ${id} not found`);
     }
 
@@ -215,12 +215,12 @@ export class ProductionOrdersService {
    * Release: PLANEJADA -> LIBERADA
    * Explodes BOM into production order items.
    */
-  async release(id: string, userId?: string) {
+  async release(id: string, companyId: string, userId?: string) {
     const order = await this.prisma.productionOrder.findUnique({
       where: { id },
     });
 
-    if (!order) {
+    if (!order || order.companyId !== companyId) {
       throw new NotFoundException(`Production Order ${id} not found`);
     }
 
@@ -394,12 +394,12 @@ export class ProductionOrdersService {
    * Start: LIBERADA -> EM_PRODUCAO
    * Sets dataInicioReal.
    */
-  async start(id: string) {
+  async start(id: string, companyId: string) {
     const order = await this.prisma.productionOrder.findUnique({
       where: { id },
     });
 
-    if (!order) {
+    if (!order || order.companyId !== companyId) {
       throw new NotFoundException(`Production Order ${id} not found`);
     }
 
@@ -427,12 +427,12 @@ export class ProductionOrdersService {
    * Complete: EM_PRODUCAO -> CONCLUIDA
    * Sets dataFimReal.
    */
-  async complete(id: string) {
+  async complete(id: string, companyId: string) {
     const order = await this.prisma.productionOrder.findUnique({
       where: { id },
     });
 
-    if (!order) {
+    if (!order || order.companyId !== companyId) {
       throw new NotFoundException(`Production Order ${id} not found`);
     }
 
@@ -456,7 +456,7 @@ export class ProductionOrdersService {
     });
 
     // Fire integration (non-blocking)
-    this.integration.onProductionOrderCompleted(id, order.companyId, 'system').catch(err => console.error('Integration error:', err));
+    this.integration.onProductionOrderCompleted(id, order.companyId, 'system').catch(err => this.logger.error('Integration error', err?.message ?? err));
 
     return result;
   }
@@ -464,12 +464,12 @@ export class ProductionOrdersService {
   /**
    * Cancel: any active status -> CANCELADA
    */
-  async cancel(id: string) {
+  async cancel(id: string, companyId: string) {
     const order = await this.prisma.productionOrder.findUnique({
       where: { id },
     });
 
-    if (!order) {
+    if (!order || order.companyId !== companyId) {
       throw new NotFoundException(`Production Order ${id} not found`);
     }
 
@@ -502,7 +502,7 @@ export class ProductionOrdersService {
       },
     });
 
-    if (!order) throw new NotFoundException('Ordem não encontrada');
+    if (!order || order.companyId !== companyId) throw new NotFoundException('Ordem não encontrada');
 
     const necessidades = await Promise.all(
       order.items.map(async (item) => {

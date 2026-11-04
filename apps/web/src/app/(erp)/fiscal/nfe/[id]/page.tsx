@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -35,11 +35,12 @@ import { fmtCurrency as formatCurrency, fmtPercent } from '@/lib/format';
 const formatPct = (v: number | null | undefined) =>
   v != null ? fmtPercent(v) : '—';
 
-type NFeStatus = 'RASCUNHO' | 'VALIDADA' | 'ASSINADA' | 'ENVIADA' | 'AUTORIZADA' | 'CANCELADA' | 'DENEGADA' | 'REJEITADA';
+type NFeStatus = 'RASCUNHO' | 'VALIDADA' | 'AGUARDANDO_TRANSMISSAO' | 'ASSINADA' | 'ENVIADA' | 'AUTORIZADA' | 'CANCELADA' | 'DENEGADA' | 'INUTILIZADA' | 'ESCRITURADA' | 'REJEITADA';
 
 const statusLabels: Record<string, string> = {
   RASCUNHO: 'Rascunho',
   VALIDADA: 'Validada',
+  AGUARDANDO_TRANSMISSAO: 'Aguard. Transmissão',
   ASSINADA: 'Assinada',
   ENVIADA: 'Enviada',
   AUTORIZADA: 'Autorizada',
@@ -51,6 +52,7 @@ const statusLabels: Record<string, string> = {
 const statusColors: Record<string, string> = {
   RASCUNHO: 'bg-slate-100 text-slate-600',
   VALIDADA: 'bg-amber-100 text-amber-700',
+  AGUARDANDO_TRANSMISSAO: 'bg-purple-100 text-purple-700',
   ASSINADA: 'bg-indigo-100 text-indigo-700',
   ENVIADA: 'bg-blue-100 text-blue-700',
   AUTORIZADA: 'bg-emerald-100 text-emerald-700',
@@ -223,7 +225,7 @@ function CceModal({ onConfirm, onClose, loading, cceNumero }: {
 
 const statusSteps: NFeStatus[] = ['RASCUNHO', 'VALIDADA', 'AUTORIZADA'];
 const statusOrder: Record<string, number> = {
-  RASCUNHO: 0, VALIDADA: 1, AUTORIZADA: 2,
+  RASCUNHO: 0, VALIDADA: 1, AGUARDANDO_TRANSMISSAO: 3, AUTORIZADA: 4,
   CANCELADA: -1, DENEGADA: -1, REJEITADA: -1, ASSINADA: 1, ENVIADA: 1,
 };
 
@@ -301,6 +303,38 @@ export default function NFeDetailPage() {
 
   useEffect(() => { fetchNfe(); }, [fetchNfe]);
 
+  // Auto-polling while NF-e is queued for async transmission
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    if (!nfe) return;
+    if (nfe.status === 'AGUARDANDO_TRANSMISSAO') {
+      if (pollingRef.current) return; // already polling
+      pollingRef.current = setInterval(async () => {
+        try {
+          const res = await apiFetch(`/api/fiscal/nfe/${id}/status`);
+          if (!res.ok) return;
+          const snap = await res.json();
+          if (snap.status !== 'AGUARDANDO_TRANSMISSAO') {
+            clearInterval(pollingRef.current!);
+            pollingRef.current = null;
+            await fetchNfe(); // reload full document
+          }
+        } catch { /* ignore */ }
+      }, 5_000);
+    } else {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    }
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [nfe?.status, id, fetchNfe]); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function handleValidate() {
     setActionLoading(true); setActionError(''); setActionSuccess('');
     try {
@@ -320,6 +354,18 @@ export default function NFeDetailPage() {
       if (!res.ok) { setActionError(data.message || 'Erro ao autorizar NF-e junto ao SEFAZ'); return; }
       setNfe(data);
     } catch { setActionError('Erro de conexão ao transmitir NF-e'); }
+    finally { setActionLoading(false); }
+  }
+
+  async function handleAuthorizeAsync() {
+    setActionLoading(true); setActionError(''); setActionSuccess('');
+    try {
+      const res = await apiFetch(`/api/fiscal/nfe/${id}/authorize-async`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) { setActionError(data.message || 'Erro ao enfileirar transmissão'); return; }
+      setActionSuccess('NF-e enfileirada para transmissão. Status atualizado em instantes.');
+      await fetchNfe();
+    } catch { setActionError('Erro de conexão'); }
     finally { setActionLoading(false); }
   }
 
@@ -343,6 +389,18 @@ export default function NFeDetailPage() {
       if (!res.ok) { setActionError(data.message || 'Erro ao calcular impostos'); return; }
       setNfe(data);
     } catch { setActionError('Erro de conexão ao calcular impostos'); }
+    finally { setActionLoading(false); }
+  }
+
+  async function handleCopiarRascunho() {
+    setActionLoading(true); setActionError(''); setActionSuccess('');
+    try {
+      const res = await apiFetch(`/api/fiscal/nfe/${id}/copiar-rascunho`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) { setActionError(data.message || 'Erro ao criar cópia da NF-e'); return; }
+      setActionSuccess(`Nova NF-e criada como rascunho. Redirecionando...`);
+      setTimeout(() => { window.location.href = `/fiscal/nfe/${data.id}`; }, 1500);
+    } catch { setActionError('Erro de conexão ao copiar NF-e'); }
     finally { setActionLoading(false); }
   }
 
@@ -525,10 +583,22 @@ export default function NFeDetailPage() {
               </button>
             )}
             {canTransmit && (
-              <button onClick={handleAuthorize} disabled={actionLoading}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition-colors disabled:opacity-50">
-                <Send className="w-4 h-4" />{actionLoading ? 'Transmitindo...' : 'Transmitir SEFAZ'}
-              </button>
+              <>
+                <button onClick={handleAuthorize} disabled={actionLoading}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium transition-colors disabled:opacity-50">
+                  <Send className="w-4 h-4" />{actionLoading ? 'Transmitindo...' : 'Transmitir SEFAZ'}
+                </button>
+                <button onClick={handleAuthorizeAsync} disabled={actionLoading}
+                  title="Enfileira a transmissão — retorna imediatamente e processa em background"
+                  className="inline-flex items-center gap-2 px-3 py-2 bg-purple-100 text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-200 text-sm font-medium transition-colors disabled:opacity-50">
+                  <Clock className="w-4 h-4" />Fila Async
+                </button>
+              </>
+            )}
+            {nfe.status === 'AGUARDANDO_TRANSMISSAO' && (
+              <span className="inline-flex items-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 rounded-lg text-sm font-medium">
+                <Clock className="w-4 h-4 animate-pulse" />Aguardando Transmissão
+              </span>
             )}
 
             {/* DANFE — disponível para qualquer status (rascunho: marca d'água "SEM VALOR FISCAL") */}
@@ -550,6 +620,13 @@ export default function NFeDetailPage() {
                   <PenLine className="w-4 h-4" />CC-e
                 </button>
               </>
+            )}
+            {(nfe.status === 'DENEGADA' || nfe.status === 'REJEITADA') && (
+              <button onClick={handleCopiarRascunho} disabled={actionLoading}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-medium transition-colors disabled:opacity-50"
+                title="Cria uma nova NF-e em rascunho com os mesmos dados para correção e reenvio">
+                <ArrowRightLeft className="w-4 h-4" />{actionLoading ? 'Copiando...' : 'Corrigir como nova NF-e'}
+              </button>
             )}
             {isCancelable && (
               <button onClick={() => setShowCancelModal(true)} disabled={actionLoading}

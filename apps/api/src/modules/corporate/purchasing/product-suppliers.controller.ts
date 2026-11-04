@@ -67,6 +67,14 @@ export class ProductSuppliersController {
     return this.productSuppliersService.findAll(user.companyId, { personId });
   }
 
+  @Get(':id')
+  findOne(
+    @CurrentUser() user: { id: string; companyId: string },
+    @Param('id') id: string,
+  ) {
+    return this.productSuppliersService.findOne(user.companyId, id);
+  }
+
   @Post()
   create(
     @CurrentUser() user: { id: string; companyId: string },

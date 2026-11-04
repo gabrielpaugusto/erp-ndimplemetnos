@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '@/modules/core/database/prisma.service';
 import { StorageService } from '@/modules/core/storage/storage.service';
 import { v4 as uuidv4 } from 'uuid';
@@ -68,7 +68,7 @@ export class MaintenanceService {
     }));
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, companyId: string) {
     const m = await this.prisma.fixedAssetMaintenance.findUnique({
       where: { id },
       include: {
@@ -76,7 +76,7 @@ export class MaintenanceService {
         anexos: { orderBy: { uploadedAt: 'desc' } },
       },
     });
-    if (!m) throw new NotFoundException('Manutenção não encontrada');
+    if (!m || m.companyId !== companyId) throw new NotFoundException('Manutenção não encontrada');
     return m;
   }
 
@@ -87,7 +87,7 @@ export class MaintenanceService {
     notaFiscalRemessa?: string; descricaoProblema?: string; observacoes?: string;
   }) {
     const asset = await this.prisma.fixedAsset.findUnique({ where: { id: data.assetId } });
-    if (!asset) throw new NotFoundException('Ativo não encontrado');
+    if (!asset || asset.companyId !== companyId) throw new NotFoundException('Ativo não encontrado');
 
     const numero = await this.generateNumero(companyId);
 
@@ -121,9 +121,9 @@ export class MaintenanceService {
     });
   }
 
-  async update(id: string, data: any) {
+  async update(id: string, companyId: string, data: any) {
     const m = await this.prisma.fixedAssetMaintenance.findUnique({ where: { id } });
-    if (!m) throw new NotFoundException('Manutenção não encontrada');
+    if (!m || m.companyId !== companyId) throw new NotFoundException('Manutenção não encontrada');
 
     const updateData: any = { ...data };
     if (data.dataEnvio) updateData.dataEnvio = new Date(data.dataEnvio);
@@ -134,13 +134,13 @@ export class MaintenanceService {
     return this.prisma.fixedAssetMaintenance.update({ where: { id }, data: updateData });
   }
 
-  async concluir(id: string, data: {
+  async concluir(id: string, companyId: string, data: {
     descricaoServico: string; valorServico?: number; valorPecas?: number;
     notaFiscalServico?: string; notaFiscalRetorno?: string;
     dataRetornoReal?: string;
   }) {
     const m = await this.prisma.fixedAssetMaintenance.findUnique({ where: { id } });
-    if (!m) throw new NotFoundException('Manutenção não encontrada');
+    if (!m || m.companyId !== companyId) throw new NotFoundException('Manutenção não encontrada');
     if (m.status === 'CONCLUIDA') throw new BadRequestException('Manutenção já está concluída');
 
     await this.prisma.$transaction([
@@ -174,7 +174,7 @@ export class MaintenanceService {
   // ----------------------------------------------------------------
   async uploadAnexo(maintenanceId: string, file: Express.Multer.File, companyId: string) {
     const m = await this.prisma.fixedAssetMaintenance.findUnique({ where: { id: maintenanceId } });
-    if (!m) throw new NotFoundException('Manutenção não encontrada');
+    if (!m || m.companyId !== companyId) throw new NotFoundException('Manutenção não encontrada');
 
     const ext = path.extname(file.originalname);
     const objectKey = `maintenance/${companyId}/${maintenanceId}/${uuidv4()}${ext}`;
@@ -195,18 +195,33 @@ export class MaintenanceService {
     });
   }
 
-  async deleteAnexo(attachmentId: string) {
-    const att = await this.prisma.maintenanceAttachment.findUnique({ where: { id: attachmentId } });
-    if (!att) throw new NotFoundException('Anexo não encontrado');
+  async deleteAnexo(attachmentId: string, companyId: string) {
+    const att = await this.prisma.maintenanceAttachment.findUnique({
+      where: { id: attachmentId },
+      include: { maintenance: { select: { companyId: true } } },
+    });
+    if (!att || att.maintenance.companyId !== companyId)
+      throw new NotFoundException('Anexo não encontrado');
 
     await this.storage.delete(att.objectKey);
-    await this.prisma.maintenanceAttachment.delete({ where: { id: attachmentId } });
+    try {
+      await this.prisma.maintenanceAttachment.delete({ where: { id: attachmentId } });
+    } catch (error) {
+      if (error?.code === 'P2003' || error?.code === 'P2014') {
+        throw new ConflictException('Registro em uso e não pode ser excluído');
+      }
+      throw error;
+    }
     return { message: 'Anexo removido' };
   }
 
-  async getPresignedUrl(attachmentId: string): Promise<{ url: string }> {
-    const att = await this.prisma.maintenanceAttachment.findUnique({ where: { id: attachmentId } });
-    if (!att) throw new NotFoundException('Anexo não encontrado');
+  async getPresignedUrl(attachmentId: string, companyId: string): Promise<{ url: string }> {
+    const att = await this.prisma.maintenanceAttachment.findUnique({
+      where: { id: attachmentId },
+      include: { maintenance: { select: { companyId: true } } },
+    });
+    if (!att || att.maintenance.companyId !== companyId)
+      throw new NotFoundException('Anexo não encontrado');
     const url = await this.storage.getPresignedUrl(att.objectKey, 3600);
     return { url };
   }

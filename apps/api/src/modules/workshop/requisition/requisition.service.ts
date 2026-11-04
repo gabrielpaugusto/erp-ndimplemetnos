@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '@/modules/core/database/prisma.service';
 import { IntegrationService } from '@/modules/core/integration/integration.service';
@@ -15,6 +16,8 @@ import { ApproveRequisitionSingleItemDto, ApproveItemAction } from './dto/approv
 
 @Injectable()
 export class RequisitionService {
+  private readonly logger = new Logger(RequisitionService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly integration: IntegrationService,
@@ -444,7 +447,7 @@ export class RequisitionService {
     });
 
     // Fire integration (non-blocking)
-    this.integration.onRequisitionDelivered(id, requisition.companyId, 'system').catch(err => console.error('Integration error:', err));
+    this.integration.onRequisitionDelivered(id, requisition.companyId, 'system').catch(err => this.logger.error('Integration error', err?.message ?? err));
 
     return result;
   }

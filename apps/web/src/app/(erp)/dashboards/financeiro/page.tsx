@@ -119,7 +119,7 @@ export default function FinanceiroDashboard() {
             <AlertTriangle className="h-5 w-5 text-red-600" />
             <span className="font-semibold text-red-700">Inadimplência</span>
           </div>
-          <div className="grid grid-cols-3 gap-4 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
             <div>
               <p className="text-xs text-muted-foreground">Títulos vencidos</p>
               <p className="text-lg font-bold text-red-700">{inadimplencia.qtd}</p>
@@ -139,7 +139,7 @@ export default function FinanceiroDashboard() {
       {/* Fluxo de Caixa Previsto */}
       <div className="rounded-lg border bg-card">
         <div className="px-4 py-3 border-b font-semibold">Fluxo de Caixa Previsto (títulos em aberto)</div>
-        <div className="grid grid-cols-3 divide-x">
+        <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x">
           {(
             [
               { label: '30 dias', d: fluxoCaixa.d30 },

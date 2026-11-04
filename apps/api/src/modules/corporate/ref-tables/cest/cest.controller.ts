@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '@/modules/core/auth/guards/jwt-auth.guard';
 import { CestService } from './cest.service';
 
@@ -18,4 +18,7 @@ export class CestController {
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() body: any) { return this.service.update(id, body); }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) { return this.service.remove(id); }
 }

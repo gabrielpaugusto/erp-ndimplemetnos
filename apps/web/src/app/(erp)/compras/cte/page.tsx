@@ -208,7 +208,7 @@ export default function CtePage() {
           </div>
           <Link
             href="/compras/cte/novo"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium transition-colors"
           >
             <Plus className="w-4 h-4" />
             Registrar CT-e
@@ -295,7 +295,7 @@ export default function CtePage() {
             <p className="text-slate-400 text-sm mt-1">Registre os CT-e de frete recebidos das transportadoras</p>
             <Link
               href="/compras/cte/novo"
-              className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium"
+              className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium"
             >
               <Plus className="w-4 h-4" />Registrar primeiro CT-e
             </Link>

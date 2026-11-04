@@ -16,6 +16,7 @@ import { CreateNfeDto } from './dto/create-nfe.dto';
 import { UpdateNfeDto } from './dto/update-nfe.dto';
 import { OperacoesFiscaisService } from '../operacoes-fiscais.service';
 import { Logger } from '@nestjs/common';
+import { StorageService } from '@/modules/core/storage/storage.service';
 
 @Injectable()
 export class NfeService {
@@ -32,6 +33,7 @@ export class NfeService {
     private readonly sefazClient: SefazClientService,
     private readonly certificadoService: CertificadoService,
     private readonly operacoesFiscais: OperacoesFiscaisService,
+    private readonly storageService: StorageService,
   ) {}
 
   async findAll(
@@ -118,9 +120,9 @@ export class NfeService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, companyId: string) {
     const nfe = await this.prisma.nFeDocument.findUnique({
-      where: { id },
+      where: { id, companyId },
       include: {
         person: {
           select: {
@@ -153,6 +155,24 @@ export class NfeService {
     }
 
     return nfe;
+  }
+
+  async getXml(id: string, companyId: string): Promise<{ xml: string; filename: string }> {
+    const nfe = await this.prisma.nFeDocument.findUnique({
+      where: { id, companyId },
+      select: { id: true, xmlRetorno: true, chaveAcesso: true },
+    });
+
+    if (!nfe) {
+      throw new NotFoundException(`NF-e ${id} not found`);
+    }
+
+    if (!nfe.xmlRetorno) {
+      throw new BadRequestException('XML não disponível — NF-e ainda não foi autorizada pela SEFAZ');
+    }
+
+    const filename = nfe.chaveAcesso ? `${nfe.chaveAcesso}.xml` : `nfe-${id}.xml`;
+    return { xml: nfe.xmlRetorno, filename };
   }
 
   async create(companyId: string, data: CreateNfeDto) {
@@ -592,9 +612,9 @@ export class NfeService {
     });
 
     if (nfe.type === 'SAIDA') {
-      this.integration.onNfeAuthorizedSaida(id, nfe.companyId, 'system').catch(err => console.error('Integration error:', err));
+      this.integration.onNfeAuthorizedSaida(id, nfe.companyId, 'system').catch(err => this.logger.error('Integration error', err?.message ?? err));
     } else {
-      this.integration.onNfeAuthorizedEntrada(id, nfe.companyId, 'system').catch(err => console.error('Integration error:', err));
+      this.integration.onNfeAuthorizedEntrada(id, nfe.companyId, 'system').catch(err => this.logger.error('Integration error', err?.message ?? err));
     }
 
     // Auto-faturar the linked SaleOrder when NF-e is authorized
@@ -602,21 +622,84 @@ export class NfeService {
       this.prisma.saleOrder.update({
         where: { id: nfe.saleOrderId },
         data: { status: 'FATURADO' as any, dataFaturamento: new Date() },
-      }).catch(err => console.error('SaleOrder faturamento error:', err));
+      }).catch(err => this.logger.error('SaleOrder faturamento error', err?.message ?? err));
     }
+
+    // Backup XML no MinIO (fire-and-forget, não bloqueia a resposta)
+    setImmediate(async () => {
+      if (updated.xmlRetorno && updated.chaveAcesso) {
+        const key = await this.storageService.uploadNfeXml(updated.id, updated.chaveAcesso, updated.xmlRetorno);
+        if (key) {
+          this.prisma.nFeDocument.update({
+            where: { id: updated.id },
+            data: { xmlBackupKey: key },
+          }).catch(err => this.logger.warn(`MinIO key update failed: ${(err as any)?.message ?? err}`));
+        }
+      }
+    });
 
     return updated;
   }
 
   /**
+   * Returns lightweight status snapshot — used by frontend polling after authorize-async.
+   */
+  async getStatus(id: string, companyId: string) {
+    const nfe = await this.prisma.nFeDocument.findFirst({
+      where: { id, companyId },
+      select: { id: true, status: true, chaveAcesso: true, protocoloAutorizacao: true, dataAutorizacao: true, motivoCancelamento: true },
+    });
+    if (!nfe) throw new NotFoundException(`NF-e ${id} not found`);
+    return nfe;
+  }
+
+  /**
+   * Enqueues an NF-e for async transmission by the NfeQueueService cron.
+   * Returns immediately after marking the NF-e as AGUARDANDO_TRANSMISSAO.
+   */
+  async enqueueTransmission(id: string, companyId: string) {
+    const nfe = await this.prisma.nFeDocument.findUnique({ where: { id } });
+    if (!nfe || nfe.companyId !== companyId) throw new NotFoundException(`NF-e ${id} not found`);
+
+    if (nfe.status !== 'VALIDADA' && nfe.status !== 'RASCUNHO') {
+      throw new BadRequestException(
+        `Cannot enqueue NF-e with status ${nfe.status}. Expected VALIDADA or RASCUNHO.`,
+      );
+    }
+
+    if (nfe.status === 'RASCUNHO') {
+      await this.validate(id);
+    }
+
+    await this.prisma.nFeDocument.update({
+      where: { id },
+      data: { status: 'AGUARDANDO_TRANSMISSAO' as any },
+    });
+
+    return { id, status: 'AGUARDANDO_TRANSMISSAO', message: 'NF-e enfileirada para transmissão. Resultado disponível em instantes.' };
+  }
+
+  /**
+   * Called by NfeQueueService to actually transmit a queued NF-e.
+   * Resets status to VALIDADA first so transmit() accepts it.
+   */
+  async transmitFromQueue(id: string) {
+    await this.prisma.nFeDocument.update({
+      where: { id, status: 'AGUARDANDO_TRANSMISSAO' as any },
+      data: { status: 'VALIDADA' as any },
+    });
+    return this.transmit(id);
+  }
+
+  /**
    * Cancel an authorized NF-e with a reason.
    */
-  async cancel(id: string, motivo: string) {
+  async cancel(id: string, companyId: string, motivo: string) {
     const nfe = await this.prisma.nFeDocument.findUnique({
       where: { id },
     });
 
-    if (!nfe) {
+    if (!nfe || nfe.companyId !== companyId) {
       throw new NotFoundException(`NF-e ${id} not found`);
     }
 
@@ -719,10 +802,10 @@ export class NfeService {
    * Tenta transmitir ao SEFAZ se a empresa possuir certificado digital configurado;
    * caso contrário registra localmente (modo offline/sem certificado).
    */
-  async emitirCce(id: string, descricaoCorrecao: string) {
+  async emitirCce(id: string, companyId: string, descricaoCorrecao: string) {
     const nfe = await this.prisma.nFeDocument.findUnique({ where: { id } });
 
-    if (!nfe) throw new NotFoundException(`NF-e ${id} not found`);
+    if (!nfe || nfe.companyId !== companyId) throw new NotFoundException(`NF-e ${id} not found`);
 
     if (nfe.status !== 'AUTORIZADA') {
       throw new BadRequestException(
@@ -874,6 +957,158 @@ export class NfeService {
   }
 
   /**
+   * Cria uma cópia em RASCUNHO de uma NF-e DENEGADA ou REJEITADA,
+   * permitindo correção e reenvio.
+   */
+  async copiarParaRascunho(id: string, companyId: string) {
+    const nfe = await this.prisma.nFeDocument.findUnique({
+      where: { id },
+      include: { items: true },
+    });
+
+    if (!nfe || nfe.companyId !== companyId) throw new NotFoundException(`NF-e ${id} not found`);
+
+    if (nfe.status !== 'DENEGADA' && nfe.status !== 'REJEITADA') {
+      throw new BadRequestException(
+        `Só é possível copiar NF-e com status DENEGADA ou REJEITADA. Status atual: ${nfe.status}`,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const nova = await tx.nFeDocument.create({
+        data: {
+          companyId: nfe.companyId,
+          type: nfe.type,
+          finality: nfe.finality,
+          operation: nfe.operation,
+          status: 'RASCUNHO' as any,
+          personId: nfe.personId,
+          saleOrderId: nfe.saleOrderId,
+          serviceOrderId: nfe.serviceOrderId,
+          naturezaOperacao: nfe.naturezaOperacao,
+          dataEmissao: new Date(),
+          valorProdutos: nfe.valorProdutos,
+          valorFrete: nfe.valorFrete,
+          valorSeguro: nfe.valorSeguro,
+          valorDesconto: nfe.valorDesconto,
+          valorOutros: nfe.valorOutros,
+          valorTotal: nfe.valorTotal,
+          informacoesComplementares: nfe.informacoesComplementares,
+          items: {
+            create: nfe.items.map((item) => ({
+              itemNumber: item.itemNumber,
+              productId: item.productId,
+              description: item.description,
+              ncmCode: item.ncmCode,
+              cfopCode: item.cfopCode,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              totalPrice: item.totalPrice,
+              unit: item.unit,
+            })),
+          },
+        },
+        include: {
+          person: { select: { id: true, razaoSocial: true, cpfCnpj: true } },
+          items: { orderBy: { itemNumber: 'asc' } },
+        },
+      });
+
+      return nova;
+    });
+  }
+
+  async exportCsv(
+    companyId: string,
+    filters: { status?: string; type?: string; dataInicio?: string; dataFim?: string },
+  ): Promise<string> {
+    const where: any = { companyId };
+
+    if (filters.type) {
+      where.type = filters.type;
+    }
+
+    if (filters.status) {
+      where.status = filters.status;
+    }
+
+    if (filters.dataInicio || filters.dataFim) {
+      where.dataEmissao = {};
+      if (filters.dataInicio) {
+        where.dataEmissao.gte = new Date(filters.dataInicio);
+      }
+      if (filters.dataFim) {
+        where.dataEmissao.lte = new Date(filters.dataFim);
+      }
+    }
+
+    const records = await this.prisma.nFeDocument.findMany({
+      where,
+      orderBy: [{ createdAt: 'desc' }],
+      select: {
+        id: true,
+        numero: true,
+        serie: true,
+        type: true,
+        status: true,
+        naturezaOperacao: true,
+        dataEmissao: true,
+        chaveAcesso: true,
+        valorTotal: true,
+        createdAt: true,
+        person: {
+          select: { razaoSocial: true, cpfCnpj: true },
+        },
+      },
+    });
+
+    const formatDate = (d: Date | null | undefined): string => {
+      if (!d) return '';
+      const date = new Date(d);
+      const dd = String(date.getDate()).padStart(2, '0');
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    };
+
+    const formatCurrency = (v: unknown): string => {
+      if (v === null || v === undefined) return '';
+      return Number(v).toFixed(2).replace('.', ',');
+    };
+
+    const escapeValue = (v: string): string => {
+      if (v.includes(';') || v.includes('\n') || v.includes('"')) {
+        return `"${v.replace(/"/g, '""')}"`;
+      }
+      return v;
+    };
+
+    const header =
+      'ID;Número;Série;Tipo;Status;Natureza da Operação;Data de Emissão;Chave de Acesso;Valor Total;Razão Social;CPF/CNPJ;Criado em';
+
+    const rows = records.map((r) =>
+      [
+        r.id,
+        r.numero ?? '',
+        r.serie ?? '',
+        r.type ?? '',
+        r.status ?? '',
+        r.naturezaOperacao ?? '',
+        formatDate(r.dataEmissao),
+        r.chaveAcesso ?? '',
+        formatCurrency(r.valorTotal),
+        r.person?.razaoSocial ?? '',
+        r.person?.cpfCnpj ?? '',
+        formatDate(r.createdAt),
+      ]
+        .map((v) => escapeValue(String(v)))
+        .join(';'),
+    );
+
+    return [header, ...rows].join('\r\n');
+  }
+
+  /**
    * Generate a mock 44-digit chaveAcesso for NF-e.
    */
   private generateChaveAcesso(
@@ -950,7 +1185,7 @@ export class NfeService {
         person: { include: { addresses: { take: 1 } } },
       },
     });
-    if (!nfe) throw new NotFoundException(`NF-e ${nfeId} não encontrada`);
+    if (!nfe || nfe.companyId !== companyId) throw new NotFoundException(`NF-e ${nfeId} não encontrada`);
     if ((nfe as any).type !== 'SAIDA') throw new BadRequestException('Escrituração de saída só se aplica a NF-e de saída.');
     if (!['AUTORIZADA'].includes(nfe.status as string)) throw new BadRequestException('NF-e deve estar AUTORIZADA para ser escriturada.');
 

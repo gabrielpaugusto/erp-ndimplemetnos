@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '@/modules/core/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '@/modules/core/auth/decorators/current-user.decorator';
 import { EquipamentosService } from './equipamentos.service';
@@ -24,8 +24,8 @@ export class EquipamentosController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.service.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.service.findOne(id, user.companyId);
   }
 
   @Post()
@@ -33,21 +33,29 @@ export class EquipamentosController {
     return this.service.create(user.companyId, body);
   }
 
+  @Delete(':id')
+  remove(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.service.remove(id, user.companyId);
+  }
+
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: any) {
-    return this.service.update(id, body);
+  update(@Param('id') id: string, @CurrentUser() user: any, @Body() body: any) {
+    return this.service.update(id, user.companyId, body);
   }
 
   // ── Vínculos ──────────────────────────────────────────────────────────────
 
   @Post('vinculos')
-  vincular(@Body() body: { carroceriaId: string; veiculoId: string; observations?: string }) {
-    return this.service.vincular(body.carroceriaId, body.veiculoId, body.observations);
+  vincular(
+    @CurrentUser() user: any,
+    @Body() body: { carroceriaId: string; veiculoId: string; observations?: string },
+  ) {
+    return this.service.vincular(body.carroceriaId, body.veiculoId, user.companyId, body.observations);
   }
 
   @Patch('vinculos/:id/desvincular')
-  desvincular(@Param('id') id: string) {
-    return this.service.desvincular(id);
+  desvincular(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.service.desvincular(id, user.companyId);
   }
 
   // ── Tipos e Modelos de Carroceria ─────────────────────────────────────────

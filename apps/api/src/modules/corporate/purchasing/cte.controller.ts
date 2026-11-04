@@ -41,8 +41,11 @@ export class CteController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.cteService.findOne(id);
+  findOne(
+    @Param('id') id: string,
+    @CurrentUser() user: { companyId: string; id: string },
+  ) {
+    return this.cteService.findOne(id, user.companyId);
   }
 
   @Post()
@@ -54,17 +57,22 @@ export class CteController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: Partial<CreateCteDto>) {
-    return this.cteService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @CurrentUser() user: { companyId: string; id: string },
+    @Body() dto: Partial<CreateCteDto>,
+  ) {
+    return this.cteService.update(id, user.companyId, dto);
   }
 
   /** Manifestação do destinatário (ciência, confirmação, etc.) */
   @Post(':id/manifestar')
   manifestar(
     @Param('id') id: string,
+    @CurrentUser() user: { companyId: string; id: string },
     @Body() body: { tipo: 'CIENCIA' | 'CONFIRMACAO' | 'DESCONHECIMENTO' | 'NAO_REALIZADO' },
   ) {
-    return this.cteService.manifestar(id, body.tipo);
+    return this.cteService.manifestar(id, user.companyId, body.tipo);
   }
 
   /**
@@ -79,16 +87,17 @@ export class CteController {
     @Param('id') id: string,
     @CurrentUser() user: { companyId: string; id: string },
   ) {
-    return this.cteService.escriturar(id, user.id);
+    return this.cteService.escriturar(id, user.id, user.companyId);
   }
 
   /** Cancelar CT-e com motivo */
   @Post(':id/cancelar')
   cancelar(
     @Param('id') id: string,
+    @CurrentUser() user: { companyId: string; id: string },
     @Body() body: { motivo: string },
   ) {
-    return this.cteService.cancelar(id, body.motivo);
+    return this.cteService.cancelar(id, user.companyId, body.motivo);
   }
 
   /** Status da última sincronização CT-e (rate limit, última chamada, etc.) */

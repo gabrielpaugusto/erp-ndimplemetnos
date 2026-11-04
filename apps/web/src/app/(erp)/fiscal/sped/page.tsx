@@ -88,7 +88,7 @@ const COLOR_MAP: Record<string, Record<string, string>> = {
   },
   emerald: {
     card: 'border-emerald-200', header: 'bg-emerald-50 border-emerald-200', icon: 'text-emerald-600',
-    badge: 'bg-emerald-100 text-emerald-700', btn: 'bg-emerald-600 hover:bg-emerald-700',
+    badge: 'bg-emerald-100 text-emerald-700', btn: 'bg-primary-600 hover:bg-primary-700',
     btnOutline: 'border-emerald-300 text-emerald-600 hover:bg-emerald-50',
   },
   amber: {
@@ -423,7 +423,7 @@ export default function SpedPage() {
 
           {/* Statistics */}
           <div className="p-5">
-            <div className="grid grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
               <div className="text-center p-3 bg-slate-50 rounded-lg">
                 <p className="text-xs text-slate-500">Total de Linhas</p>
                 <p className="text-xl font-bold text-slate-900">{previews[activePreview]!.totalLinhas.toLocaleString('pt-BR')}</p>

@@ -506,7 +506,7 @@ function FormModal({ initial, isEdit, onClose, onSaved }: {
             Cancelar
           </button>
           <button onClick={handleSave} disabled={saving}
-            className="px-5 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 font-medium">
+            className="px-5 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 font-medium">
             {saving ? 'Salvando...' : 'Salvar Operação'}
           </button>
         </div>
@@ -597,7 +597,7 @@ export default function OperacoesFiscaisPage() {
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
           <button onClick={() => { setEditing(undefined); setDialogOpen(true); }}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium">
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium">
             <Plus className="w-4 h-4" /> Nova Operação
           </button>
         </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import {
   Search,
   Building2,
@@ -112,6 +113,7 @@ export default function CatalogoFornecedoresPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [error, setError] = useState('');
 
   // Debounce search input
   useEffect(() => {
@@ -124,6 +126,7 @@ export default function CatalogoFornecedoresPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
       const params = new URLSearchParams({
         page: String(page),
@@ -141,6 +144,7 @@ export default function CatalogoFornecedoresPage() {
       setTotalPages(json.meta?.totalPages ?? 1);
     } catch {
       setRows([]);
+      setError('Erro ao carregar dados. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -161,6 +165,12 @@ export default function CatalogoFornecedoresPage() {
           Mapeamento entre produtos do fornecedor e nosso catálogo interno
         </p>
       </div>
+
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          {error}
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative max-w-md">
@@ -265,7 +275,8 @@ export default function CatalogoFornecedoresPage() {
                 rows.map((row) => (
                   <tr
                     key={row.id}
-                    className="hover:bg-slate-50 transition-colors"
+                    className="hover:bg-slate-50 transition-colors cursor-pointer"
+                    onClick={() => { window.location.href = `/compras/catalogo-fornecedores/${row.id}`; }}
                   >
                     {/* Fornecedor */}
                     <td className="px-4 py-3">

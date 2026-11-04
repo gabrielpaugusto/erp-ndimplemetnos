@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@/modules/core/database/prisma.service';
 
 @Injectable()
@@ -40,5 +40,11 @@ export class BancoService {
 
   async update(id: string, data: Partial<{ code: string; ispb: string; name: string; shortName: string; tipo: string; active: boolean }>) {
     return this.prisma.banco.update({ where: { id }, data });
+  }
+
+  async remove(id: string) {
+    const record = await this.prisma.banco.findUnique({ where: { id } });
+    if (!record) throw new NotFoundException(`Banco ${id} não encontrado`);
+    return this.prisma.banco.delete({ where: { id } });
   }
 }

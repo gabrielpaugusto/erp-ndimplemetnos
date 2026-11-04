@@ -38,7 +38,7 @@ export class SaleOrdersService {
     const limit = parseInt(query.limit || '20', 10);
     const skip = (page - 1) * limit;
 
-    const where: any = { companyId };
+    const where: any = { companyId, deletedAt: null };
 
     if (query.search) {
       where.OR = [
@@ -98,9 +98,9 @@ export class SaleOrdersService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, companyId: string) {
     const order = await this.prisma.saleOrder.findUnique({
-      where: { id },
+      where: { id, companyId },
       include: {
         person: true,
         vendedor: {
@@ -219,7 +219,7 @@ export class SaleOrdersService {
 
   async approve(id: string, userId: string, companyId: string) {
     const order = await this.prisma.saleOrder.findUnique({ where: { id } });
-    if (!order) {
+    if (!order || order.companyId !== companyId) {
       throw new NotFoundException(`Sale order ${id} not found`);
     }
 
@@ -268,9 +268,9 @@ export class SaleOrdersService {
     });
   }
 
-  async cancel(id: string, userId: string) {
+  async cancel(id: string, companyId: string, userId: string) {
     const order = await this.prisma.saleOrder.findUnique({ where: { id } });
-    if (!order) {
+    if (!order || order.companyId !== companyId) {
       throw new NotFoundException(`Sale order ${id} not found`);
     }
 
@@ -378,6 +378,83 @@ export class SaleOrdersService {
     this.saleIntegration.onSaleOrderFaturado(orderId, nfeId, userId).catch(() => {});
 
     return updated;
+  }
+
+  async exportCsv(
+    companyId: string,
+    filters: { status?: string; dataInicio?: string; dataFim?: string },
+  ): Promise<string> {
+    const where: any = { companyId, deletedAt: null };
+
+    if (filters.status) {
+      where.status = filters.status;
+    }
+
+    if (filters.dataInicio || filters.dataFim) {
+      where.dataEmissao = {};
+      if (filters.dataInicio) {
+        where.dataEmissao.gte = new Date(filters.dataInicio);
+      }
+      if (filters.dataFim) {
+        where.dataEmissao.lte = new Date(filters.dataFim);
+      }
+    }
+
+    const records = await this.prisma.saleOrder.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        person: {
+          select: { razaoSocial: true, cpfCnpj: true },
+        },
+        vendedor: {
+          select: { name: true },
+        },
+      },
+    });
+
+    const formatDate = (d: Date | null | undefined): string => {
+      if (!d) return '';
+      const date = new Date(d);
+      const dd = String(date.getDate()).padStart(2, '0');
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    };
+
+    const formatCurrency = (v: unknown): string => {
+      if (v === null || v === undefined) return '';
+      return Number(v).toFixed(2).replace('.', ',');
+    };
+
+    const escapeValue = (v: string): string => {
+      if (v.includes(';') || v.includes('\n') || v.includes('"')) {
+        return `"${v.replace(/"/g, '""')}"`;
+      }
+      return v;
+    };
+
+    const header =
+      'ID;Número;Tipo de Venda;Status;Data de Emissão;Valor Total;Razão Social;CPF/CNPJ;Vendedor;Criado em';
+
+    const rows = records.map((r) =>
+      [
+        r.id,
+        r.numero ?? '',
+        (r as any).saleType ?? '',
+        r.status ?? '',
+        formatDate((r as any).dataEmissao ?? r.createdAt),
+        formatCurrency((r as any).valorTotal ?? (r as any).total),
+        (r as any).person?.razaoSocial ?? '',
+        (r as any).person?.cpfCnpj ?? '',
+        (r as any).vendedor?.name ?? '',
+        formatDate(r.createdAt),
+      ]
+        .map((v) => escapeValue(String(v)))
+        .join(';'),
+    );
+
+    return [header, ...rows].join('\r\n');
   }
 
   private async recalculate(orderId: string) {

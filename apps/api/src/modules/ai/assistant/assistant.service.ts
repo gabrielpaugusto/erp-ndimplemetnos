@@ -27,7 +27,7 @@ export class AssistantService {
     });
   }
 
-  async getConversation(id: string) {
+  async getConversation(id: string, companyId: string) {
     const conversation = await this.prisma.aiConversation.findUnique({
       where: { id },
       include: {
@@ -37,7 +37,7 @@ export class AssistantService {
       },
     });
 
-    if (!conversation) {
+    if (!conversation || conversation.companyId !== companyId) {
       throw new NotFoundException(`Conversation ${id} not found`);
     }
 
@@ -65,12 +65,12 @@ export class AssistantService {
     companyId: string,
     dto: SendMessageDto,
   ) {
-    // 1. Verify conversation exists
+    // 1. Verify conversation exists and belongs to company
     const conversation = await this.prisma.aiConversation.findUnique({
       where: { id: conversationId },
     });
 
-    if (!conversation) {
+    if (!conversation || conversation.companyId !== companyId) {
       throw new NotFoundException(`Conversation ${conversationId} not found`);
     }
 
@@ -164,12 +164,12 @@ export class AssistantService {
     return assistantMessage;
   }
 
-  async archiveConversation(id: string) {
+  async archiveConversation(id: string, companyId: string) {
     const conversation = await this.prisma.aiConversation.findUnique({
       where: { id },
     });
 
-    if (!conversation) {
+    if (!conversation || conversation.companyId !== companyId) {
       throw new NotFoundException(`Conversation ${id} not found`);
     }
 
@@ -179,12 +179,12 @@ export class AssistantService {
     });
   }
 
-  async deleteConversation(id: string) {
+  async deleteConversation(id: string, companyId: string) {
     const conversation = await this.prisma.aiConversation.findUnique({
       where: { id },
     });
 
-    if (!conversation) {
+    if (!conversation || conversation.companyId !== companyId) {
       throw new NotFoundException(`Conversation ${id} not found`);
     }
 

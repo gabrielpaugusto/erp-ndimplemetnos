@@ -96,9 +96,11 @@ export class ServiceOrderService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, companyId?: string) {
+    const where: any = { id };
+    if (companyId) where.companyId = companyId;
     const order = await this.prisma.serviceOrder.findUnique({
-      where: { id },
+      where,
       include: {
         person: { select: { id: true, razaoSocial: true, cpfCnpj: true, nomeFantasia: true } },
         seguradora: { select: { id: true, razaoSocial: true, cpfCnpj: true } },
@@ -210,9 +212,9 @@ export class ServiceOrderService {
     });
   }
 
-  async update(id: string, data: UpdateServiceOrderDto) {
+  async update(id: string, companyId: string, data: UpdateServiceOrderDto) {
     const existing = await this.prisma.serviceOrder.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException(`OS ${id} não encontrada`);
+    if (!existing || existing.companyId !== companyId) throw new NotFoundException(`OS ${id} não encontrada`);
 
     const updateData: any = { ...data };
     delete updateData.items;
@@ -235,48 +237,48 @@ export class ServiceOrderService {
 
   // ── Fluxo de Status ───────────────────────────────────────────────────────
 
-  async aprovar(id: string) {
-    const order = await this.getOrFail(id);
+  async aprovar(id: string, companyId: string) {
+    const order = await this.getOrFail(id, companyId);
     if (!['ORCAMENTO', 'AGUARD_APROVACAO'].includes(order.status as string)) {
       throw new BadRequestException(`Status atual "${order.status}" não permite aprovação`);
     }
     return this.updateStatus(id, 'APROVADA');
   }
 
-  async enviarParaAprovacao(id: string) {
-    const order = await this.getOrFail(id);
+  async enviarParaAprovacao(id: string, companyId: string) {
+    const order = await this.getOrFail(id, companyId);
     if (order.status !== 'ORCAMENTO') {
       throw new BadRequestException(`Apenas orçamentos podem ser enviados para aprovação`);
     }
     return this.updateStatus(id, 'AGUARD_APROVACAO');
   }
 
-  async iniciar(id: string) {
-    const order = await this.getOrFail(id);
+  async iniciar(id: string, companyId: string) {
+    const order = await this.getOrFail(id, companyId);
     if (order.status !== 'APROVADA') {
       throw new BadRequestException(`OS precisa estar APROVADA para iniciar execução`);
     }
     return this.updateStatus(id, 'EM_EXECUCAO');
   }
 
-  async aguardarPecas(id: string) {
-    const order = await this.getOrFail(id);
+  async aguardarPecas(id: string, companyId: string) {
+    const order = await this.getOrFail(id, companyId);
     if (order.status !== 'EM_EXECUCAO') {
       throw new BadRequestException(`OS precisa estar EM_EXECUCAO para aguardar peças`);
     }
     return this.updateStatus(id, 'AGUARD_PECAS');
   }
 
-  async retornarExecucao(id: string) {
-    const order = await this.getOrFail(id);
+  async retornarExecucao(id: string, companyId: string) {
+    const order = await this.getOrFail(id, companyId);
     if (order.status !== 'AGUARD_PECAS') {
       throw new BadRequestException(`OS precisa estar AGUARD_PECAS para retornar à execução`);
     }
     return this.updateStatus(id, 'EM_EXECUCAO');
   }
 
-  async concluir(id: string) {
-    const order = await this.getOrFail(id);
+  async concluir(id: string, companyId: string) {
+    const order = await this.getOrFail(id, companyId);
     if (!['EM_EXECUCAO', 'AGUARD_PECAS'].includes(order.status as string)) {
       throw new BadRequestException(`OS precisa estar em execução para ser concluída`);
     }
@@ -288,8 +290,8 @@ export class ServiceOrderService {
     });
   }
 
-  async faturar(id: string, dto: FaturarOsDto = {}) {
-    const order = await this.getOrFail(id);
+  async faturar(id: string, companyId: string, dto: FaturarOsDto = {}) {
+    const order = await this.getOrFail(id, companyId);
     if (order.status !== 'CONCLUIDA') {
       throw new BadRequestException(`OS precisa estar CONCLUIDA para faturamento`);
     }
@@ -530,8 +532,8 @@ export class ServiceOrderService {
     await this.prisma.financialMovement.createMany({ data: parcelas });
   }
 
-  async vendaPerdida(id: string, motivo: string) {
-    const order = await this.getOrFail(id);
+  async vendaPerdida(id: string, companyId: string, motivo: string) {
+    const order = await this.getOrFail(id, companyId);
     if (!['ORCAMENTO', 'AGUARD_APROVACAO'].includes(order.status as string)) {
       throw new BadRequestException(`Venda perdida só pode ser registrada em orçamentos`);
     }
@@ -542,8 +544,8 @@ export class ServiceOrderService {
     });
   }
 
-  async cancelar(id: string) {
-    const order = await this.getOrFail(id);
+  async cancelar(id: string, companyId: string) {
+    const order = await this.getOrFail(id, companyId);
     if (['FATURADA', 'CANCELADA'].includes(order.status as string)) {
       throw new BadRequestException(`OS ${order.status} não pode ser cancelada`);
     }
@@ -620,9 +622,9 @@ export class ServiceOrderService {
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  private async getOrFail(id: string) {
+  private async getOrFail(id: string, companyId: string) {
     const order = await this.prisma.serviceOrder.findUnique({ where: { id } });
-    if (!order) throw new NotFoundException(`OS ${id} não encontrada`);
+    if (!order || order.companyId !== companyId) throw new NotFoundException(`OS ${id} não encontrada`);
     return order;
   }
 
