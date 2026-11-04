@@ -29,12 +29,12 @@ export class TarefasCatalogoService {
     }));
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, companyId: string) {
     const tarefa = await this.prisma.tarefaCatalogo.findUnique({
       where: { id },
       include: { subtarefas: { orderBy: { ordem: 'asc' } } },
     });
-    if (!tarefa) throw new NotFoundException(`Tarefa ${id} não encontrada`);
+    if (!tarefa || tarefa.companyId !== companyId) throw new NotFoundException(`Tarefa ${id} não encontrada`);
     return tarefa;
   }
 

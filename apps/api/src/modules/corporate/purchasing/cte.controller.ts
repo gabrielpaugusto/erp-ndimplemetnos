@@ -41,8 +41,11 @@ export class CteController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.cteService.findOne(id);
+  findOne(
+    @Param('id') id: string,
+    @CurrentUser() user: { companyId: string; id: string },
+  ) {
+    return this.cteService.findOne(id, user.companyId);
   }
 
   @Post()

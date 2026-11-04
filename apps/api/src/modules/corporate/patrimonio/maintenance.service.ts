@@ -68,7 +68,7 @@ export class MaintenanceService {
     }));
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, companyId: string) {
     const m = await this.prisma.fixedAssetMaintenance.findUnique({
       where: { id },
       include: {
@@ -76,7 +76,7 @@ export class MaintenanceService {
         anexos: { orderBy: { uploadedAt: 'desc' } },
       },
     });
-    if (!m) throw new NotFoundException('Manutenção não encontrada');
+    if (!m || m.companyId !== companyId) throw new NotFoundException('Manutenção não encontrada');
     return m;
   }
 

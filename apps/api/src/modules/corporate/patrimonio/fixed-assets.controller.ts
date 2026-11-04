@@ -45,8 +45,8 @@ export class FixedAssetsController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.service.findOne(id);
+  findOne(@Param('id') id: string, @Request() req: any) {
+    return this.service.findOne(id, req.user.companyId);
   }
 
   @Post()

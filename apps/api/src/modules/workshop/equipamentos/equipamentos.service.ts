@@ -64,7 +64,7 @@ export class EquipamentosService {
     return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, companyId: string) {
     const eq = await this.prisma.equipamento.findUnique({
       where: { id },
       include: {
@@ -93,7 +93,7 @@ export class EquipamentosService {
       },
     });
 
-    if (!eq) throw new NotFoundException(`Equipamento ${id} não encontrado`);
+    if (!eq || eq.companyId !== companyId) throw new NotFoundException(`Equipamento ${id} não encontrado`);
     return eq;
   }
 

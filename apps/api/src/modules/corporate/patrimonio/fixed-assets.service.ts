@@ -42,14 +42,14 @@ export class FixedAssetsService {
     return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, companyId: string) {
     const asset = await this.prisma.fixedAsset.findUnique({
       where: { id },
       include: {
         depreciacoes: { orderBy: [{ ano: 'desc' }, { mes: 'desc' }], take: 60 },
       },
     });
-    if (!asset) throw new NotFoundException('Ativo não encontrado');
+    if (!asset || asset.companyId !== companyId) throw new NotFoundException('Ativo não encontrado');
     return asset;
   }
 

@@ -75,7 +75,7 @@ export class CteService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, companyId: string) {
     const cte = await this.prisma.cteDocument.findUnique({
       where: { id },
       include: {
@@ -93,7 +93,7 @@ export class CteService {
       },
     });
 
-    if (!cte) throw new NotFoundException(`CT-e ${id} não encontrado`);
+    if (!cte || cte.companyId !== companyId) throw new NotFoundException(`CT-e ${id} não encontrado`);
     return cte;
   }
 
