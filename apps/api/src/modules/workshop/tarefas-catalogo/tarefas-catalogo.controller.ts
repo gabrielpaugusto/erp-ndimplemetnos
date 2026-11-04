@@ -24,15 +24,15 @@ export class TarefasCatalogoController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: any) {
-    return this.service.update(id, body);
+  update(@Param('id') id: string, @CurrentUser() user: any, @Body() body: any) {
+    return this.service.update(id, user.companyId, body);
   }
 
   // ── Subtarefas ────────────────────────────────────────────────────────────
 
   @Post(':id/subtarefas')
-  createSubtarefa(@Param('id') id: string, @Body() body: any) {
-    return this.service.createSubtarefa(id, body);
+  createSubtarefa(@Param('id') id: string, @CurrentUser() user: any, @Body() body: any) {
+    return this.service.createSubtarefa(id, user.companyId, body);
   }
 
   @Patch('subtarefas/:id')
@@ -48,12 +48,12 @@ export class TarefasCatalogoController {
   // ── Adicionar em OS / OP ──────────────────────────────────────────────────
 
   @Post('adicionar-na-os')
-  adicionarNaOS(@Body() body: { serviceOrderId: string; tarefaCatalogoId: string }) {
-    return this.service.adicionarNaOS(body.serviceOrderId, body.tarefaCatalogoId);
+  adicionarNaOS(@CurrentUser() user: any, @Body() body: { serviceOrderId: string; tarefaCatalogoId: string }) {
+    return this.service.adicionarNaOS(body.serviceOrderId, body.tarefaCatalogoId, user.companyId);
   }
 
   @Post('adicionar-na-op')
-  adicionarNaOP(@Body() body: { productionOrderId: string; tarefaCatalogoId: string }) {
-    return this.service.adicionarNaOP(body.productionOrderId, body.tarefaCatalogoId);
+  adicionarNaOP(@CurrentUser() user: any, @Body() body: { productionOrderId: string; tarefaCatalogoId: string }) {
+    return this.service.adicionarNaOP(body.productionOrderId, body.tarefaCatalogoId, user.companyId);
   }
 }

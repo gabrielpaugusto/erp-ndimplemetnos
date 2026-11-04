@@ -216,7 +216,7 @@ export class CteService {
    *  4. Gera lançamento contábil automático
    *  5. Marca status como ESCRITURADO
    */
-  async escriturar(id: string, userId: string) {
+  async escriturar(id: string, userId: string, companyId: string) {
     const cte = await this.prisma.cteDocument.findUnique({
       where: { id },
       include: {
@@ -227,7 +227,7 @@ export class CteService {
       },
     });
 
-    if (!cte) throw new NotFoundException(`CT-e ${id} não encontrado`);
+    if (!cte || cte.companyId !== companyId) throw new NotFoundException(`CT-e ${id} não encontrado`);
     if (cte.status === 'ESCRITURADO') throw new BadRequestException('CT-e já foi escriturado.');
     if (cte.status === 'CANCELADO')   throw new BadRequestException('CT-e cancelado não pode ser escriturado.');
 

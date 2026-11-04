@@ -52,8 +52,11 @@ export class ProductionOrdersController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.productionOrdersService.findOne(id);
+  findOne(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; companyId: string },
+  ) {
+    return this.productionOrdersService.findOne(id, user.companyId);
   }
 
   @Get(':id/necessidades')
@@ -78,9 +81,10 @@ export class ProductionOrdersController {
   @Patch(':id')
   update(
     @Param('id') id: string,
+    @CurrentUser() user: { id: string; companyId: string },
     @Body() updateProductionOrderDto: UpdateProductionOrderDto,
   ) {
-    return this.productionOrdersService.update(id, updateProductionOrderDto);
+    return this.productionOrdersService.update(id, user.companyId, updateProductionOrderDto);
   }
 
   @Post(':id/release')
@@ -88,22 +92,31 @@ export class ProductionOrdersController {
     @CurrentUser() user: { id: string; companyId: string },
     @Param('id') id: string,
   ) {
-    return this.productionOrdersService.release(id, user.id);
+    return this.productionOrdersService.release(id, user.companyId, user.id);
   }
 
   @Post(':id/start')
-  start(@Param('id') id: string) {
-    return this.productionOrdersService.start(id);
+  start(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; companyId: string },
+  ) {
+    return this.productionOrdersService.start(id, user.companyId);
   }
 
   @Post(':id/complete')
-  complete(@Param('id') id: string) {
-    return this.productionOrdersService.complete(id);
+  complete(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; companyId: string },
+  ) {
+    return this.productionOrdersService.complete(id, user.companyId);
   }
 
   @Post(':id/cancel')
-  cancel(@Param('id') id: string) {
-    return this.productionOrdersService.cancel(id);
+  cancel(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: string; companyId: string },
+  ) {
+    return this.productionOrdersService.cancel(id, user.companyId);
   }
 
   /** A9 — POST /production/orders/:id/apontar-consumo */

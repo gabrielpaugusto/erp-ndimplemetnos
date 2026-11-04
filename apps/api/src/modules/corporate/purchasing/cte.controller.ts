@@ -87,7 +87,7 @@ export class CteController {
     @Param('id') id: string,
     @CurrentUser() user: { companyId: string; id: string },
   ) {
-    return this.cteService.escriturar(id, user.id);
+    return this.cteService.escriturar(id, user.id, user.companyId);
   }
 
   /** Cancelar CT-e com motivo */

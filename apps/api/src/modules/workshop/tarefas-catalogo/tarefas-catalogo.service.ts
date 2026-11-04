@@ -51,8 +51,8 @@ export class TarefasCatalogoService {
     });
   }
 
-  async update(id: string, data: any) {
-    await this.findOne(id);
+  async update(id: string, companyId: string, data: any) {
+    await this.findOne(id, companyId);
     return this.prisma.tarefaCatalogo.update({
       where: { id },
       data,
@@ -62,13 +62,13 @@ export class TarefasCatalogoService {
 
   // ── Subtarefas ────────────────────────────────────────────────────────────
 
-  async createSubtarefa(tarefaCatalogoId: string, data: {
+  async createSubtarefa(tarefaCatalogoId: string, companyId: string, data: {
     nome: string;
     tempoPadraoH: number;
     ordem?: number;
     observations?: string;
   }) {
-    await this.findOne(tarefaCatalogoId);
+    await this.findOne(tarefaCatalogoId, companyId);
 
     // Ordem automática se não informada
     if (data.ordem === undefined) {
@@ -101,12 +101,12 @@ export class TarefasCatalogoService {
 
   // ── Adicionar tarefas do catálogo a uma OS (cria snapshots) ───────────────
 
-  async adicionarNaOS(serviceOrderId: string, tarefaCatalogoId: string) {
+  async adicionarNaOS(serviceOrderId: string, tarefaCatalogoId: string, companyId: string) {
     const tarefa = await this.prisma.tarefaCatalogo.findUnique({
       where: { id: tarefaCatalogoId },
       include: { subtarefas: { orderBy: { ordem: 'asc' } } },
     });
-    if (!tarefa) throw new NotFoundException('Tarefa não encontrada no catálogo');
+    if (!tarefa || tarefa.companyId !== companyId) throw new NotFoundException('Tarefa não encontrada no catálogo');
 
     const tempoPadraoH = tarefa.subtarefas.length > 0
       ? tarefa.subtarefas.reduce((s, sub) => s + sub.tempoPadraoH, 0)
@@ -139,12 +139,12 @@ export class TarefasCatalogoService {
     });
   }
 
-  async adicionarNaOP(productionOrderId: string, tarefaCatalogoId: string) {
+  async adicionarNaOP(productionOrderId: string, tarefaCatalogoId: string, companyId: string) {
     const tarefa = await this.prisma.tarefaCatalogo.findUnique({
       where: { id: tarefaCatalogoId },
       include: { subtarefas: { orderBy: { ordem: 'asc' } } },
     });
-    if (!tarefa) throw new NotFoundException('Tarefa não encontrada no catálogo');
+    if (!tarefa || tarefa.companyId !== companyId) throw new NotFoundException('Tarefa não encontrada no catálogo');
 
     const tempoPadraoH = tarefa.subtarefas.length > 0
       ? tarefa.subtarefas.reduce((s, sub) => s + sub.tempoPadraoH, 0)
