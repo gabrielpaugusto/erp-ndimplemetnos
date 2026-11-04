@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '@/modules/core/database/prisma.service';
 import { DocumentEventService } from '@/modules/core/audit/document-event.service';
@@ -245,7 +246,14 @@ export class QuotationsService {
       throw new NotFoundException(`Quotation item ${itemId} not found`);
     }
 
-    await this.prisma.quotationItem.delete({ where: { id: itemId } });
+    try {
+      await this.prisma.quotationItem.delete({ where: { id: itemId } });
+    } catch (error) {
+      if (error?.code === 'P2003' || error?.code === 'P2014') {
+        throw new ConflictException('Registro em uso e não pode ser excluído');
+      }
+      throw error;
+    }
     await this.recalculate(item.quotationId);
 
     return { deleted: true };

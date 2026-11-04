@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '@/modules/core/database/prisma.service';
 import { CreateJournalEntryDto } from './dto/create-journal-entry.dto';
@@ -369,6 +370,13 @@ export class JournalEntriesService {
       );
     }
 
-    return this.prisma.journalEntry.delete({ where: { id } });
+    try {
+      return await this.prisma.journalEntry.delete({ where: { id } });
+    } catch (error) {
+      if (error?.code === 'P2003' || error?.code === 'P2014') {
+        throw new ConflictException('Registro em uso e não pode ser excluído');
+      }
+      throw error;
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '@/modules/core/database/prisma.service';
 import { CreatePointingDto } from './dto/create-pointing.dto';
 import { UpdatePointingDto } from './dto/update-pointing.dto';
@@ -191,6 +191,13 @@ export class PointingService {
       throw new NotFoundException(`Pointing ${id} not found`);
     }
 
-    return this.prisma.productionPointing.delete({ where: { id } });
+    try {
+      return await this.prisma.productionPointing.delete({ where: { id } });
+    } catch (error) {
+      if (error?.code === 'P2003' || error?.code === 'P2014') {
+        throw new ConflictException('Registro em uso e não pode ser excluído');
+      }
+      throw error;
+    }
   }
 }
