@@ -2027,6 +2027,7 @@ model Quotation {
   versaoAnteriorId  String?
   versaoAnterior    Quotation? @relation("QuotationVersions", fields: [versaoAnteriorId], references: [id])
 
+  deletedAt       DateTime?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
@@ -2115,6 +2116,7 @@ model SaleOrder {
   dataEntrega     DateTime?
   dataCancelamento DateTime?
 
+  deletedAt       DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
@@ -2474,6 +2476,7 @@ model ProductionOrder {
   // Finalidade dos insumos comprados para esta OP (define ST nas entradas)
   // Default: INDUSTRIALIZACAO — insumos incorporados ao produto final (Art. 264 I afasta ST)
   finalidadeCompra    FinalidadeOperacao    @default(INDUSTRIALIZACAO)
+  deletedAt           DateTime?
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
 
@@ -2820,6 +2823,7 @@ enum NFeStatus {
   RASCUNHO
   VALIDADA
   ASSINADA
+  AGUARDANDO_TRANSMISSAO
   TRANSMITIDA
   AUTORIZADA
   CANCELADA
@@ -2965,6 +2969,7 @@ model NFeDocument {
   // XML
   xmlEnvio                String?         @db.Text
   xmlRetorno              String?         @db.Text
+  xmlBackupKey            String?         @db.VarChar(200) // MinIO object key após backup
   motivoCancelamento      String?         @db.Text
 
   // Pagamento (NT 2013.005 / grupo YA)
@@ -3803,6 +3808,7 @@ model PurchaseOrder {
   observations          String?             @db.Text
   motivoAlteracao       String?             @db.Text  // Motivo de alterações pós-envio
   finalidadeOperacao    FinalidadeOperacao  @default(INDUSTRIALIZACAO) // Impacta CFOP e créditos fiscais
+  deletedAt             DateTime?
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
 

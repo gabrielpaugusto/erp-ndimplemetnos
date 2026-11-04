@@ -24,6 +24,14 @@ export class StorageService implements OnModuleInit {
       } else {
         this.logger.log(`Bucket '${this.bucket}' já existe.`);
       }
+
+      // Bucket dedicado para XMLs de NF-e (backup imutável)
+      const nfeBucket = 'nfe-xml';
+      const nfeBucketExists = await this.client.bucketExists(nfeBucket);
+      if (!nfeBucketExists) {
+        await this.client.makeBucket(nfeBucket, 'us-east-1');
+        this.logger.log(`Bucket '${nfeBucket}' criado.`);
+      }
     } catch (err) {
       this.logger.warn(`Não foi possível conectar ao MinIO: ${err}. Uploads desabilitados.`);
     }
@@ -51,5 +59,19 @@ export class StorageService implements OnModuleInit {
 
   getBucket(): string {
     return this.bucket;
+  }
+
+  async uploadNfeXml(nfeId: string, chaveAcesso: string, xml: string): Promise<string | null> {
+    const key = `nfe/${chaveAcesso}.xml`;
+    try {
+      await this.client.putObject('nfe-xml', key, Buffer.from(xml, 'utf8'), {
+        'Content-Type': 'application/xml',
+        'x-amz-meta-nfe-id': nfeId,
+      });
+      return key;
+    } catch (e) {
+      this.logger.warn(`MinIO NF-e upload failed ${nfeId}: ${(e as any)?.message ?? e}`);
+      return null;
+    }
   }
 }

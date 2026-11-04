@@ -118,6 +118,11 @@ export class NfeController {
     return this.nfeService.transmit(id);
   }
 
+  @Post(':id/authorize-async')
+  authorizeAsync(@Param('id') id: string) {
+    return this.nfeService.enqueueTransmission(id);
+  }
+
   @Post(':id/cancel')
   cancel(@Param('id') id: string, @Body() cancelDto: CancelNfeDto) {
     return this.nfeService.cancel(id, cancelDto.motivo);

@@ -149,4 +149,19 @@ BEGIN
 END;
 $$;
 
+-- ── 6. Soft-delete — adiciona coluna deletedAt aos modelos críticos ──────────
+ALTER TABLE sale_orders       ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP;
+ALTER TABLE quotations        ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP;
+ALTER TABLE purchase_orders   ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP;
+ALTER TABLE production_orders ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP;
+
+-- MinIO backup key para NF-e XML
+ALTER TABLE nfe_documents ADD COLUMN IF NOT EXISTS "xmlBackupKey" VARCHAR(200);
+
+-- ── 7. Novo valor no enum NFeStatus para transmissão assíncrona ───────────────
+-- ALTER TYPE ... ADD VALUE não pode rodar dentro de uma transação em versões
+-- antigas do PostgreSQL. Executar fora do BEGIN/COMMIT quando necessário.
+-- No PostgreSQL 12+ é seguro dentro de transação com IF NOT EXISTS.
+ALTER TYPE "NFeStatus" ADD VALUE IF NOT EXISTS 'AGUARDANDO_TRANSMISSAO' BEFORE 'TRANSMITIDA';
+
 COMMIT;

@@ -42,7 +42,7 @@ export class ProductionOrdersService {
     const limit = parseInt(query.limit || '20', 10);
     const skip = (page - 1) * limit;
 
-    const where: any = { companyId };
+    const where: any = { companyId, deletedAt: null };
 
     if (query.search) {
       where.OR = [

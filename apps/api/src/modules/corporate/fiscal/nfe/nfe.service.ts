@@ -16,6 +16,7 @@ import { CreateNfeDto } from './dto/create-nfe.dto';
 import { UpdateNfeDto } from './dto/update-nfe.dto';
 import { OperacoesFiscaisService } from '../operacoes-fiscais.service';
 import { Logger } from '@nestjs/common';
+import { StorageService } from '@/modules/core/storage/storage.service';
 
 @Injectable()
 export class NfeService {
@@ -32,6 +33,7 @@ export class NfeService {
     private readonly sefazClient: SefazClientService,
     private readonly certificadoService: CertificadoService,
     private readonly operacoesFiscais: OperacoesFiscaisService,
+    private readonly storageService: StorageService,
   ) {}
 
   async findAll(
@@ -607,7 +609,58 @@ export class NfeService {
       }).catch(err => console.error('SaleOrder faturamento error:', err));
     }
 
+    // Backup XML no MinIO (fire-and-forget, não bloqueia a resposta)
+    setImmediate(async () => {
+      if (updated.xmlRetorno && updated.chaveAcesso) {
+        const key = await this.storageService.uploadNfeXml(updated.id, updated.chaveAcesso, updated.xmlRetorno);
+        if (key) {
+          this.prisma.nFeDocument.update({
+            where: { id: updated.id },
+            data: { xmlBackupKey: key },
+          }).catch(err => this.logger.warn(`MinIO key update failed: ${(err as any)?.message ?? err}`));
+        }
+      }
+    });
+
     return updated;
+  }
+
+  /**
+   * Enqueues an NF-e for async transmission by the NfeQueueService cron.
+   * Returns immediately after marking the NF-e as AGUARDANDO_TRANSMISSAO.
+   */
+  async enqueueTransmission(id: string) {
+    const nfe = await this.prisma.nFeDocument.findUnique({ where: { id } });
+    if (!nfe) throw new NotFoundException(`NF-e ${id} not found`);
+
+    if (nfe.status !== 'VALIDADA' && nfe.status !== 'RASCUNHO') {
+      throw new BadRequestException(
+        `Cannot enqueue NF-e with status ${nfe.status}. Expected VALIDADA or RASCUNHO.`,
+      );
+    }
+
+    if (nfe.status === 'RASCUNHO') {
+      await this.validate(id);
+    }
+
+    await this.prisma.nFeDocument.update({
+      where: { id },
+      data: { status: 'AGUARDANDO_TRANSMISSAO' as any },
+    });
+
+    return { id, status: 'AGUARDANDO_TRANSMISSAO', message: 'NF-e enfileirada para transmissão. Resultado disponível em instantes.' };
+  }
+
+  /**
+   * Called by NfeQueueService to actually transmit a queued NF-e.
+   * Resets status to VALIDADA first so transmit() accepts it.
+   */
+  async transmitFromQueue(id: string) {
+    await this.prisma.nFeDocument.update({
+      where: { id, status: 'AGUARDANDO_TRANSMISSAO' as any },
+      data: { status: 'VALIDADA' as any },
+    });
+    return this.transmit(id);
   }
 
   /**

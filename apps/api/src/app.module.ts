@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AuditInterceptor } from './modules/core/audit/audit.interceptor';
 
 // Config
@@ -60,6 +61,7 @@ import { WorkflowModule } from './modules/core/workflow/workflow.module';
 @Module({
   imports: [
     AppConfigModule,
+    ScheduleModule.forRoot(),
 
     // Core
     DatabaseModule,
