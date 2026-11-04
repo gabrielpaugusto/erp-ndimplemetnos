@@ -304,4 +304,27 @@ CREATE INDEX IF NOT EXISTS idx_quality_inspections_company_status ON quality_ins
 CREATE INDEX IF NOT EXISTS idx_quality_inspections_company_type   ON quality_inspections ("companyId", type);
 CREATE INDEX IF NOT EXISTS idx_quality_inspections_production_order ON quality_inspections ("productionOrderId");
 
+-- ── 14. Person.vendedorId: formaliza FK para User (vendedor responsável pelo cadastro) ─
+-- Converte campo informal (comment-only) em constraint real com SET NULL no delete.
+ALTER TABLE persons
+  ADD CONSTRAINT fk_person_vendedor
+  FOREIGN KEY ("vendedorId") REFERENCES users(id)
+  ON DELETE SET NULL
+  NOT VALID;
+
+CREATE INDEX IF NOT EXISTS idx_persons_vendedor ON persons ("vendedorId");
+
+-- ── 15. Índices em tabelas filhas sem índice explícito ────────────────────────
+-- bom_items
+CREATE INDEX IF NOT EXISTS idx_bom_items_bom      ON bom_items ("bomId");
+CREATE INDEX IF NOT EXISTS idx_bom_items_product  ON bom_items ("productId");
+
+-- production_order_items
+CREATE INDEX IF NOT EXISTS idx_prod_order_items_order   ON production_order_items ("productionOrderId");
+CREATE INDEX IF NOT EXISTS idx_prod_order_items_product ON production_order_items ("productId");
+
+-- payroll_items
+CREATE INDEX IF NOT EXISTS idx_payroll_items_payroll   ON payroll_items ("payrollId");
+CREATE INDEX IF NOT EXISTS idx_payroll_items_employee  ON payroll_items ("employeeId");
+
 COMMIT;

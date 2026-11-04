@@ -1184,6 +1184,9 @@ model User {
   // Controle de Qualidade
   qualityInspectionsResponsavel QualityInspection[] @relation("QualityInspectionResponsavel")
 
+  // Cadastro de Pessoas — vendedor responsável
+  personsVendedor               Person[]            @relation("PersonVendedor")
+
   @@map("users")
 }
 
@@ -1341,7 +1344,8 @@ model Person {
   limiteCredito       Decimal?     @db.Decimal(15, 2)
   condicaoPagamento   String?      @db.VarChar(100)  // ex: "30/60/90"
   tabelaPreco         String?      @db.VarChar(50)
-  vendedorId          String?      // referência ao User vendedor responsável
+  vendedorId          String?
+  vendedor            User?        @relation("PersonVendedor", fields: [vendedorId], references: [id], onDelete: SetNull)
   comissaoPercent     Decimal?     @db.Decimal(5, 2)
 
   // Observações
@@ -2423,6 +2427,8 @@ model BomItem {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
+  @@index([bomId])
+  @@index([productId])
   @@map("bom_items")
 }
 
@@ -2540,6 +2546,8 @@ model ProductionOrderItem {
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
+  @@index([productionOrderId])
+  @@index([productId])
   @@map("production_order_items")
 }
 
@@ -3704,6 +3712,8 @@ model PayrollItem {
   inssPatronal      Decimal   @default(0) @db.Decimal(15, 2)
   createdAt         DateTime  @default(now())
 
+  @@index([payrollId])
+  @@index([employeeId])
   @@map("payroll_items")
 }
 
