@@ -86,6 +86,7 @@ export const ERP_MODULES = {
       DRE: { label: 'DRE', path: '/contabilidade/dre', icon: 'BarChart3' },
       FINANCIAL: { label: 'Financeiro', path: '/financeiro', icon: 'DollarSign' },
       ADIANTAMENTOS: { label: 'Adiantamentos', path: '/financeiro/adiantamentos', icon: 'Wallet' },
+      APROVACOES: { label: 'Aprovacoes', path: '/aprovacoes', icon: 'ClipboardCheck' },
       HR: { label: 'RH / Folha', path: '/rh', icon: 'UserCog' },
       JORNADA: { label: 'Jornada de Trabalho', path: '/rh/jornada', icon: 'Clock' },
       PURCHASING: { label: 'Compras', path: '/compras', icon: 'PackageSearch' },
