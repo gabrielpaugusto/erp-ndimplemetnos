@@ -351,7 +351,7 @@ export default function DrePage() {
             <button
               onClick={handleSaveSnapshot}
               disabled={savingSnapshot || !dre}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50"
             >
               <Save size={14} />
               {savingSnapshot ? 'Salvando...' : 'Salvar Snapshot'}

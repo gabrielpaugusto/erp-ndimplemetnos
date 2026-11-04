@@ -254,7 +254,7 @@ export default function InventarioDetailPage() {
             </button>
           )}
           {inventory.status === 'EM_ANDAMENTO' && (
-            <button onClick={() => setShowConfirmation(true)} disabled={actionLoading} className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition-colors disabled:opacity-50">
+            <button onClick={() => setShowConfirmation(true)} disabled={actionLoading} className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium transition-colors disabled:opacity-50">
               <CheckCircle className="w-4 h-4" /> Finalizar
             </button>
           )}
@@ -294,7 +294,7 @@ export default function InventarioDetailPage() {
               </div>
               <div className="flex items-center gap-3 mt-4">
                 <button onClick={() => setShowConfirmation(false)} className="px-4 py-2 bg-white text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-medium transition-colors">Voltar</button>
-                <button onClick={handleFinish} disabled={actionLoading} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition-colors disabled:opacity-50">Confirmar e Gerar Ajustes</button>
+                <button onClick={handleFinish} disabled={actionLoading} className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium transition-colors disabled:opacity-50">Confirmar e Gerar Ajustes</button>
               </div>
             </div>
           </div>

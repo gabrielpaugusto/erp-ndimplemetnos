@@ -341,7 +341,7 @@ export default function NovoCTePage() {
           <button
             type="submit"
             disabled={saving}
-            className="inline-flex items-center gap-2 px-5 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition-colors disabled:opacity-60"
+            className="inline-flex items-center gap-2 px-5 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium transition-colors disabled:opacity-60"
           >
             <Save className="w-4 h-4" />
             {saving ? 'Salvando...' : 'Registrar CT-e'}

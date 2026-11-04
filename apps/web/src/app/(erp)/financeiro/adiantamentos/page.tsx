@@ -336,7 +336,7 @@ function ContaCorrenteDetalhe({
           </button>
           <button
             onClick={() => setModal('CREDITO')}
-            className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+            className="flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-2 text-sm font-semibold text-white hover:bg-primary-700"
           >
             <ArrowDownCircle className="h-4 w-4" /> Registrar Crédito
           </button>

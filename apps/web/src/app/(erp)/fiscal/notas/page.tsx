@@ -142,7 +142,7 @@ export default function NotasFiscaisListPage() {
         </div>
         <Link
           href="/fiscal/notas/nova"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium transition-colors"
         >
           <Plus className="w-4 h-4" />
           Nova NF-e
