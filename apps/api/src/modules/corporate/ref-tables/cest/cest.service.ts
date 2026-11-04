@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@/modules/core/database/prisma.service';
 
 @Injectable()
@@ -40,5 +40,11 @@ export class CestService {
 
   async update(id: string, data: Partial<{ code: string; codeFormatted: string; segmento: string; description: string; ncmRelacionado: string; active: boolean }>) {
     return this.prisma.cest.update({ where: { id }, data });
+  }
+
+  async remove(id: string) {
+    const record = await this.prisma.cest.findUnique({ where: { id } });
+    if (!record) throw new NotFoundException(`CEST ${id} não encontrado`);
+    return this.prisma.cest.delete({ where: { id } });
   }
 }

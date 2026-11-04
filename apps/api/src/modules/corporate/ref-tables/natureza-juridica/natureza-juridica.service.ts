@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@/modules/core/database/prisma.service';
 
 @Injectable()
@@ -39,5 +39,11 @@ export class NaturezaJuridicaService {
     }>,
   ) {
     return this.prisma.naturezaJuridica.update({ where: { id }, data });
+  }
+
+  async remove(id: string) {
+    const record = await this.prisma.naturezaJuridica.findUnique({ where: { id } });
+    if (!record) throw new NotFoundException(`NaturezaJuridica ${id} não encontrada`);
+    return this.prisma.naturezaJuridica.delete({ where: { id } });
   }
 }

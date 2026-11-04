@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@/modules/core/database/prisma.service';
 
 @Injectable()
@@ -37,5 +37,11 @@ export class RamoAtividadeService {
     }>,
   ) {
     return this.prisma.ramoAtividade.update({ where: { id }, data });
+  }
+
+  async remove(id: string) {
+    const record = await this.prisma.ramoAtividade.findUnique({ where: { id } });
+    if (!record) throw new NotFoundException(`RamoAtividade ${id} não encontrado`);
+    return this.prisma.ramoAtividade.delete({ where: { id } });
   }
 }

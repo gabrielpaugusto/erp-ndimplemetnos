@@ -115,6 +115,14 @@ export class EquipamentosService {
     });
   }
 
+  async remove(id: string, companyId: string) {
+    const eq = await this.prisma.equipamento.findUnique({ where: { id } });
+    if (!eq || eq.companyId !== companyId) {
+      throw new NotFoundException(`Equipamento ${id} não encontrado`);
+    }
+    return this.prisma.equipamento.delete({ where: { id } });
+  }
+
   async update(id: string, data: any) {
     const existing = await this.prisma.equipamento.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException(`Equipamento ${id} não encontrado`);

@@ -203,4 +203,46 @@ ALTER TABLE journal_entry_items
 ALTER TABLE purchase_order_items
   ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP DEFAULT NOW();
 
+-- ── 10. String → Enum: ConsortiumPaymentStatus, StockLocationType, MdfeInboxStatus, TaxType, FiscalApuracaoStatus ─
+-- Cria os tipos ENUM no PostgreSQL e converte as colunas existentes.
+
+DO $$ BEGIN
+  CREATE TYPE "ConsortiumPaymentStatus" AS ENUM ('PENDENTE', 'PAGO', 'ATRASADO');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE "StockLocationType" AS ENUM ('ALMOXARIFADO', 'PRODUCAO', 'EXPEDICAO', 'QUARENTENA');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE "MdfeInboxStatus" AS ENUM ('RECEBIDO', 'ENCERRADO', 'CANCELADO');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE "TaxType" AS ENUM ('ICMS', 'IPI', 'PIS', 'COFINS', 'IBS', 'CBS', 'IS');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE "FiscalApuracaoStatus" AS ENUM ('ABERTA', 'FECHADA', 'RETIFICADA');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+ALTER TABLE consortium_payments
+  ALTER COLUMN status TYPE "ConsortiumPaymentStatus" USING status::"ConsortiumPaymentStatus",
+  ALTER COLUMN status SET DEFAULT 'PENDENTE';
+
+ALTER TABLE stock_locations
+  ALTER COLUMN type TYPE "StockLocationType" USING type::"StockLocationType";
+
+ALTER TABLE mdfe_inbox
+  ALTER COLUMN status TYPE "MdfeInboxStatus" USING status::"MdfeInboxStatus",
+  ALTER COLUMN status SET DEFAULT 'RECEBIDO';
+
+ALTER TABLE fiscal_apuracoes
+  ALTER COLUMN "taxType" TYPE "TaxType" USING "taxType"::"TaxType",
+  ALTER COLUMN status TYPE "FiscalApuracaoStatus" USING status::"FiscalApuracaoStatus",
+  ALTER COLUMN status SET DEFAULT 'ABERTA';
+
+ALTER TABLE fiscal_entries
+  ALTER COLUMN "taxType" TYPE "TaxType" USING "taxType"::"TaxType";
+
 COMMIT;

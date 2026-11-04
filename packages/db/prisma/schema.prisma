@@ -2292,7 +2292,7 @@ model ConsortiumPayment {
   dataPagamento   DateTime?
   valor           Decimal         @db.Decimal(15, 2)
   valorPago       Decimal?        @db.Decimal(15, 2)
-  status          String          @db.VarChar(20) // PENDENTE, PAGO, ATRASADO
+  status          ConsortiumPaymentStatus @default(PENDENTE)
   createdAt       DateTime        @default(now())
 
   @@index([quotaId])
@@ -3179,7 +3179,7 @@ model FiscalEntry {
   valorImposto            Float
 
   // Tipo de imposto
-  taxType                 String          @db.VarChar(10) // ICMS, IPI, PIS, COFINS, IBS, CBS, IS
+  taxType                 TaxType
 
   // SPED — código do ajuste (Tabela 5.3 EFD ICMS/IPI)
   // Usado para gerar registros C197 (item) e E111 (período)
@@ -3210,7 +3210,7 @@ model FiscalApuracao {
 
   // Período e tipo
   periodoReferencia       String    @db.VarChar(7) // YYYY-MM
-  taxType                 String    @db.VarChar(10) // ICMS, IPI, PIS, COFINS, IBS, CBS
+  taxType                 TaxType
 
   // Valores da apuração
   totalDebitos            Decimal   @default(0) @db.Decimal(15,2)
@@ -3223,7 +3223,7 @@ model FiscalApuracao {
   saldoCredor             Decimal   @default(0) @db.Decimal(15,2)
 
   // Status
-  status                  String    @default("ABERTA") @db.VarChar(20) // ABERTA, FECHADA, RETIFICADA
+  status                  FiscalApuracaoStatus @default(ABERTA)
   dataFechamento          DateTime?
 
   createdAt               DateTime  @default(now())
@@ -3877,7 +3877,7 @@ model StockLocation {
   code        String    @db.VarChar(50)
   name        String    @db.VarChar(200)
   description String?   @db.Text
-  type        String    @db.VarChar(20) // ALMOXARIFADO, PRODUCAO, EXPEDICAO, QUARENTENA
+  type        StockLocationType
   active      Boolean   @default(true)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -4511,7 +4511,7 @@ model MdfeInbox {
   ufFim               String?   @db.VarChar(2)
   modal               String?   @db.VarChar(10) // 01=Rodoviário, 02=Aéreo, 03=Aquaviário, 04=Ferroviário
 
-  status              String    @default("RECEBIDO") @db.VarChar(20) // RECEBIDO | ENCERRADO | CANCELADO
+  status              MdfeInboxStatus @default(RECEBIDO)
 
   nsu                 String?   @db.VarChar(15)
   xmlContent          String?   @db.Text
@@ -6332,4 +6332,41 @@ model CargaMensalOverride {
 
   @@unique([employeeId, ano, mes])
   @@map("carga_mensal_overrides")
+}
+
+// ── Wave 8 enums ─────────────────────────────────────────────────────────────
+
+enum ConsortiumPaymentStatus {
+  PENDENTE
+  PAGO
+  ATRASADO
+}
+
+enum StockLocationType {
+  ALMOXARIFADO
+  PRODUCAO
+  EXPEDICAO
+  QUARENTENA
+}
+
+enum MdfeInboxStatus {
+  RECEBIDO
+  ENCERRADO
+  CANCELADO
+}
+
+enum TaxType {
+  ICMS
+  IPI
+  PIS
+  COFINS
+  IBS
+  CBS
+  IS
+}
+
+enum FiscalApuracaoStatus {
+  ABERTA
+  FECHADA
+  RETIFICADA
 }

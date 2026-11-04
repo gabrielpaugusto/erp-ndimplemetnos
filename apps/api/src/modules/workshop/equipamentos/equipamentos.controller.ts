@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '@/modules/core/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '@/modules/core/auth/decorators/current-user.decorator';
 import { EquipamentosService } from './equipamentos.service';
@@ -31,6 +31,11 @@ export class EquipamentosController {
   @Post()
   create(@CurrentUser() user: any, @Body() body: any) {
     return this.service.create(user.companyId, body);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.service.remove(id, user.companyId);
   }
 
   @Patch(':id')
