@@ -108,8 +108,8 @@ export class NfeXmlBuilderService {
     const dv = this.calcMod11(chaveBase);
     const chaveAcesso = `${chaveBase}${dv}`;
 
-    // In homologação, item descriptions MUST start with this text (per NT)
-    const homPrefix = tpAmb === '2' ? 'NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL - ' : '';
+    // In homologação, item descriptions start with this prefix (extra protection)
+    const homPrefix = tpAmb === '2' ? 'NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL - ' : '';
 
     // Calculate totals
     let vProd = 0, vICMS = 0, vIPI = 0, vPIS = 0, vCOFINS = 0, vIcmsSt = 0;
@@ -466,7 +466,7 @@ export class NfeXmlBuilderService {
     </emit>
     <dest>
       ${destTag}
-      <xNome>${this.sanitize(dest?.razaoSocial ?? 'CONSUMIDOR NAO IDENTIFICADO', 60)}</xNome>
+      <xNome>${tpAmb === '2' ? 'NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL' : this.sanitize(dest?.razaoSocial ?? 'CONSUMIDOR NAO IDENTIFICADO', 60)}</xNome>
       <enderDest>
         <xLgr>${this.sanitize(destAddr?.logradouro ?? 'Rua Nao Informada', 60)}</xLgr>
         <nro>${this.sanitize(destAddr?.numero ?? 'SN', 10)}</nro>
