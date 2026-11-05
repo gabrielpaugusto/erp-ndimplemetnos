@@ -262,13 +262,14 @@ async function main() {
   // ============================================================================
   const company = await prisma.company.upsert({
     where: { cnpj: '00000000000100' },
-    update: {},
+    update: { cRegTribIBSCBS: 4 },
     create: {
       cnpj: '00000000000100',
       razaoSocial: 'Implementos Rodoviários Ltda',
       nomeFantasia: 'Implementos Rod',
       inscricaoEstadual: 'ISENTO',
       taxRegime: 'LUCRO_REAL',
+      cRegTribIBSCBS: 4, // Lucro Real (NT 2025.002 — LC 214/2025)
       cnaePrincipal: '29204/01',
       ambienteSefaz: 2, // homologação
       logradouro: 'Rua Industrial',
