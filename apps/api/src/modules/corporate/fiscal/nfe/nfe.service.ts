@@ -583,14 +583,18 @@ export class NfeService {
     const sefazResponse = await this.sefazClient.autorizarNfe(nfe.companyId, uf, xmlAssinado, ambienteNfe);
 
     if (!sefazResponse.success) {
-      // Update status to DENEGADA (rejected by SEFAZ)
-      await this.prisma.nFeDocument.update({
-        where: { id },
-        data: {
-          status: 'DENEGADA' as any,
-          motivoCancelamento: `${sefazResponse.cStat} - ${sefazResponse.xMotivo}`,
-        },
-      });
+      // cStat 110, 301, 302 = SEFAZ denied due to emitter/recipient irregularity (true DENEGADA)
+      // cStat 999 = communication error (network/SOAP) → keep VALIDADA so user can retry
+      const isDenegada = ['110', '301', '302'].includes(sefazResponse.cStat);
+      if (isDenegada) {
+        await this.prisma.nFeDocument.update({
+          where: { id },
+          data: {
+            status: 'DENEGADA' as any,
+            motivoCancelamento: `${sefazResponse.cStat} - ${sefazResponse.xMotivo}`,
+          },
+        });
+      }
       throw new BadRequestException(
         `SEFAZ rejeitou a NF-e: [${sefazResponse.cStat}] ${sefazResponse.xMotivo}`,
       );

@@ -96,38 +96,76 @@ export class SefazClientService extends GovernmentTransmissionService {
 
   /**
    * Make a SOAP 1.2 POST request to the SEFAZ WebService.
+   * cUF: IBGE code for the state (e.g. "35" for SP)
+   * versaoDados: NF-e schema version (e.g. "4.00")
    */
   private async soapPost(
     endpoint: string,
     soapAction: string,
     bodyXml: string,
     httpsAgent: https.Agent,
+    cUF: string = '35',
+    versaoDados: string = '4.00',
   ): Promise<string> {
     const envelope = `<?xml version="1.0" encoding="UTF-8"?>
 <soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xmlns:xsd="http://www.w3.org/2001/XMLSchema"
   xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
+  <soap12:Header>
+    <nfeCabecMsg xmlns="${soapAction}">
+      <cUF>${cUF}</cUF>
+      <versaoDados>${versaoDados}</versaoDados>
+    </nfeCabecMsg>
+  </soap12:Header>
   <soap12:Body>
     <nfeDadosMsg xmlns="${soapAction}">${bodyXml}</nfeDadosMsg>
   </soap12:Body>
 </soap12:Envelope>`;
 
+    const contentType = `application/soap+xml; charset=utf-8; action="${soapAction}"`;
+    this.sefazLogger.log(`[SOAP] POST ${endpoint}`);
+    this.sefazLogger.log(`[SOAP] Content-Type: ${contentType}`);
     const response = await axios.post(endpoint, envelope, {
       headers: {
-        'Content-Type': 'application/soap+xml; charset=utf-8',
-        SOAPAction: soapAction,
+        'Content-Type': contentType,
       },
       httpsAgent,
       timeout: 60000,
+      validateStatus: () => true,
     });
+
+    if (response.status >= 400) {
+      const body = typeof response.data === 'string'
+        ? response.data.slice(0, 2000)
+        : (response.data ? JSON.stringify(response.data).slice(0, 2000) : '(empty body)');
+      const headers = JSON.stringify(response.headers ?? {}).slice(0, 500);
+      this.sefazLogger.error(`[SOAP] HTTP ${response.status} headers: ${headers}`);
+      this.sefazLogger.error(`[SOAP] HTTP ${response.status} body: ${body}`);
+      const error: any = new Error(`HTTP ${response.status} from SEFAZ`);
+      error.response = response;
+      throw error;
+    }
 
     return response.data as string;
   }
 
   /**
    * Parse a SEFAZ SOAP response XML and extract cStat + xMotivo.
+   * For synchronous authorization (indSinc=1), cStat=104 is the outer "lote processado"
+   * and the actual authorization result is inside <infProt> — that takes priority.
    */
   private parseResponse(responseXml: string): { cStat: string; xMotivo: string; nProt?: string } {
+    // Priority: look for infProt (synchronous auth response has the real result there)
+    const infProtMatch = responseXml.match(/<infProt>([\s\S]*?)<\/infProt>/);
+    if (infProtMatch) {
+      const inner = infProtMatch[1];
+      const cStat = inner.match(/<cStat>(\d+)<\/cStat>/)?.[1] ?? '999';
+      const xMotivo = inner.match(/<xMotivo>([^<]+)<\/xMotivo>/)?.[1] ?? 'Resposta não reconhecida';
+      const nProt = inner.match(/<nProt>(\d+)<\/nProt>/)?.[1];
+      return { cStat, xMotivo, nProt };
+    }
+
+    // Fallback: use first cStat in response (statusServico, cancelamento, etc.)
     const cStatMatch = responseXml.match(/<cStat>(\d+)<\/cStat>/);
     const xMotivoMatch = responseXml.match(/<xMotivo>([^<]+)<\/xMotivo>/);
     const nProtMatch = responseXml.match(/<nProt>(\d+)<\/nProt>/);
@@ -158,7 +196,7 @@ export class SefazClientService extends GovernmentTransmissionService {
       const httpsAgent = await this.buildHttpsAgent(companyId);
       const ns = 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4';
       const body = `<consStatServ versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe"><tpAmb>${ambiente}</tpAmb><cUF>${this.ufToCode(uf)}</cUF><xServ>STATUS</xServ></consStatServ>`;
-      responseXml = await this.soapPost(urls.statusServico, ns, body, httpsAgent);
+      responseXml = await this.soapPost(urls.statusServico, ns, body, httpsAgent, this.ufToCode(uf));
       const parsed = this.parseResponse(responseXml);
       cStat = parsed.cStat;
       xMotivo = parsed.xMotivo;
@@ -203,8 +241,12 @@ export class SefazClientService extends GovernmentTransmissionService {
       const httpsAgent = await this.buildHttpsAgent(companyId);
       const ns = 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4';
       const idLote = Date.now().toString();
-      const body = `<enviNFe versao="1.00" xmlns="http://www.portalfiscal.inf.br/nfe"><idLote>${idLote}</idLote><indSinc>1</indSinc>${xmlAssinado}</enviNFe>`;
-      responseXml = await this.soapPost(urls.autorizacao, ns, body, httpsAgent);
+      // Strip XML declaration before embedding inside SOAP body — declarations are only valid at document root
+      const xmlSemDeclaracao = xmlAssinado.replace(/^<\?xml[^?]*\?>\s*/i, '');
+      const body = `<enviNFe versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe"><idLote>${idLote}</idLote><indSinc>1</indSinc>${xmlSemDeclaracao}</enviNFe>`;
+      this.sefazLogger.log(`[AutorizarNfe] enviNFe body (first 10000): ${body.slice(0, 10000)}`);
+      responseXml = await this.soapPost(urls.autorizacao, ns, body, httpsAgent, this.ufToCode(uf));
+      this.sefazLogger.log(`[AutorizarNfe] SEFAZ response (first 1000): ${responseXml.slice(0, 1000)}`);
       const parsed = this.parseResponse(responseXml);
       cStat = parsed.cStat;
       xMotivo = parsed.xMotivo;
@@ -212,6 +254,17 @@ export class SefazClientService extends GovernmentTransmissionService {
       success = cStat === '100';
     } catch (e: unknown) {
       xMotivo = e instanceof Error ? e.message : 'Erro de comunicação com a SEFAZ';
+      const axiosErr = e as any;
+      if (axiosErr?.response) {
+        const status = axiosErr.response.status;
+        const headers = JSON.stringify(axiosErr.response.headers ?? {}).slice(0, 500);
+        const body = typeof axiosErr.response.data === 'string'
+          ? axiosErr.response.data.slice(0, 2000)
+          : (axiosErr.response.data ? JSON.stringify(axiosErr.response.data).slice(0, 2000) : '(empty body)');
+        responseXml = axiosErr.response.data as string;
+        this.sefazLogger.error(`[AutorizarNfe] HTTP ${status} headers: ${headers}`);
+        this.sefazLogger.error(`[AutorizarNfe] HTTP ${status} body: ${body}`);
+      }
       this.sefazLogger.error(`[AutorizarNfe] Error: ${xMotivo}`);
     }
 
@@ -249,7 +302,7 @@ export class SefazClientService extends GovernmentTransmissionService {
       const httpsAgent = await this.buildHttpsAgent(companyId);
       const ns = 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaProtocolo4';
       const body = `<consSitNFe versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe"><tpAmb>${ambiente}</tpAmb><xServ>CONSULTAR</xServ><chNFe>${chaveAcesso}</chNFe></consSitNFe>`;
-      responseXml = await this.soapPost(urls.consultaProtocolo, ns, body, httpsAgent);
+      responseXml = await this.soapPost(urls.consultaProtocolo, ns, body, httpsAgent, this.ufToCode(uf));
       const parsed = this.parseResponse(responseXml);
       cStat = parsed.cStat;
       xMotivo = parsed.xMotivo;
@@ -316,7 +369,7 @@ export class SefazClientService extends GovernmentTransmissionService {
           </infEvento>
         </evento>
       </envEvento>`;
-      responseXml = await this.soapPost(urls.recepcaoEvento, ns, body, httpsAgent);
+      responseXml = await this.soapPost(urls.recepcaoEvento, ns, body, httpsAgent, this.ufToCode(uf));
       const parsed = this.parseResponse(responseXml);
       cStat = parsed.cStat;
       xMotivo = parsed.xMotivo;
@@ -401,7 +454,7 @@ export class SefazClientService extends GovernmentTransmissionService {
           </infEvento>
         </evento>
       </envEvento>`;
-      responseXml = await this.soapPost(urls.recepcaoEvento, ns, body, httpsAgent);
+      responseXml = await this.soapPost(urls.recepcaoEvento, ns, body, httpsAgent, this.ufToCode(uf));
       const parsed = this.parseResponse(responseXml);
       cStat = parsed.cStat;
       xMotivo = parsed.xMotivo;
@@ -501,7 +554,7 @@ export class SefazClientService extends GovernmentTransmissionService {
 
     try {
       const httpsAgent = await this.buildHttpsAgent(companyId);
-      responseXml = await this.soapPost(url, ns, body, httpsAgent);
+      responseXml = await this.soapPost(url, ns, body, httpsAgent, '91');
       const parsed = this.parseResponse(responseXml);
       cStat = parsed.cStat;
       xMotivo = parsed.xMotivo;
@@ -571,7 +624,7 @@ export class SefazClientService extends GovernmentTransmissionService {
           <xJust>${justificativa}</xJust>
         </infInut>
       </inutNFe>`;
-      responseXml = await this.soapPost(urls.inutilizacao, ns, body, httpsAgent);
+      responseXml = await this.soapPost(urls.inutilizacao, ns, body, httpsAgent, ufCode);
       const parsed = this.parseResponse(responseXml);
       cStat = parsed.cStat;
       xMotivo = parsed.xMotivo;
