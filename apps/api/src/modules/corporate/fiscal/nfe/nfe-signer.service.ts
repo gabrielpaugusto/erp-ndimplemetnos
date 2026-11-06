@@ -51,6 +51,9 @@ export class NfeSignerService {
       digestAlgorithm: 'http://www.w3.org/2000/09/xmldsig#sha1',
     });
 
+    // Minify before signing: SEFAZ SP (cStat 588) rejects whitespace between tags
+    xml = xml.replace(/>\s+</g, '><').trim();
+
     try {
       sig.computeSignature(xml, {
         location: {

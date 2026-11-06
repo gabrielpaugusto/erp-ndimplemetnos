@@ -91,8 +91,8 @@ export class NfeXmlBuilderService {
     // Alíquotas CBS/IBS do TaxRegimeConfig ativo — parametrizáveis (Senado define até dez/2026)
     const taxCfg = (company as any).taxRegimeConfigs?.[0];
     const ALIQ_CBS_PADRAO  = taxCfg?.aliqCbsPadrao    ? Number(taxCfg.aliqCbsPadrao)    / 100 : 0.009;      // 0,9% teste 2026
-    const ALIQ_IBS_UF_PAD  = taxCfg?.aliqIbsUfPadrao  ? Number(taxCfg.aliqIbsUfPadrao)  / 100 : 0.0005;     // 0,05% estadual
-    const ALIQ_IBS_MUN_PAD = taxCfg?.aliqIbsMunPadrao ? Number(taxCfg.aliqIbsMunPadrao) / 100 : 0.0005;     // 0,05% municipal
+    const ALIQ_IBS_UF_PAD  = taxCfg?.aliqIbsUfPadrao  ? Number(taxCfg.aliqIbsUfPadrao)  / 100 : 0.001;      // 0,1% estadual (ATC CGIBS 2026: IBS total 0,1%)
+    const ALIQ_IBS_MUN_PAD = taxCfg?.aliqIbsMunPadrao ? Number(taxCfg.aliqIbsMunPadrao) / 100 : 0;          // 0% municipal em 2026 (IBS municipal só começa em 2027 — ATC CGIBS)
     const cUF = this.ufCode(company.uf ?? 'SP');
     const cNf = Math.floor(Math.random() * 99999999).toString().padStart(8, '0');
     const serie = (nfe.serie ?? company.serieNfe ?? 1).toString().padStart(3, '0');
@@ -244,8 +244,10 @@ export class NfeXmlBuilderService {
       // Regra: se regime2027 OU valorIpi=0 → IPINT (CST 53=saída NT); caso contrário IPITrib
       const cstIpi    = (item as any).cstIpi ?? (regime2027 ? '53' : '53');
       const valorIpi  = regime2027 ? 0 : Number(item.valorIpi ?? 0);
+      const cEnqIpi = (item as any).cEnq ?? '999';
       const ipiTag = valorIpi > 0
         ? `<IPI>
+              <cEnq>${cEnqIpi}</cEnq>
               <IPITrib>
                 <CST>${cstIpi}</CST>
                 <vBC>${this.fmt(Number((item as any).bcIpi ?? 0))}</vBC>
@@ -253,7 +255,7 @@ export class NfeXmlBuilderService {
                 <vIPI>${this.fmt(valorIpi)}</vIPI>
               </IPITrib>
             </IPI>`
-        : `<IPI><IPINT><CST>${cstIpi}</CST></IPINT></IPI>`;
+        : `<IPI><cEnq>${cEnqIpi}</cEnq><IPINT><CST>${cstIpi}</CST></IPINT></IPI>`;
 
       // PIS — extinto a partir de 01/01/2027 (LC 214/2025); declarado como isento (CST 07)
       const cstPis = regime2027 ? '07' : (item.cstPis ?? '07');
@@ -333,32 +335,27 @@ export class NfeXmlBuilderService {
         ibsValorMun = parseFloat((total * ALIQ_IBS_MUN_2026).toFixed(2));
       }
 
-      // gIBSCBS — grupo obrigatório para LR/LP (NT 2025.002)
-      // IBS agora dividido em gIBSUF (estadual) + gIBSMun (municipal)
-      const ibsTag = (ibsValorUf > 0 || ibsValorMun > 0)
-        ? `<gIBSCBS>
-                <gIBSUF>
-                  <pAliqIBSUF>${this.fmt(ibsAliqUf, 4)}</pAliqIBSUF>
-                  <vIBSUF>${this.fmt(ibsValorUf)}</vIBSUF>
-                </gIBSUF>
-                <gIBSMun>
-                  <pAliqIBSMun>${this.fmt(ibsAliqMun, 4)}</pAliqIBSMun>
-                  <vIBSMun>${this.fmt(ibsValorMun)}</vIBSMun>
-                </gIBSMun>
-                <gCBS>
-                  <pAliqCBS>${this.fmt(cbsAliq, 4)}</pAliqCBS>
-                  <vCBS>${this.fmt(cbsValor)}</vCBS>
-                </gCBS>
-              </gIBSCBS>`
-        : '';
-
-      const ibscbsTag = (tributadoIBSCBS || ibsValorUf > 0 || cbsValor > 0)
-        ? `<IBSCBS>
+      // NT 2025.002 — estrutura correta: IBSCBS > CST + cClassTrib + gIBSCBS(vBC, gIBSUF, gIBSMun, vIBS, gCBS)
+      // pIBSUF/pIBSMun/pCBS em formato percentual; vIBS obrigatório (adicionado em 20/08/2025)
+      // 2026: IBS-UF=0.1%, IBS-Mun=0.0% (municipal só começa 2027). Sempre inclui ambos os blocos
+      // pois CST=000 exige gIBSUF e gIBSMun no schema; valor 0 é válido para municípios em 2026.
+      const vIBSItem = ibsValorUf + ibsValorMun;
+      const ibsUfBlock = `<gIBSUF><pIBSUF>${this.fmt(ibsAliqUf * 100, 4)}</pIBSUF><vIBSUF>${this.fmt(ibsValorUf)}</vIBSUF></gIBSUF>`;
+      const ibsMunBlock = `<gIBSMun><pIBSMun>${this.fmt(ibsAliqMun * 100, 4)}</pIBSMun><vIBSMun>${this.fmt(ibsValorMun)}</vIBSMun></gIBSMun>`;
+      const ibscbsTag = `<IBSCBS>
               <CST>${cstIbsCbs}</CST>
               <cClassTrib>${cClassTrib}</cClassTrib>
-              ${ibsTag}
-            </IBSCBS>`
-        : '';
+              <gIBSCBS>
+                <vBC>${this.fmt(cbsBc || total)}</vBC>
+                ${ibsUfBlock}
+                ${ibsMunBlock}
+                <vIBS>${this.fmt(vIBSItem)}</vIBS>
+                <gCBS>
+                  <pCBS>${this.fmt(cbsAliq * 100, 4)}</pCBS>
+                  <vCBS>${this.fmt(cbsValor)}</vCBS>
+                </gCBS>
+              </gIBSCBS>
+            </IBSCBS>`;
 
       // IS — Imposto Seletivo (LC 214/2025, Art. 263 — vigente a partir de 01/01/2027)
       // Só emite <IS> para notas 2027+; lookup por NCM determina sujeição ao imposto
@@ -401,7 +398,6 @@ export class NfeXmlBuilderService {
             <qTrib>${this.fmt(qty,4)}</qTrib>
             <vUnTrib>${this.fmt(unitPrice,10)}</vUnTrib>
             <indTot>1</indTot>
-            ${item.beneficioFiscal ? `<pBenef>${item.beneficioFiscal}</pBenef>` : ''}
           </prod>
           <imposto>
             <ICMS>${icmsTag}</ICMS>
@@ -411,11 +407,17 @@ export class NfeXmlBuilderService {
             ${ibscbsTag}${isTag}
           </imposto>
         </det>`;
-      return { xml: detXml, isValorFinal, isBcFinal };
+      return { xml: detXml, isValorFinal, isBcFinal, ibsValorUf, ibsValorMun, cbsValor, cbsBcFinal: cbsBc || total };
     });
 
-    // Acumula totais IS após map (auto-calc pode ter produzido valores > 0)
-    for (const d of itemsData) { vBCIS += d.isBcFinal; vIS += d.isValorFinal; }
+    // Acumula totais IS e IBS/CBS após map (auto-calc pode ter produzido valores > 0)
+    let vIBSUFTot = 0, vIBSMunTot = 0, vCBSTot = 0, vBCIBSTot = 0;
+    for (const d of itemsData) {
+      vBCIS += d.isBcFinal; vIS += d.isValorFinal;
+      vIBSUFTot += d.ibsValorUf; vIBSMunTot += d.ibsValorMun;
+      vCBSTot += d.cbsValor; vBCIBSTot += d.cbsBcFinal;
+    }
+    const vIBSTot = vIBSUFTot + vIBSMunTot;
     const itemsXml = itemsData.map(d => d.xml).join('\n');
 
     // Main XML
@@ -439,7 +441,7 @@ export class NfeXmlBuilderService {
       <tpAmb>${tpAmb}</tpAmb>
       <finNFe>1</finNFe>
       <indFinal>0</indFinal>
-      <indPres>9</indPres>
+      <indPres>${(nfe as any).indPres ?? '1'}</indPres>
       <procEmi>0</procEmi>
       <verProc>ERP-1.0</verProc>
     </ide>
@@ -462,7 +464,6 @@ export class NfeXmlBuilderService {
       </enderEmit>
       <IE>${(company.inscricaoEstadual ?? '').replace(/\D/g,'')}</IE>
       <CRT>${crt}</CRT>
-      <cRegTrib>${(company as any).cRegTribIBSCBS ?? 3}</cRegTrib>
     </emit>
     <dest>
       ${destTag}
@@ -505,14 +506,31 @@ export class NfeXmlBuilderService {
         <vOutro>${this.fmt(vOutro)}</vOutro>
         <vNF>${this.fmt(vNF)}</vNF>
       </ICMSTot>
-      ${(vIBS > 0 || vCBS > 0) ? `<totIBSCBS>
-        <vBCIBS>${this.fmt(vBCIBS)}</vBCIBS>
-        <vIBS>${this.fmt(vIBS)}</vIBS>
-        <vBCCBS>${this.fmt(vBCCBS)}</vBCCBS>
-        <vCBS>${this.fmt(vCBS)}</vCBS>
-        <vBCIS>${this.fmt(vBCIS)}</vBCIS>
-        <vIS>${this.fmt(vIS)}</vIS>
-      </totIBSCBS>` : ''}
+      <IBSCBSTot>
+        <vBCIBSCBS>${this.fmt(vBCIBSTot)}</vBCIBSCBS>
+        <gIBS>
+          <gIBSUF>
+            <vDif>0.00</vDif>
+            <vDevTrib>0.00</vDevTrib>
+            <vIBSUF>${this.fmt(vIBSUFTot)}</vIBSUF>
+          </gIBSUF>
+          <gIBSMun>
+            <vDif>0.00</vDif>
+            <vDevTrib>0.00</vDevTrib>
+            <vIBSMun>${this.fmt(vIBSMunTot)}</vIBSMun>
+          </gIBSMun>
+          <vIBS>${this.fmt(vIBSTot)}</vIBS>
+          <vCredPres>0.00</vCredPres>
+          <vCredPresCondSus>0.00</vCredPresCondSus>
+        </gIBS>
+        <gCBS>
+          <vDif>0.00</vDif>
+          <vDevTrib>0.00</vDevTrib>
+          <vCBS>${this.fmt(vCBSTot)}</vCBS>
+          <vCredPres>0.00</vCredPres>
+          <vCredPresCondSus>0.00</vCredPresCondSus>
+        </gCBS>
+      </IBSCBSTot>
     </total>
     <transp>
       <modFrete>9</modFrete>
